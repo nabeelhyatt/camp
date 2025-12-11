@@ -1,0 +1,50 @@
+name: Slack Release Notification
+
+# This workflow runs whenever the cloud-publish workflow completes
+on:
+  workflow_run:
+    workflows: ["Chorus CrabNebula Cloud Release"]
+    types:
+      - completed
+
+jobs:
+  notify_slack:
+    name: Send Slack Notification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send notification
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "text": "${{ github.event.workflow_run.conclusion == 'success' && '🎉 New Release Available! 🎉 https://web.crabnebula.cloud/melty/chorus' || '❌ Release Build Failed! ❌' }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "${{ github.event.workflow_run.conclusion == 'success' && '🎉 *New Release Available!* 🎉' || '❌ *Release Build Failed!* ❌' }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Status:*\n${{ github.event.workflow_run.conclusion == 'success' && '✅ Success' || '❌ Failed' }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Workflow:*\n<${{ github.event.workflow_run.html_url }}|${{ github.event.workflow_run.name }}>"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Download:*\n https://web.crabnebula.cloud/melty/chorus"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          # Here we use the repository secret that we created in Step 2
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} 

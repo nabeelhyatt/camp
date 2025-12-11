@@ -1,0 +1,683 @@
+[
+    {
+        "uuid": "5cd1a3a2-f1c1-4d1e-9b66-91e7889ef3ca",
+        "name": "Preserving Text Selection with Context Menus",
+        "created_at": "2025-05-22T04:14:08.421274Z",
+        "updated_at": "2025-05-22T04:14:34.084207Z",
+        "account": {
+            "uuid": "e27ec355-c3ae-426d-a151-d355b8252613"
+        },
+        "chat_messages": [
+            {
+                "uuid": "87899c53-11ab-43ec-b420-dd8ce2529edc",
+                "text": "I am using shadcn for my component library. I'm using their context menu, but whenever I select some text and then right click, the context menu shows up but the text goes away and is not selected anymore. How can I fix this?",
+                "content": [
+                    {
+                        "start_timestamp": "2025-05-22T04:14:09.122460Z",
+                        "stop_timestamp": "2025-05-22T04:14:09.122460Z",
+                        "type": "text",
+                        "text": "I am using shadcn for my component library. I'm using their context menu, but whenever I select some text and then right click, the context menu shows up but the text goes away and is not selected anymore. How can I fix this?",
+                        "citations": []
+                    }
+                ],
+                "sender": "human",
+                "created_at": "2025-05-22T04:14:09.127500Z",
+                "updated_at": "2025-05-22T04:14:09.127500Z",
+                "attachments": [],
+                "files": []
+            },
+            {
+                "uuid": "b3e37563-acd0-43b7-a13a-357642f1d2e3",
+                "text": " This is a common issue with context menus - the right-click event often causes the text selection to be cleared before the context menu appears. Here are a few ways to fix this:\n\n## Method 1: Prevent Selection Clearing on Right-Click\n\nAdd an event listener to prevent the default text deselection behavior:\n\n```javascript\n// Add this to your component or globally\nuseEffect(() => {\n  const handleContextMenu = (e) => {\n    // Prevent the default context menu and selection clearing\n    if (window.getSelection().toString()) {\n      e.preventDefault();\n    }\n  };\n\n  document.addEventListener('contextmenu', handleContextMenu);\n  return () => document.removeEventListener('contextmenu', handleContextMenu);\n}, []);\n```\n\n## Method 2: Capture Selection Before Context Menu\n\nStore the selection when the context menu is triggered:\n\n```javascript\nconst [selectedText, setSelectedText] = useState('');\n\nconst handleContextMenu = (e) => {\n  const selection = window.getSelection().toString();\n  if (selection) {\n    setSelectedText(selection);\n    // Now you can use selectedText in your context menu actions\n  }\n};\n\n// Apply to your trigger element\n<div onContextMenu={handleContextMenu}>\n  Your content here\n</div>\n```\n\n## Method 3: Use CSS to Maintain Selection\n\nAdd CSS to prevent selection from being cleared:\n\n```css\n.preserve-selection {\n  -webkit-user-select: text;\n  -moz-user-select: text;\n  -ms-user-select: text;\n  user-select: text;\n}\n\n.preserve-selection::selection {\n  background: #b3d4fc; /* Or your preferred selection color */\n}\n```\n\n## Method 4: Shadcn-Specific Solution\n\nIf you're using shadcn's ContextMenu, you can modify the trigger behavior:\n\n```jsx\n<ContextMenu>\n  <ContextMenuTrigger \n    onContextMenu={(e) => {\n      // Capture selection before menu opens\n      const selection = window.getSelection();\n      if (selection.rangeCount > 0) {\n        // Store the range to restore later if needed\n        const range = selection.getRangeAt(0);\n        // Store in ref or state for use in menu items\n      }\n    }}\n  >\n    Your content\n  </ContextMenuTrigger>\n  <ContextMenuContent>\n    {/* Your menu items */}\n  </ContextMenuContent>\n</ContextMenu>\n```\n\nThe most reliable approach is usually Method 2 - capturing the selected text when the context menu is triggered, since you'll likely want to use that text in your menu actions anyway (like \"Copy\", \"Cut\", etc.).\n\nWhich approach would work best for your specific use case?",
+                "content": [
+                    {
+                        "start_timestamp": "2025-05-22T04:14:11.907051Z",
+                        "stop_timestamp": "2025-05-22T04:14:26.399392Z",
+                        "type": "text",
+                        "text": " This is a common issue with context menus - the right-click event often causes the text selection to be cleared before the context menu appears. Here are a few ways to fix this:\n\n## Method 1: Prevent Selection Clearing on Right-Click\n\nAdd an event listener to prevent the default text deselection behavior:\n\n```javascript\n// Add this to your component or globally\nuseEffect(() => {\n  const handleContextMenu = (e) => {\n    // Prevent the default context menu and selection clearing\n    if (window.getSelection().toString()) {\n      e.preventDefault();\n    }\n  };\n\n  document.addEventListener('contextmenu', handleContextMenu);\n  return () => document.removeEventListener('contextmenu', handleContextMenu);\n}, []);\n```\n\n## Method 2: Capture Selection Before Context Menu\n\nStore the selection when the context menu is triggered:\n\n```javascript\nconst [selectedText, setSelectedText] = useState('');\n\nconst handleContextMenu = (e) => {\n  const selection = window.getSelection().toString();\n  if (selection) {\n    setSelectedText(selection);\n    // Now you can use selectedText in your context menu actions\n  }\n};\n\n// Apply to your trigger element\n<div onContextMenu={handleContextMenu}>\n  Your content here\n</div>\n```\n\n## Method 3: Use CSS to Maintain Selection\n\nAdd CSS to prevent selection from being cleared:\n\n```css\n.preserve-selection {\n  -webkit-user-select: text;\n  -moz-user-select: text;\n  -ms-user-select: text;\n  user-select: text;\n}\n\n.preserve-selection::selection {\n  background: #b3d4fc; /* Or your preferred selection color */\n}\n```\n\n## Method 4: Shadcn-Specific Solution\n\nIf you're using shadcn's ContextMenu, you can modify the trigger behavior:\n\n```jsx\n<ContextMenu>\n  <ContextMenuTrigger \n    onContextMenu={(e) => {\n      // Capture selection before menu opens\n      const selection = window.getSelection();\n      if (selection.rangeCount > 0) {\n        // Store the range to restore later if needed\n        const range = selection.getRangeAt(0);\n        // Store in ref or state for use in menu items\n      }\n    }}\n  >\n    Your content\n  </ContextMenuTrigger>\n  <ContextMenuContent>\n    {/* Your menu items */}\n  </ContextMenuContent>\n</ContextMenu>\n```\n\nThe most reliable approach is usually Method 2 - capturing the selected text when the context menu is triggered, since you'll likely want to use that text in your menu actions anyway (like \"Copy\", \"Cut\", etc.).\n\nWhich approach would work best for your specific use case?",
+                        "citations": []
+                    }
+                ],
+                "sender": "assistant",
+                "created_at": "2025-05-22T04:14:26.430942Z",
+                "updated_at": "2025-05-22T04:14:26.430942Z",
+                "attachments": [],
+                "files": []
+            }
+        ]
+    },
+    {
+        "uuid": "7e4e76c6-5af4-4658-b728-df71822c4ee2",
+        "name": "Joining Someone Else's Claude Team",
+        "created_at": "2025-05-20T19:43:44.160513Z",
+        "updated_at": "2025-05-20T19:43:57.657373Z",
+        "account": {
+            "uuid": "e27ec355-c3ae-426d-a151-d355b8252613"
+        },
+        "chat_messages": [
+            {
+                "uuid": "d67da7ab-6296-4d73-8170-135ff53a9b6e",
+                "text": "How can I join someone else's claude team?",
+                "content": [
+                    {
+                        "start_timestamp": "2025-05-20T19:43:44.698058Z",
+                        "stop_timestamp": "2025-05-20T19:43:44.698058Z",
+                        "type": "text",
+                        "text": "How can I join someone else's claude team?",
+                        "citations": []
+                    }
+                ],
+                "sender": "human",
+                "created_at": "2025-05-20T19:43:44.707570Z",
+                "updated_at": "2025-05-20T19:43:44.707570Z",
+                "attachments": [],
+                "files": []
+            },
+            {
+                "uuid": "24ac4bb7-f22f-4515-8bea-8305f2074459",
+                "text": " To join someone else's Claude team, you'll need to receive an invitation from the team admin. Here's how the process works:\n\n1. The team admin needs to send you an invitation via email.\n2. Once you receive the invitation, click on the invitation link in the email.\n3. Follow the prompts to create an account (if you don't already have one) or log in with your existing Claude account.\n4. After logging in, you'll be added to the team.\n\nIf you're trying to join a specific team but haven't received an invitation, you should reach out directly to the team administrator and ask them to send you an invitation.\n\nIf you're looking for more detailed information about Claude teams, including administration features or troubleshooting, I'd recommend checking Anthropic's support site at https://support.anthropic.com.",
+                "content": [
+                    {
+                        "start_timestamp": "2025-05-20T19:43:48.427515Z",
+                        "stop_timestamp": "2025-05-20T19:43:55.208424Z",
+                        "type": "text",
+                        "text": " To join someone else's Claude team, you'll need to receive an invitation from the team admin. Here's how the process works:\n\n1. The team admin needs to send you an invitation via email.\n2. Once you receive the invitation, click on the invitation link in the email.\n3. Follow the prompts to create an account (if you don't already have one) or log in with your existing Claude account.\n4. After logging in, you'll be added to the team.\n\nIf you're trying to join a specific team but haven't received an invitation, you should reach out directly to the team administrator and ask them to send you an invitation.\n\nIf you're looking for more detailed information about Claude teams, including administration features or troubleshooting, I'd recommend checking Anthropic's support site at https://support.anthropic.com.",
+                        "citations": []
+                    }
+                ],
+                "sender": "assistant",
+                "created_at": "2025-05-20T19:43:55.249782Z",
+                "updated_at": "2025-05-20T19:43:55.249782Z",
+                "attachments": [],
+                "files": []
+            }
+        ]
+    },
+    {
+        "uuid": "d1ad5e99-0824-476c-ab5a-27d768389f06",
+        "name": "Today's Top 5 News Stories",
+        "created_at": "2025-06-10T17:54:22.703521Z",
+        "updated_at": "2025-06-10T17:55:05.450064Z",
+        "account": {
+            "uuid": "e27ec355-c3ae-426d-a151-d355b8252613"
+        },
+        "chat_messages": [
+            {
+                "uuid": "c7a346a2-b71b-493a-acf5-2ae19c23deb8",
+                "text": "can you generate a list of the top 5 news stories today?",
+                "content": [
+                    {
+                        "start_timestamp": "2025-06-10T17:54:23.128057Z",
+                        "stop_timestamp": "2025-06-10T17:54:23.128057Z",
+                        "type": "text",
+                        "text": "can you generate a list of the top 5 news stories today?",
+                        "citations": []
+                    }
+                ],
+                "sender": "human",
+                "created_at": "2025-06-10T17:54:23.144179Z",
+                "updated_at": "2025-06-10T17:54:23.144179Z",
+                "attachments": [],
+                "files": []
+            },
+            {
+                "uuid": "e5716d84-0ed8-4ddb-820a-7b608ee55d11",
+                "text": " I'll search for today's top news stories to give you the most current information.\n```\nThis block is not supported on your current device yet.\n```\n\nLet me search for more specific current news to get today's top stories.\n```\nThis block is not supported on your current device yet.\n```\n\nBased on my search of current news sources, here are the top 5 news stories for today, June 10, 2025:\n\n## Top 5 News Stories Today\n\n**1. Los Angeles Immigration Protests and Federal Response**\nHundreds of U.S. Marines have been deployed to the Los Angeles area under orders from President Donald Trump to help quell ongoing protests against federal immigration raids. Tensions remain high for a fifth day of immigration protests in downtown LA, with California Governor Gavin Newsom reporting that an additional 2,000 National Guard troops are being sent to Los Angeles. The state of California is suing the Trump administration over the federal deployment.\n\n**2. RFK Jr. Removes CDC Vaccine Advisory Committee**\nHealth Secretary RFK Jr. has removed all 17 members of the CDC's Advisory Committee on Immunization Practices, saying the group has been \"plagued with persistent conflicts of interest\". He claims this action will help restore public trust in vaccines, though health officials have criticized the move.\n\n**3. US-China Trade Talks Continue**\nGlobal stocks and the dollar held steady as trade talks between the United States and China continued into a second day, giving investors some reason to believe tensions between the world's two largest economies may be easing. Markets are watching these discussions closely.\n\n**4. Trump Travel Ban Takes Effect**\nA new travel ban from the Trump administration, which revives a controversial measure from Trump's first term, took effect Monday morning. The policy affects multiple countries and has drawn responses from foreign leaders.\n\n**5. Warner Bros. Discovery Corporate Split**\nWarner Bros. Discovery is splitting into two companies, separating streaming and studios from its cable channels. The company has been burdened by debt and the decline of cable TV.\n\nThese stories reflect ongoing domestic tensions around immigration policy, significant health policy changes, international trade developments, and major corporate restructuring in the entertainment industry.",
+                "content": [
+                    {
+                        "start_timestamp": "2025-06-10T17:54:24.288231Z",
+                        "stop_timestamp": "2025-06-10T17:54:24.455163Z",
+                        "type": "text",
+                        "text": " I'll search for today's top news stories to give you the most current information.",
+                        "citations": []
+                    },
+                    {
+                        "start_timestamp": "2025-06-10T17:54:24.851113Z",
+                        "stop_timestamp": "2025-06-10T17:54:25.122984Z",
+                        "type": "tool_use",
+                        "name": "web_search",
+                        "input": {
+                            "query": "top news stories today June 10 2025"
+                        },
+                        "message": "Searching the web",
+                        "integration_name": null,
+                        "integration_icon_url": null,
+                        "context": null,
+                        "display_content": null
+                    },
+                    {
+                        "start_timestamp": null,
+                        "stop_timestamp": null,
+                        "type": "tool_result",
+                        "name": "web_search",
+                        "content": [
+                            {
+                                "type": "knowledge",
+                                "title": "June 2, 2025 \u2013 PBS News Hour full episode | PBS News",
+                                "url": "https://www.pbs.org/newshour/show/june-2-2025-pbs-news-hour-full-episode",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "pbs.org",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=pbs.org",
+                                    "site_name": "PBS"
+                                },
+                                "is_missing": false,
+                                "text": "Monday on the News Hour, the man accused of firebombing a Jewish gathering in Colorado is charged with a hate crime. A complex Ukrainian drone operation more than a year in the making deals a blow to Russia while the two sides negotiate. Plus, how the Trump administration plans to slash NASA&#x27;s ...\n\nhttps://www.pbs.org/newshour/show/june-2-2025-pbs-news-hour-full-episode \u00b7 Email \u00b7 Facebook \u00b7 Twitter \u00b7 LinkedIn \u00b7 Pinterest \u00b7 Tumblr \u00b7 Share on Facebook Share on Twitter \u00b7 Monday on the News Hour, the man accused of firebombing a Jewish gathering in Colorado is charged with a hate crime. A complex Ukrainian drone operation more than a year in the making deals a blow to Russia while the two sides negotiate. Plus, how the Trump administration plans to slash NASA's budget. Subscribe to the Full Show Podcast \u00b7 Investigators say man used makeshift flamethrower in attack on pro-Israel group in Boulder \u00b7 4 min \u00b7 News Wrap: 3 killed and dozens more hurt heading to Gaza aid distribution site \u00b7 5 min \u00b7 Congress expects Trump request to cut funding already approved as big bill faces hurdles \u00b7 6 min \u00b7 How the Trump administration\u2019s plans to slash NASA\u2019s budget will impact science \u00b7 10 min \u00b7",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "age": "1 week ago",
+                                    "url": "https://www.pbs.org/newshour/show/june-2-2025-pbs-news-hour-full-episode"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "The Biggest News Stories Of 2025",
+                                "url": "https://92q.com/playlist/the-biggest-news-stories-of-2025/",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "92q.com",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=92q.com",
+                                    "site_name": "92 Q"
+                                },
+                                "is_missing": false,
+                                "text": "As 2025 unfolds, the world is witnessing a dynamic mix of political, economic, and cultural shifts shaping the global landscape.\n\nICE\u2019s stepped-up operations are part of Trump\u2019s pledge to carry out the \u201cbiggest deportation operation\u201d in U.S. history. Los Angeles, where over one-third of residents are foreign-born, has been a key focus. In May, ICE arrested 239 people in a single week. The agency now aims to make 3,000 arrests daily, expanding its efforts to workplaces like restaurants and retail stores. Despite the unrest, life in other parts of LA has continued, including weekend events like the LA Pride Parade. Get Breaking News & Exclusive Content in Your Inbox: ... Thank you for subscribing! Please be sure to open and click your first newsletter so we can confirm your subscription. ... Thank you for subscribing! Please be sure to open and click your first newsletter so we can confirm your subscription. We care about your data.",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "age": "1 day ago",
+                                    "url": "https://92q.com/playlist/the-biggest-news-stories-of-2025/"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "News@9: Today's top headlines - June 10, 2025 [WATCH] | New Straits Times",
+                                "url": "https://www.nst.com.my/news/nation/2025/06/1228702/news9-todays-top-headlines-june-10-2025-watch",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "nst.com.my",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=nst.com.my",
+                                    "site_name": "NST Online"
+                                },
+                                "is_missing": false,
+                                "text": "Here are today&#x27;s biggest stories\n\nHere are today's biggest stories.",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "age": "5 hours ago",
+                                    "url": "https://www.nst.com.my/news/nation/2025/06/1228702/news9-todays-top-headlines-june-10-2025-watch"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "PBS News Hour | Season 2025 | June 2, 2025 - PBS News Hour full episode | PBS",
+                                "url": "https://www.pbs.org/video/june-2-2025-pbs-news-hour-full-episode-1748836801/",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "pbs.org",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=pbs.org",
+                                    "site_name": "PBS"
+                                },
+                                "is_missing": false,
+                                "text": "MILES O&#x27;BRIEN: It would be the largest single-year budget cut in NASA&#x27;s storied history, including the early &#x27;70s, when the Apollo moon program was winding down. The Trump White House wants to reduce the $25 billion allocation for the space agency by 24 percent.\n\nOn Wall Street today, stocks managed some modest gains to start the new trading month. The Dow Jones industrial average added just 35 points on the day. The Nasdaq rose nearly 130 points. The S&P 500 also finished in positive territory. And we have a good news/bad news story from the world of astronomy. On the one hand, according to a Finnish team of scientists writing in the journal \"Nature Astronomy,\" there's a 50/50 chance that the Milky Way will collide with the Andromeda galaxy in the next 10 billion years. That's represented on the bottom of this composite image showing the various scenarios. On the other hand, that's actually less likely than previously thought, or, as the astronomers put it -- quote -- \"As it stands, proclamations of the impending demise of our galaxy seem greatly exaggerated.\" Still to come on the \"News Hour\": Congress wrangles over the president's legislative agenda; and Tamara Keith and Amy Walter break down the latest political headlines.\n\nToday's ruling doesn't answer if states can crack down on such weapons. Similar challenges are playing out in lower courts, and just as Brett Kavanaugh says the Supreme Court -- quote -- \"will address the AR-15 issue soon in the next term or two.\" The justices also declined to hear a challenge to Rhode Island's ban on high-capacity gun magazines. In 2022, the state banned anyone from owning a magazine that carries more than 10 rounds of ammunition. In Canada, more than 100 wildfires have forced mass evacuations and sent smoke and unhealthy air deep into the U.S. At least 25,000 residents have fled the fires across the provinces of Saskatchewan, Manitoba, and Alberta. The blazes began last week and are being fueled by hot and dry weather. As the smoke spreads south, air quality in parts of North Dakota, Minnesota, and Wisconsin is worsening. In some areas, the air is rated as very unhealthy, the second worst category out of six.\n\nMILES O'BRIEN: It would be the largest single-year budget cut in NASA's storied history, including the early '70s, when the Apollo moon program was winding down. The Trump White House wants to reduce the $25 billion allocation for the space agency by 24 percent. Space science would be cut nearly in half. ADAM RIESS, Johns Hopkins University: That would be sort of, I won't say, almost extinction level for a lot of the space science that we pursue. MILES O'BRIEN: Adam Riess is a professor of physics and astronomy at Johns Hopkins University. He and two colleagues won the Nobel Prize in physics for discovering the acceleration of our expanding universe. They used the Hubble space telescope, along with ground-based instruments, to collect their data. ADAM RIESS: I think people are awed and inspired by the mystery of space, what's out there. These are, in the scheme of things, relatively modest investments for us as humans to do this most ambitious thing, to try to understand the place in w\n\nThose sorts of stories are breaking through. I think that -- the analogy I think of with this is the Affordable Care Act, which was very unpopular. Obamacare was not a popular program until Republicans in Congress started taking action to take it away. And then, suddenly, as this battle raged, people learned about what the Affordable Care Act did, discovered that things that they liked were actually part of this Obamacare that they thought they disliked. And it became much more popular when there was a risk of it going away. AMNA NAWAZ: Amy, there's another part of the CNN poll I want to put to you about leadership. They asked if -- quote -- \"the party with strong leaders\" described either Democrats, Republicans, or neither; 40 percent of those polls said Republicans, 16 percent said Democrats, 43 percent said neither. But you wrote this week about Democrats being stuck in what you call a cringe trap.",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "age": "1 week ago",
+                                    "url": "https://www.pbs.org/video/june-2-2025-pbs-news-hour-full-episode-1748836801/"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "TCTMD\u2019s Top 10 Most Popular Stories for May 2025 | tctmd.com",
+                                "url": "https://www.tctmd.com/news/tctmds-top-10-most-popular-stories-may-2025",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "tctmd.com",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=tctmd.com",
+                                    "site_name": "Tctmd"
+                                },
+                                "is_missing": false,
+                                "text": "1. FDA Approves TAVI for Asymptomatic Patients With Severe Aortic Stenosis \u00b7 The agency\u2019s decision for the balloon-expandable Sapien 3 platform is based on groundbreaking results from EARLY TAVR. 2. HDL Cholesterol Levels May Sway Statin Decisions in Primary Prevention \u00b7 When levels are ...\n\n10. EuroPCR 2025 Meta-analysis Quashes Hopes for Routine Embolic Protection in TAVI \u00b7 With the new analysis, researchers rule out embolic protection for stroke prevention in TAVI, but not everybody has given up. ... After a busy May\u2014when we were excited to see many of you face-to-face\u2014we\u2019re set for a somewhat calmer June. You can check out all our data-driven cardiology news online (including a trove of conference coverage), as well as the TCTMD news team\u2019s own favorite moments on the monthly Heart Sounds podcast. Have a wonderful start to summer! ... Caitlin E. Cox is News Editor of TCTMD and Associate Director, Editorial Content at the Cardiovascular Research Foundation. She produces the\u2026 Read Full Bio ... Log in to post comments. ... Stay up-to-date with breaking news, conference slides, and topical videos covering the spectrum of CVD.\n\nAlso a favorite: a feature article by Todd Neale exploring whether it\u2019s time to move past STEMI as a diagnosis and consider the concept of \u201cocclusion MI.\u201d At the height of conference season, though, it\u2019s no surprise that the bulk of our most-read news came from our in-person meeting coverage in Europe and the US, with winners from HRS, ECO, and EuroPCR. 1. FDA Approves TAVI for Asymptomatic Patients With Severe Aortic Stenosis \u00b7 The agency\u2019s decision for the balloon-expandable Sapien 3 platform is based on groundbreaking results from EARLY TAVR. 2. HDL Cholesterol Levels May Sway Statin Decisions in Primary Prevention \u00b7 When levels are high, doctors tend to be less aggressive with statins, even though HDL shouldn\u2019t be used to guide treatment. 3. FEATURE Should We Be Looking for \u2018Occlusion MI\u2019 Rather Than STEMI? STEMI criteria alone aren\u2019t perfect for identifying occluded arteries, but still some question the need for a new paradigm. 4. ECO 2025 Tirzepatide Tops Semaglutide for Weight L\n\n5. HRS 2025 Studies Spotlight Safety Concerns With Pulsed-Field Ablation for AF \u00b7 It\u2019s not as \u201cperfect as they are selling it,\u201d but it does avoid the more catastrophic complications of thermal ablation, says one EP. 6. EuroPCR 2025 Higher Mortality With TAVI Over Surgery in Bicuspid Aortic Stenosis \u00b7 Once again, data are suggesting that operators should move cautiously in bicuspid anatomy and think about surgery first. 7. HRS 2025 BIO-LIBRA: Outcomes Vary by Sex, Device in Cardiomyopathy Patients With ICDs \u00b7 Though women have a lower risk of ventricular arrhythmias than do men, it still exceeds the threshold to justify a device. 8. EuroPCR 2025 Complete Revascularization in STEMI Still Superior at 10 Years: DANAMI-3-PRIMULTI \u00b7 A decade on, there\u2019s less revascularization with FFR-guided complete vs culprit-only PCI, but COMPLETE-2 is on the way.",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "age": "2 weeks ago",
+                                    "url": "https://www.tctmd.com/news/tctmds-top-10-most-popular-stories-may-2025"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "News: U.S. and World News Headlines : NPR",
+                                "url": "https://www.npr.org/sections/news/",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "npr.org",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=npr.org",
+                                    "site_name": "NPR"
+                                },
+                                "is_missing": false,
+                                "text": "Discovery is to split into two, separating streaming and studios from its cable channels. The company has been burdened by debt and the decline of cable TV. ... Hundreds of NIH scientists protested cuts to the research agency in a declaration addressed to NIH Director Jay Bhattacharya.\n\nNews: U.S. and World News Headlines NPR news, audio, and podcasts. Coverage of breaking stories, national and world news, politics, business, science, technology, and extended coverage of major national and world events. ... Soldiers watch civil rights protesters walking during the third Selma March in Alabama, on March 25, 1965. President Lyndon Johnson federalized the Alabama National Guard to prevent violence against the marchers. William Lovelace/Daily Express/Hulton Archive/Getty Images hide caption toggle caption William Lovelace/Daily Express/Hulton Archive/Getty Images \u00b7 June 9, 2025 \u0095 President Lyndon B. Johnson federalized the National Guard in 1965, calling on troops to protect civil rights advocates who were marching from Selma, Ala., to Montgomery. National Guard troops stand outside the Metropolitan Detention Center on Sunday in Los Angeles.\n\nJune 9, 2025 \u0095 U.S. Northern Command says the infantry battalion would be supporting the National Guard troops \"who are protecting federal personnel and federal property in the greater Los Angeles area.\" Secretary RFK Jr. says replacing the CDC's vaccine advisors will help restore 'public trust' in vaccination. Tasos Katopodis/Getty Images North America hide caption toggle caption Tasos Katopodis/Getty Images North America \u00b7 June 9, 2025 \u0095 Health Secretary RFK Jr. has removed all 17 members of the CDC's Advisory Committee on Immunization Practices. He says replacing them with new members will help restore 'public trust' in vaccines. ... Logo for SecureDrop and NPR. NPR hide caption toggle caption NPR \u00b7 At NPR, we welcome your news tips. Here's a guide to getting in touch with our newsroom and how to share sensitive information. June 9, 2025 \u0095 Baldoni's $400 million lawsuit was in response to Lively accusing him of sexual harassment on the set of It Ends With Us.\n\nJune 9, 2025 \u0095 The ban, which revives a controversial measure from Trump's first term, took effect Monday morning. Here's what to know about who's affected, who's exempt and how foreign leaders are responding. NEW YORK, NEW YORK - NOVEMBER 29: David Zaslav speaks onstage during The New York Times Dealbook Summit 2023 at Jazz at Lincoln Center on November 29, 2023 in New York City. (Photo by Slaven Vlasic/Getty Images for The New York Times) Slaven Vlasic/Getty Images for The New York Ti/Getty Images North America hide caption toggle caption Slaven Vlasic/Getty Images for The New York Ti/Getty Images North America \u00b7 June 9, 2025 \u0095 Warner Bros. Discovery is to split into two, separating streaming and studios from its cable channels. The company has been burdened by debt and the decline of cable TV. ... Hundreds of NIH scientists protested cuts to the research agency in a declaration addressed to NIH Director Jay Bhattacharya.\n\nJune 9, 2025 \u0095 The musical visionary led a multi-racial funk band that produced five Top 10 hits in the late 1960s and early '70s. ... Embed <iframe src=\"https://www.npr.org/player/embed/1209525990/nx-s1-5488856-1\" width=\"100%\" height=\"290\" frameborder=\"0\" scrolling=\"no\" title=\"NPR embedded audio player\"> Courtroom ftwitty/Getty Images hide caption toggle caption ftwitty/Getty Images \u00b7 June 9, 2025 \u0095 The race became a microcosm for the clashes and pressures on the American legal system this year, in part because one of the two top candidates is the younger brother of Attorney General Pam Bondi. A woman walks past campaign posters ahead of the referendum in Rome on June 5. FILIPPO MONTEFORTE/AFP via Getty Images hide caption toggle caption FILIPPO MONTEFORTE/AFP via Getty Images \u00b7 June 9, 2025 \u0095 The referendum, which sought to reduce the time it takes to become a naturalized citizen from 10 years to five, failed because fewer than 50% of eligible voters took part in two days of voting.",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "url": "https://www.npr.org/sections/news/"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "Nightly News Full Broadcast (June 2nd)",
+                                "url": "https://www.nbcnews.com/nightly-news-netcast/video/nightly-news-full-broadcast-june-2nd-240746053586",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "nbcnews.com",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=nbcnews.com",
+                                    "site_name": "NBC News"
+                                },
+                                "is_missing": false,
+                                "text": "12 injured by man with Molotov cocktails and makeshift flamethrower at pro-Israel rally; Former assistant to Sean \u2018Diddy\u2019 Combs cross-examined for second day; Covert Ukrainian drone operation strikes dozens of Russian jets; and more on tonight\u2019s broadcast.June 2, 2025Read More",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "age": "1 week ago",
+                                    "url": "https://www.nbcnews.com/nightly-news-netcast/video/nightly-news-full-broadcast-june-2nd-240746053586"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "International News | Latest World News, Videos & Photos -ABC News - ABC News",
+                                "url": "https://abcnews.go.com/International",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "go.com",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=go.com",
+                                    "site_name": "ABC News"
+                                },
+                                "is_missing": false,
+                                "text": "Moscow&#x27;s mayor said at least 10 drones were shot down on approach to the ciy. ... Russian officials say that Moscow is still awaiting confirmation from Kyiv on a planned exchange of 6,000 bodies of soldiers killed in action and is accusing Ukraine of delaying the process ...\n\nCatch up on the developing stories from around the globe making headlines. ... Activists set out on a boat attempting to protest Israel\u2019s restrictions on humanitarian aid for Gaza. ABC News\u2019 Maggie Rulli reports. ... Sadiq Khan criticized governments engaging in \"narrow\" nationalism. ... The British government say it is reversing its unpopular plan to end winter home heating subsidies for millions of retirees ... Organizers of the Expo 2025 in Osaka have suspended its popular daily fountain shows and closed a shallow pool area due to pneumonia-causing bacterial contamination that required cleaning and safety checks by the health authorities ... ABC News' Martha Raddatz spoke to Zelenskyy in Ukraine on Friday, June 6. ... A massive search effort is underway on one of South America\u2019s highest peaks to find 36-year old Edson Vandeira. ... The head of NATO plans to say the military alliance needs to increase its air and missile defenses by 400% to counter the threat from Russia ...\n\nJapanese officials say an explosion at a storage site for unexploded ordnances at a U.S. military base on Japan\u2019s southern island of Okinawa injured four Japanese soldiers ... Just a week into his term in office, South Korea's liberal President Lee Jae-myung has moved against his ousted conservative predecessor ... Peru\u2019s culture ministry has reversed a decision to shrink the protected area around the Nazca Lines after national and international backlash ... Austrian police they were responding to reports of shots fired in a school. ... Kyiv and Odesa were among the cities hit during the latest barrage. ... The U.S. and China are holding a second day of talks in London aimed at easing their trade dispute ... Malaysian Prime Minister Anwar Ibrahim has won a reprieve in a civil suit accusing him of sexual misconduct, after a court approved his bid to suspend the trial due to start next week ...\n\nMoscow's mayor said at least 10 drones were shot down on approach to the ciy. ... Russian officials say that Moscow is still awaiting confirmation from Kyiv on a planned exchange of 6,000 bodies of soldiers killed in action and is accusing Ukraine of delaying the process ... Authorities in Osh, Kyrgyzstan, have removed a 75-foot (23-meter) statue of Soviet leader Vladimir Lenin, once believed to be the tallest in Central Asia ... Iranian rapper Tataloo, a face-tattooed star who once supported a hard-line Iranian presidential candidate, now awaits execution ... Sub-Saharan Africa has the world's highest school dropout rates and a driving factor is that parents are being crushed by unpredictable school fees ... Italians vote over two days on referendums that would make it easier for children born in Italy to foreigners to obtain citizenship, and on providing more job protections ...\n\nA Chinese ship has run aground in stormy weather in shallow waters off a Philippines-occupied island in the disputed South China Sea, prompting Filipino forces to go on alert",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "url": "https://abcnews.go.com/International"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "U.S. News and National Top Stories : NPR",
+                                "url": "https://www.npr.org/sections/national/",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "npr.org",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=npr.org",
+                                    "site_name": "NPR"
+                                },
+                                "is_missing": false,
+                                "text": "Spencer Platt/Getty Images North America hide caption toggle caption Spencer Platt/Getty Images North America \u00b7 June 10, 2025 \u0095 Trump is deploying hundreds of Marines to LA in response to several nights of protests. State and local officials are concerned over the decision.\n\nJune 10, 2025 \u0095 In seeking to reshape elite universities, the Trump administration is using several tactics, including freezing federal grants and contracts, and threatening colleges' tax-exempt status. California Highway Patrol officers attempt to control crowds on the 101 Freeway during an anti-ICE protest in downtown Los Angeles on Sunday. Protests erupted after a wave of federal immigration raids began around the city, with National Guard troops deployed despite objections from local officials. Benjamin Hanson/Middle East Images/AFP via Getty hide caption toggle caption Benjamin Hanson/Middle East Images/AFP via Getty \u00b7 June 10, 2025 \u0095 President Trump ordered California National Guard troops to Los Angeles to quell anti-immigration enforcement protests. Experts explain the laws that enable him to make this extraordinary move. ... A 23andMe saliva collection kit is shown on March 25, 2025, in Oakland, Calif.\n\nJune 9, 2025 \u0095 President Lyndon B. Johnson federalized the National Guard in 1965, calling on troops to protect civil rights advocates who were marching from Selma, Ala., to Montgomery. National Guard troops stand outside the Metropolitan Detention Center on Sunday in Los Angeles. Tensions in the city remain high after the Trump administration called in the National Guard against the wishes of city leaders following two days of clashes with police during a series of immigration raids. Spencer Platt/Getty Images hide caption toggle caption Spencer Platt/Getty Images \u00b7 June 9, 2025 \u0095 U.S. Northern Command says the infantry battalion would be supporting the National Guard troops \"who are protecting federal personnel and federal property in the greater Los Angeles area.\" June 9, 2025 \u0095 Baldoni's $400 million lawsuit was in response to Lively accusing him of sexual harassment on the set of It Ends With Us.\n\nJune 9, 2025 \u0095 The race became a microcosm for the clashes and pressures on the American legal system this year, in part because one of the two top candidates is the younger brother of Attorney General Pam Bondi. Travelers pass through Newark Liberty International Airport's international terminal after President Trump's new travel ban took effect on Monday. Yuki Iwamura/AP hide caption toggle caption Yuki Iwamura/AP \u00b7 June 9, 2025 \u0095 The ban, which revives a controversial measure from Trump's first term, took effect Monday morning. Here's what to know about who's affected, who's exempt and how foreign leaders are responding. ... California National Guard members protect a federal building, covered in graffiti following protests triggered by immigration raids, in Los Angeles, on June 9, 2025. Police ordered the public to disperse from downtown Los Angeles on June 8 after further unrest, with cars torched and security forces firing tear gas at protesters, in the wake of U.S.\n\nA car burns as a demonstrator waves a Mexican national flag during a protest following federal immigration operations, in the Compton neighborhood of Los Angeles, California, on June 7, 2025. RINGO CHIU/AFP via Getty Images/AFP hide caption toggle caption RINGO CHIU/AFP via Getty Images/AFP \u00b7 June 9, 2025 \u0095 Protesters opposed to federal immigration raids clashed with law enforcement in Los Angeles over the weekend. And, who took home a Tony award last night. ... People wade in the shallow waters of the Virgin River in St. George, Utah. The river provides the desert community with water, but climate change and a growing population threaten that supply. Local leaders are looking toward recycled sewage as a solution. Ryan Kellman/NPR hide caption toggle caption Ryan Kellman/NPR \u00b7 June 9, 2025 \u0095 A booming population and changing climate have strained water supplies in St.",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "url": "https://www.npr.org/sections/national/"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "Top Stories: June 10, 2025",
+                                "url": "https://www.kcrg.com/video/2025/06/10/top-stories-june-10-2025/",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "kcrg.com",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=kcrg.com",
+                                    "site_name": "https://www.kcrg.com"
+                                },
+                                "is_missing": false,
+                                "text": "Published: Jun. 10, 2025 at 7:39 AM CDT|Updated: 2 hours ago ... KCRG TV9 First Alert Storm Team&#x27;s Justin Roberts has a warmer and muggier forecast with chances of showers &amp; thunderstorms on the rise ... The DOT says thousands of people use this particular on ramp every day, drivers are asked to drive with caution. ... The training camp will take place from June 16-24 in Colorado Springs.",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "age": "5 hours ago",
+                                    "url": "https://www.kcrg.com/video/2025/06/10/top-stories-june-10-2025/"
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": "<system>You only have 19 searches left this turn</system>\n\n",
+                                "uuid": "8d96358d-b7a1-4093-93ce-a9adede5f079"
+                            }
+                        ],
+                        "is_error": false,
+                        "message": null,
+                        "integration_icon_url": null,
+                        "display_content": null
+                    },
+                    {
+                        "start_timestamp": "2025-06-10T17:54:29.528794Z",
+                        "stop_timestamp": "2025-06-10T17:54:29.772803Z",
+                        "type": "text",
+                        "text": "Let me search for more specific current news to get today's top stories.",
+                        "citations": []
+                    },
+                    {
+                        "start_timestamp": "2025-06-10T17:54:30.012940Z",
+                        "stop_timestamp": "2025-06-10T17:54:30.270306Z",
+                        "type": "tool_use",
+                        "name": "web_search",
+                        "input": {
+                            "query": "breaking news today major stories"
+                        },
+                        "message": "Searching the web",
+                        "integration_name": null,
+                        "integration_icon_url": null,
+                        "context": null,
+                        "display_content": null
+                    },
+                    {
+                        "start_timestamp": null,
+                        "stop_timestamp": null,
+                        "type": "tool_result",
+                        "name": "web_search",
+                        "content": [
+                            {
+                                "type": "knowledge",
+                                "title": "Stocks, dollar edge up as investors track US-China trade talks | Reuters",
+                                "url": "https://www.reuters.com/world/china/global-markets-wrapup-1-2025-06-10/",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "reuters.com",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=reuters.com",
+                                    "site_name": "Reuters"
+                                },
+                                "is_missing": false,
+                                "text": "Global stocks and the dollar held steady on Tuesday as trade talks between the United States and China continued into a second day, giving investors some reason to believe tensions between the world&#x27;s two largest economies may be easing.\n\nDelevingne works primarily on enterprise stories related to finance. He joined Reuters in 2015 and previously reported for CNBC.com and Absolute Return.\n\nHundreds of U.S. Marines arrived in the Los Angeles area on Tuesday under orders from President Donald Trump, who defended the deployment as he sought to quell protests in the city despite objections from California Governor Gavin Newsom and other local leaders.",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "age": "1 minute ago",
+                                    "url": "https://www.reuters.com/world/china/global-markets-wrapup-1-2025-06-10/"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "LA ICE raids: Hundreds back in downtown LA for 4th day of ICE protests | Live updates - ABC7 Los Angeles",
+                                "url": "https://abc7.com/live-updates/tensions-flare-downtown-la-anti-ice-protesters-clash-agents-live-updates/16692645/",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "abc7.com",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=abc7.com",
+                                    "site_name": "Abc7"
+                                },
+                                "is_missing": false,
+                                "text": "Tensions remained high for a fifth day of immigration protests in downtown L.A.\n\nHouse Speaker Mike Johnson would not weigh in on whether California Gov. Gavin Newsom should be arrested - a suggestion made by President Donald Trump - but said the governor should be \"tarred and feathered.\"\n\nCalifornia Gov. Gavin Newsom said he was informed that an additional 2,000 National Guard troops are being sent to Los Angeles, after President Donald Trump previously deployed 2,000 troops.\n\nHere's how the news is developing.\n\nABC News and The Associated Press contributed to this report.",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "age": "8 minutes ago",
+                                    "url": "https://abc7.com/live-updates/tensions-flare-downtown-la-anti-ice-protesters-clash-agents-live-updates/16692645/"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "RFK Jr. purges CDC's vaccine advisory committee that recommends shots - The Washington Post",
+                                "url": "https://www.washingtonpost.com/health/2025/06/09/rfk-ousts-vaccine-advisory-committee-acip/",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "washingtonpost.com",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=washingtonpost.com",
+                                    "site_name": "The Washington Post"
+                                },
+                                "is_missing": false,
+                                "text": "Kennedy said the Advisory Committee on Immunization Practices, a group of experts who recommend vaccines, has been &quot;plagued with persistent conflicts of interest.&quot;\n\n\u201cToday\u2019s action to remove the 17 sitting members of ACIP undermines that trust and upends a transparent process that has saved countless lives,\u201d Scott said in a statement.",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "age": "8 hours ago",
+                                    "url": "https://www.washingtonpost.com/health/2025/06/09/rfk-ousts-vaccine-advisory-committee-acip/"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "June 9, 2025 - Los Angeles protest news | CNN",
+                                "url": "https://www.cnn.com/us/live-news/la-protests-ice-raids-trump-06-09-25",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "cnn.com",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=cnn.com",
+                                    "site_name": "CNN"
+                                },
+                                "is_missing": false,
+                                "text": "Protesters and police are still facing off in Los Angeles, and anti-ICE protests have occurred across the country. Follow for live updates\n\nThe DOJ has \u201cnine open cases\u201d connected to the protests in LA, Bondi said in an interview on Fox News Monday evening. She did not specify whether the department had brought charges in those cases or if they were still in the initial phases of investigation. CNN has reached out to the department for clarification. One of those investigations is into a masked individual who was filmed breaking cinderblocks and throwing shards at law enforcement officers, she said.\n\n#cnn #news #protests #losangeles #LA #immigration #ICE #latino #hispanic \u266c original sound - CNN \u00b7 There are several reasons Los Angeles is a hotspot for immigration unrest \u2014 a major one being the sheer size of its immigrant population and the importance of those communities to the city\u2019s heritage and culture.\n\nNoem also said that on Monday, law enforcement officers went after \u201cfour to 500 targets\u201d today in LA, who \u201cwere known members of gangs in LA that have been victimizing people for years that Gavin Newsom has done absolutely nothing about.\u201d",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "age": "10 hours ago",
+                                    "url": "https://www.cnn.com/us/live-news/la-protests-ice-raids-trump-06-09-25"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "Pentagon deploys 700 Marines to Los Angeles to respond to immigration protests",
+                                "url": "https://www.wcvb.com/article/pentagon-deploys-700-marines-to-los-angeles/65016226",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "wcvb.com",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=wcvb.com",
+                                    "site_name": "Wcvb"
+                                },
+                                "is_missing": false,
+                                "text": "The Pentagon deployed about 700 Marines to Los Angeles on Monday to help National Guard members respond to immigration protests, officials said, as California prepared to sue President Donald Trump over his use of the Guard troops and demonstrators took to the city&#x27;s streets for a fourth day.\n\nHe planned to seek a court order declaring Trump\u2019s use of the Guard unlawful and asking for a restraining order to halt the deployment.The arrival of the National Guard followed two days of protests that began Friday in downtown Los Angeles after federal immigration authorities arrested more than 40 people that day across the city.The smell of smoke hung in the air downtown Monday, one day after crowds blocked a major freeway and set self-driving cars on fire as police responded with tear gas, rubber bullets and flash-bang grenades.The law enforcement presence was heavy, with police cars fro\n\nRossen Reports: Amazon's secret store with mega discounts\n\nNEWSROOM TONIGHT WITH THE LATEST FROM LA JOHN AND BEN. RIGHT NOW IT IS 8:00 IN LA, AND POLICE HAVE BEEN TRYING TO MOVE DEMONSTRATORS FROM DOWNTOWN BEFORE IT GETS DARK. AND THERE ARE WORRIES THAT BRINGING IN THE MARINES WILL ONLY CAUSE TENSIONS TO FLARE. PROTESTS OVER ICE RAIDS CONTINUE TONIGHT NEAR FEDERAL BUILDINGS IN DOWNTOWN LA.\n\nAFTER A LONG WEEKEND OF CLASHES IN THE CITY WHERE CARS WERE SET ABLAZE. POLICE USING FLASHBANGS TEAR GAS AND RUBBER BULLETS AS THEY MADE DOZENS OF ARRESTS. TONIGHT, THE STATE OF CALIFORNIA IS SUING THE TRUMP ADMINISTRATION FOR GOING OVER GOVERNOR GAVIN NEWSOM\u2019S HEAD AND FEDERALIZING THE NATIONAL GUARD.",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "age": "14 hours ago",
+                                    "url": "https://www.wcvb.com/article/pentagon-deploys-700-marines-to-los-angeles/65016226"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "Homan says Trump administration has \"no intention to arrest\" Newsom \u2014 after Trump says \"I'd do it\" - CBS News",
+                                "url": "https://www.cbsnews.com/news/homan-says-trump-administration-has-no-intention-to-arrest-newsom-after-trump-says-id-do-it/",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "cbsnews.com",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=cbsnews.com",
+                                    "site_name": "CBS News"
+                                },
+                                "is_missing": false,
+                                "text": "President Trump&#x27;s &quot;border czar&quot; says California Gov. Gavin Newsom and other local officials &quot;haven&#x27;t crossed a line yet.&quot;\n\nAward-winning journalist and author John Dickerson is co-anchor of the\" CBS Evening News\" and chief political analyst for CBS News. Dickerson leads the Network's election coverage and political special reports. ... Get browser notifications for breaking news, live events, and exclusive reporting.\n\nJoe Walsh is a senior editor for digital politics at CBS News. Joe previously covered breaking news for Forbes and local news in Boston.\n\nThe administration and Newsom have sharply criticized each other over the handling of the Los Angeles protests, which were sparked by Immigration and Customs Enforcement actions in the city. Mr. Trump has accused Newsom of failing to deal with violence and ordered Marines and National Guard troops to the city.\n\nHoman has suggested in the past that elected officials could be arrested if they are found to have impeded ICE. On Saturday, Homan didn't explicitly rule out arresting Newsom and Los Angeles Mayor Karen Bass in an interview with NBC News \u2014 though he didn't say arrests were coming, and said he doesn't believe Bass has \"crossed the line yet.\"",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "age": "15 hours ago",
+                                    "url": "https://www.cbsnews.com/news/homan-says-trump-administration-has-no-intention-to-arrest-newsom-after-trump-says-id-do-it/"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "National Guard troops seen sleeping on floors in exclusive ...",
+                                "url": "https://www.sfchronicle.com/california/article/national-guard-california-photos-20368334.php",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "sfchronicle.com",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=sfchronicle.com",
+                                    "site_name": "San Francisco Chronicle"
+                                },
+                                "is_missing": false,
+                                "text": "San Francisco Chronicle coverage of California with a special focus on areas and topics outside of the San Francisco Bay Area",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "age": "17 hours ago",
+                                    "url": "https://www.sfchronicle.com/california/article/national-guard-california-photos-20368334.php"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "LA protest live stream: 700 Marines deployed to Los Angeles amid ICE protests - ABC7 Los Angeles",
+                                "url": "https://abc7.com/post/700-marines-deployed-los-angeles-amid-ice-protests/16707616/",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "abc7.com",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=abc7.com",
+                                    "site_name": "Abc7"
+                                },
+                                "is_missing": false,
+                                "text": "Amid ongoing protests in response to ICE raids and arrests in Los Angeles, 700 Marines in California have been ordered to assist.\n\nCopyright \u00a9 2025 ABC News Internet Ventures.\n\n\"I mean, I think we have it very well under control,\" Trump said. \"I think it would have been a very bad situation. It was heading in the wrong direction. It's now heading in the right direction.\" -ABC News' Luis Martinez and Karen Travers\n\nMinutes before the Marines' deployment was confirmed, President Donald Trump was asked by ABC News if he planned on sending Marines to LA, and he said, \"We'll see what happens.\"",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "age": "19 hours ago",
+                                    "url": "https://abc7.com/post/700-marines-deployed-los-angeles-amid-ice-protests/16707616/"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "News: U.S. and World News Headlines : NPR",
+                                "url": "https://www.npr.org/sections/news/",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "npr.org",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=npr.org",
+                                    "site_name": "NPR"
+                                },
+                                "is_missing": false,
+                                "text": "News: U.S. and World News Headlines NPR news, audio, and podcasts. Coverage of breaking stories, national and world news, politics, business, science, technology, and extended coverage of major national and world events. ... Soldiers watch civil rights protesters walking during the third Selma March in Alabama, on March 25, 1965. President Lyndon Johnson federalized the Alabama National Guard to prevent violence against the marchers. William Lovelace/Daily Express/Hulton Archive/Getty Images hide caption toggle caption William Lovelace/Daily Express/Hulton Archive/Getty Images \u00b7 June 9, 2025 \u0095 President Lyndon B. Johnson federalized the National Guard in 1965, calling on troops to protect civil rights advocates who were marching from Selma, Ala., to Montgomery. National Guard troops stand outside the Metropolitan Detention Center on Sunday in Los Angeles.\n\nAt NPR, we welcome your news tips. Here's a guide to getting in touch with our newsroom and how to share sensitive information. June 9, 2025 \u0095 Baldoni's $400 million lawsuit was in response to Lively accusing him of sexual harassment on the set of It Ends With Us. The Family Stone performs at Harvard Stadium in 1969. Ellis Herwig/Boston Globe/Getty Images hide caption toggle caption Ellis Herwig/Boston Globe/Getty Images \u00b7 June 9, 2025 \u0095 The musical visionary led a multi-racial funk band that produced five Top 10 hits in the late 1960s and early '70s. ... Embed <iframe src=\"https://www.npr.org/player/embed/1209525990/nx-s1-5488856-1\" width=\"100%\" height=\"290\" frameborder=\"0\" scrolling=\"no\" title=\"NPR embedded audio player\"> Courtroom ftwitty/Getty Images hide caption toggle caption ftwitty/Getty Images \u00b7 June 9, 2025 \u0095 The race became a microcosm for the clashes and pressures on the American legal system this year, in part because one of the two top candidates is the younger brother of\n\nChair Nanette Barrag\u00e1n, D-Calif., attends a news conference to introduce members of the Congressional Hispanic Caucus outside the U.S. Capitol on Friday, November 15, 2024. Tom Williams/CQ-Roll Call, Inc via Getty Images hide caption toggle caption Tom Williams/CQ-Roll Call, Inc via Getty Images \u00b7 June 9, 2025 \u0095 Despite pushback from California Democrats, the Trump administration sent the National Guard to support Immigration and Customs Enforcement. Rep. Nanette Barrag\u00e1n says the move is escalating fear. ... Embed <iframe src=\"https://www.npr.org/player/embed/nx-s1-5427213/nx-s1-5487617-1\" width=\"100%\" height=\"290\" frameborder=\"0\" scrolling=\"no\" title=\"NPR embedded audio player\"> ... A car burns as a demonstrator waves a Mexican national flag during a protest following federal immigration operations, in the Compton neighborhood of Los Angeles, California, on June 7, 2025.",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "url": "https://www.npr.org/sections/news/"
+                                }
+                            },
+                            {
+                                "type": "knowledge",
+                                "title": "ABC News \u2013 Breaking News, Latest News and Videos",
+                                "url": "https://abcnews.go.com/",
+                                "metadata": {
+                                    "type": "webpage_metadata",
+                                    "site_domain": "go.com",
+                                    "favicon_url": "https://www.google.com/s2/favicons?sz=64&domain=go.com",
+                                    "site_name": "ABC News"
+                                },
+                                "is_missing": false,
+                                "text": "Your trusted source for breaking news, analysis, exclusive interviews, headlines, and videos at ABCNews.com\n\nABC News Live3:30 PM \u00b7 Politics \u00b7 1 hour ago \u00b7 International \u00b7 21 minutes ago \u00b7 U.S. 37 minutes ago \u00b7 U.S. U.S. Politics \u00b7 U.S. International \u00b7 22 minutes ago \u00b7 Top Stories \u00b7 3:57 \u00b7 Lifestyle \u00b7 5:53 \u00b7 Politics \u00b7 1:27 \u00b7 Lifestyle \u00b7 1:26 \u00b7 Lifestyle \u00b7 2:09 \u00b7 Health \u00b7 0:50 \u00b7 WNT \u00b7 2:22 \u00b7 International \u00b7 6:27 \u00b7 Lifestyle \u00b7 4:03 \u00b7 U.S. 1:48 \u00b7 U.S. 0:24 \u00b7 U.S. 10:46 \u00b7 U.S. Playlist \u00b7 12 Videos \u00b7 EPA-EFE/Shutterstock/Reuters \u00b7 President Trump \u00b7 Evelyn Hockstein/Reuters \u00b7 President Trump \u00b7 WCPO \u00b7 Immigration \u00b7 The Associated Press \u00b7 President Trump \u00b7 Tasos Katopodis/Getty Images \u00b7 Robert F. Kennedy Jr. 3:15 \u00b7 2:29 \u00b7 4:18 \u00b7 4:45 \u00b7 1:08 \u00b7 4:37 \u00b7 3:18 \u00b7 4:41 \u00b7 2:39 \u00b7 1:50 \u00b7 3:33 \u00b7 7:51 \u00b7 3:44 \u00b7 2:07 \u00b7 2:09 \u00b7 Technology \u00b7 The volcano was seen peeking through the morning clouds. Politics \u00b7 2 hours ago \u00b7",
+                                "is_citable": true,
+                                "prompt_context_metadata": {
+                                    "url": "https://abcnews.go.com/"
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": "<system>You only have 18 searches left this turn</system>\n\n",
+                                "uuid": "4ca08cc0-3033-4dbc-9796-23ca30b88ad2"
+                            }
+                        ],
+                        "is_error": false,
+                        "message": null,
+                        "integration_icon_url": null,
+                        "display_content": null
+                    },
+                    {
+                        "start_timestamp": "2025-06-10T17:54:35.835993Z",
+                        "stop_timestamp": "2025-06-10T17:54:46.670114Z",
+                        "type": "text",
+                        "text": "Based on my search of current news sources, here are the top 5 news stories for today, June 10, 2025:\n\n## Top 5 News Stories Today\n\n**1. Los Angeles Immigration Protests and Federal Response**\nHundreds of U.S. Marines have been deployed to the Los Angeles area under orders from President Donald Trump to help quell ongoing protests against federal immigration raids. Tensions remain high for a fifth day of immigration protests in downtown LA, with California Governor Gavin Newsom reporting that an additional 2,000 National Guard troops are being sent to Los Angeles. The state of California is suing the Trump administration over the federal deployment.\n\n**2. RFK Jr. Removes CDC Vaccine Advisory Committee**\nHealth Secretary RFK Jr. has removed all 17 members of the CDC's Advisory Committee on Immunization Practices, saying the group has been \"plagued with persistent conflicts of interest\". He claims this action will help restore public trust in vaccines, though health officials have criticized the move.\n\n**3. US-China Trade Talks Continue**\nGlobal stocks and the dollar held steady as trade talks between the United States and China continued into a second day, giving investors some reason to believe tensions between the world's two largest economies may be easing. Markets are watching these discussions closely.\n\n**4. Trump Travel Ban Takes Effect**\nA new travel ban from the Trump administration, which revives a controversial measure from Trump's first term, took effect Monday morning. The policy affects multiple countries and has drawn responses from foreign leaders.\n\n**5. Warner Bros. Discovery Corporate Split**\nWarner Bros. Discovery is splitting into two companies, separating streaming and studios from its cable channels. The company has been burdened by debt and the decline of cable TV.\n\nThese stories reflect ongoing domestic tensions around immigration policy, significant health policy changes, international trade developments, and major corporate restructuring in the entertainment industry.",
+                        "citations": [
+                            {
+                                "uuid": "0ce7f4f3-cae6-4e22-a6c8-3c1e2c9b8144",
+                                "start_index": 193,
+                                "end_index": 366,
+                                "details": {
+                                    "type": "web_search_citation",
+                                    "url": "https://www.reuters.com/world/china/global-markets-wrapup-1-2025-06-10/"
+                                }
+                            },
+                            {
+                                "uuid": "f25907cf-187c-461d-89bd-1269dffc0d5e",
+                                "start_index": 193,
+                                "end_index": 366,
+                                "details": {
+                                    "type": "web_search_citation",
+                                    "url": "https://abc7.com/live-updates/tensions-flare-downtown-la-anti-ice-protesters-clash-agents-live-updates/16692645/"
+                                }
+                            },
+                            {
+                                "uuid": "e53d1395-4e53-4380-81b9-1844ffcf3901",
+                                "start_index": 193,
+                                "end_index": 366,
+                                "details": {
+                                    "type": "web_search_citation",
+                                    "url": "https://www.wcvb.com/article/pentagon-deploys-700-marines-to-los-angeles/65016226"
+                                }
+                            },
+                            {
+                                "uuid": "ec0ce4eb-292b-466a-9a8e-8665ea4a1d0e",
+                                "start_index": 368,
+                                "end_index": 569,
+                                "details": {
+                                    "type": "web_search_citation",
+                                    "url": "https://abc7.com/live-updates/tensions-flare-downtown-la-anti-ice-protesters-clash-agents-live-updates/16692645/"
+                                }
+                            },
+                            {
+                                "uuid": "59c458a3-3cda-4b7c-a5a5-c9aee265e05f",
+                                "start_index": 713,
+                                "end_index": 897,
+                                "details": {
+                                    "type": "web_search_citation",
+                                    "url": "https://www.washingtonpost.com/health/2025/06/09/rfk-ousts-vaccine-advisory-committee-acip/"
+                                }
+                            },
+                            {
+                                "uuid": "2deb2e17-693c-49c5-9fca-72b11230b244",
+                                "start_index": 1053,
+                                "end_index": 1278,
+                                "details": {
+                                    "type": "web_search_citation",
+                                    "url": "https://www.reuters.com/world/china/global-markets-wrapup-1-2025-06-10/"
+                                }
+                            },
+                            {
+                                "uuid": "7ce642c5-0c13-4057-89c3-b940209c84e8",
+                                "start_index": 1366,
+                                "end_index": 1503,
+                                "details": {
+                                    "type": "web_search_citation",
+                                    "url": "https://www.npr.org/sections/national/"
+                                }
+                            },
+                            {
+                                "uuid": "e2a09d8c-196f-40e8-998d-4020f390bb5a",
+                                "start_index": 1636,
+                                "end_index": 1815,
+                                "details": {
+                                    "type": "web_search_citation",
+                                    "url": "https://www.npr.org/sections/news/"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "sender": "assistant",
+                "created_at": "2025-06-10T17:54:47.455080Z",
+                "updated_at": "2025-06-10T17:54:47.455080Z",
+                "attachments": [],
+                "files": []
+            },
+            {
+                "uuid": "c9aec2a1-d496-4a65-be01-e9f89db5a4dd",
+                "text": "Thanks. What is today's date?",
+                "content": [
+                    {
+                        "start_timestamp": "2025-06-10T17:55:02.639545Z",
+                        "stop_timestamp": "2025-06-10T17:55:02.639545Z",
+                        "type": "text",
+                        "text": "Thanks. What is today's date?",
+                        "citations": []
+                    }
+                ],
+                "sender": "human",
+                "created_at": "2025-06-10T17:55:02.666972Z",
+                "updated_at": "2025-06-10T17:55:02.666972Z",
+                "attachments": [],
+                "files": []
+            },
+            {
+                "uuid": "1b38c41c-021f-4ae8-a40a-e0772ce07d27",
+                "text": " Today's date is Tuesday, June 10, 2025.",
+                "content": [
+                    {
+                        "start_timestamp": "2025-06-10T17:55:05.156881Z",
+                        "stop_timestamp": "2025-06-10T17:55:05.390337Z",
+                        "type": "text",
+                        "text": " Today's date is Tuesday, June 10, 2025.",
+                        "citations": []
+                    }
+                ],
+                "sender": "assistant",
+                "created_at": "2025-06-10T17:55:05.450064Z",
+                "updated_at": "2025-06-10T17:55:05.450064Z",
+                "attachments": [],
+                "files": []
+            }
+        ]
+    }
+]

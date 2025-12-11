@@ -1,0 +1,92 @@
+{
+    "$schema": "https://schema.tauri.app/config/2.0.2",
+    "productName": "Chorus",
+    "version": "0.13.0",
+    "identifier": "sh.chorus.app.qa",
+    "build": {
+        "beforeDevCommand": "pnpm vite:dev",
+        "devUrl": "http://localhost:1420",
+        "beforeBuildCommand": "pnpm build",
+        "frontendDist": "../dist"
+    },
+    "app": {
+        "macOSPrivateApi": true,
+        "windows": [
+            {
+                "title": "Chorus QA",
+                "label": "main",
+                "titleBarStyle": "Overlay",
+                "url": "/",
+                "width": 1400,
+                "height": 800,
+                "decorations": true,
+                "transparent": false,
+                "hiddenTitle": true,
+                "trafficLightPosition": {
+                    "x": 18,
+                    "y": 23
+                }
+            },
+            {
+                "label": "quick-chat",
+                "title": "Quick Chat",
+                "width": 500,
+                "height": 400,
+                "visible": false,
+                "hiddenTitle": true,
+                "decorations": false,
+                "transparent": true,
+                "alwaysOnTop": true
+            }
+        ],
+        "security": {
+            "csp": null,
+            "assetProtocol": {
+                "enable": true,
+                "scope": ["$APPDATA/generated_images/**", "$APPDATA/uploads/**"]
+            }
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": "all",
+        "resources": ["resources/**/*"],
+        "icon": ["icons-qa/icon.icns", "icons-qa/icon.ico"],
+        "createUpdaterArtifacts": true,
+        "externalBin": [
+            "binaries/mcp-desktopcommander",
+            "binaries/run-mcp",
+            "binaries/mcp-github"
+        ],
+        "macOS": {
+            "entitlements": "macos.entitlements"
+        }
+    },
+    "plugins": {
+        "updater": {
+            "dialog": true,
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFBQzg0N0RDODVDRjJBQkMKUldTOEtzK0YzRWZJcXNLQ214MlBqRlRGR1pmaTlRVDQ3ZFhpNEVzRnNFdVNLUVZyaXBtWEdEQmEK",
+            "endpoints": [
+                "https://cdn.crabnebula.app/update/melty/chorus/{{target}}-{{arch}}/{{current_version}}?channel=qa"
+            ]
+        },
+        "shell": {
+            "open": true
+        },
+        "fs": {
+            "requireLiteralLeadingDot": false
+        },
+        "sql": {
+            "preload": ["sqlite:chats.db"]
+        },
+        "webview": {
+            "windows": ["main", "quick-chat"],
+            "permissions": ["allow-popups", "allow-modals"]
+        },
+        "deep-link": {
+            "desktop": {
+                "schemes": ["chorus"]
+            }
+        }
+    }
+}

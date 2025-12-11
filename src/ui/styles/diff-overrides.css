@@ -1,0 +1,5 @@
+.custom-diff-view .unified-diff-table-wrapper {
+    --diff-aside-width--: 15px !important;
+    border-radius: calc(var(--radius) - 4px) !important;
+    font-size: 12px !important;
+}

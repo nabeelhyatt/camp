@@ -1,0 +1,201 @@
+import { fetch } from "@tauri-apps/plugin-http";
+import OpenAI from "openai";
+import { ApiKeys } from "./Models";
+
+type FetchOptions = {
+    maxLength?: number;
+    startIndex?: number;
+    raw?: boolean;
+    headers?: Record<string, string>;
+};
+
+type FetchResult = {
+    content: string;
+    truncated: boolean;
+    nextStartIndex?: number;
+    error?: string;
+};
+
+type SearchResult = {
+    content: string;
+    error?: string;
+};
+
+function normalizeUrl(url: string): string {
+    if (url.startsWith("http://") && !url.startsWith("https://")) {
+        return "https://" + url;
+    } else {
+        return url;
+    }
+}
+
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message;
+    } else {
+        return "Unknown error";
+    }
+}
+
+export class WebTools {
+    private static async _fetch(
+        url: string,
+        headers: Record<string, string>,
+    ): Promise<Response> {
+        console.log("fetching url", url);
+        const response = await fetch(url, {
+            headers: {
+                "User-Agent":
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                ...headers,
+            },
+        });
+        console.log("response", response);
+
+        if (!response.ok) {
+            throw new Error(
+                `HTTP error: ${response.status} ${response.statusText}`,
+            );
+        }
+        return response;
+    }
+
+    static async search(
+        query: string,
+        apiKeys: ApiKeys,
+    ): Promise<SearchResult> {
+        try {
+            if (!apiKeys.perplexity) {
+                return {
+                    content:
+                        "<web_search_system_message>Please add your Perplexity API key in Settings to use web search.</web_search_system_message>",
+                    error: "Perplexity API key not configured",
+                };
+            }
+
+            const client = new OpenAI({
+                baseURL: "https://api.perplexity.ai",
+                apiKey: apiKeys.perplexity,
+                defaultHeaders: {
+                    "Content-Type": "application/json",
+                },
+                dangerouslyAllowBrowser: true,
+            });
+
+            const completion = await client.chat.completions.create({
+                model: "sonar",
+                messages: [
+                    {
+                        role: "system",
+                        content:
+                            "Search the web for information about the user's query. Provide relevant search results with links to sources.",
+                    },
+                    {
+                        role: "user",
+                        content: query,
+                    },
+                ],
+                stream: false,
+            });
+
+            const content = completion.choices[0]?.message?.content || "";
+
+            // Extract citations if they exist
+            // Perplexity returns citations in the completion object
+            const completionWithCitations =
+                completion as OpenAI.ChatCompletion & {
+                    citations?: string[];
+                };
+            const citations = completionWithCitations.citations;
+            let finalContent = content;
+
+            if (citations && citations.length > 0) {
+                const sources = citations
+                    .map((url, i) => `${i + 1}. [${url}](${url})`)
+                    .join("\n");
+                finalContent += "\n\nSources:\n" + sources;
+            }
+
+            return {
+                content: finalContent,
+            };
+        } catch (error) {
+            return {
+                content: `<web_search_system_message>Error searching the web: ${getErrorMessage(error)}</web_search_system_message>`,
+                error: getErrorMessage(error),
+            };
+        }
+    }
+
+    static async fetchWebpage(
+        url: string,
+        options: FetchOptions = {},
+    ): Promise<FetchResult> {
+        const {
+            maxLength = 50000,
+            startIndex = 0,
+            raw = false,
+            headers = {},
+        } = options;
+
+        try {
+            const response = await this._fetch(
+                raw ? normalizeUrl(url) : `https://r.jina.ai/${url}`,
+                headers,
+            );
+            let content = await response.text();
+            console.log("raw text content", content);
+
+            // Check for empty content early
+            if (content.length === 0) {
+                return {
+                    content:
+                        "<web_fetch_system_message>No content found.</web_fetch_system_message>",
+                    truncated: false,
+                };
+            }
+
+            // Now handle pagination
+            const totalLength = content.length;
+
+            // Check if startIndex is out of bounds
+            if (startIndex >= totalLength) {
+                return {
+                    content:
+                        "<web_fetch_system_message>No more content available.</web_fetch_system_message>",
+                    truncated: false,
+                };
+            }
+
+            // Calculate pagination
+            const endIndex = Math.min(startIndex + maxLength, totalLength);
+            const truncated = totalLength > endIndex;
+
+            // Extract the requested portion
+            content = content.substring(startIndex, endIndex);
+
+            // Add truncation message if needed
+            if (truncated) {
+                const nextStart = endIndex;
+                content += `\n<web_fetch_system_message>Content truncated. If you need to see more content, call the fetch tool with a start_index of ${nextStart}.</web_fetch_system_message>`;
+                return {
+                    content,
+                    truncated: true,
+                    nextStartIndex: nextStart,
+                };
+            }
+
+            return {
+                content,
+                truncated: false,
+            };
+        } catch (error) {
+            return {
+                // Format error message according to spec
+                content: `<web_fetch_system_message>Error fetching webpage: ${getErrorMessage(error)}</web_fetch_system_message>`,
+                truncated: false,
+                error: getErrorMessage(error),
+            };
+        }
+    }
+}

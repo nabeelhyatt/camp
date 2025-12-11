@@ -1,0 +1,185 @@
+{
+    "$schema": "../gen/schemas/desktop-schema.json",
+    "identifier": "default",
+    "description": "Capability for the main window",
+    "windows": ["main", "quick-chat"],
+    "permissions": [
+        "core:default",
+        "shell:allow-open",
+        "dialog:default",
+        "notification:default",
+        "updater:default",
+        "updater:allow-check",
+        "updater:allow-download-and-install",
+        "dialog:allow-ask",
+        "process:allow-restart",
+        "process:allow-exit",
+        "store:default",
+        "global-shortcut:allow-is-registered",
+        "global-shortcut:allow-register",
+        "global-shortcut:allow-unregister",
+        "core:window:default",
+        "core:window:allow-set-focus",
+        "core:window:allow-show",
+        "core:window:allow-start-dragging",
+        "core:window:allow-close",
+        "core:window:allow-center",
+        "core:event:default",
+        "deep-link:default",
+        "clipboard-manager:allow-write-text",
+        "macos-permissions:default",
+        "core:app:allow-default-window-icon",
+        {
+            "identifier": "opener:allow-open-path",
+            "allow": [
+                {
+                    "path": "**/*"
+                }
+            ]
+        },
+        {
+            "identifier": "http:default",
+            "allow": [
+                { "url": "https://app.chorus.sh/*" },
+                { "url": "http://localhost:4000/*" }
+            ]
+        },
+        {
+            "identifier": "shell:allow-open"
+        },
+        {
+            "identifier": "shell:allow-execute",
+            "allow": [
+                {
+                    "name": "sqlite3",
+                    "cmd": "sqlite3",
+                    "args": true
+                },
+                {
+                    "name": "accessibility-check",
+                    "cmd": "tccutil",
+                    "args": true
+                },
+                {
+                    "name": "osascript-check",
+                    "cmd": "osascript",
+                    "args": true
+                },
+                {
+                    "name": "exec-sh",
+                    "cmd": "sh",
+                    "args": true
+                },
+                {
+                    "name": "osascript",
+                    "cmd": "osascript",
+                    "args": true
+                },
+                {
+                    "name": "binaries/mcp-desktopcommander",
+                    "sidecar": true,
+                    "args": true
+                },
+                {
+                    "name": "binaries/run-mcp",
+                    "sidecar": true,
+                    "args": true
+                },
+                {
+                    "name": "binaries/mcp-github",
+                    "sidecar": true,
+                    "args": true
+                }
+            ]
+        },
+        {
+            "identifier": "shell:allow-spawn",
+            "allow": [
+                {
+                    "name": "osascript",
+                    "cmd": "osascript",
+                    "args": true
+                },
+                {
+                    "name": "exec-sh",
+                    "cmd": "sh",
+                    "args": true
+                },
+                {
+                    "name": "binaries/run-mcp",
+                    "sidecar": true,
+                    "args": true
+                },
+                {
+                    "name": "binaries/mcp-desktopcommander",
+                    "sidecar": true,
+                    "args": true
+                },
+                {
+                    "name": "binaries/mcp-github",
+                    "sidecar": true,
+                    "args": true
+                }
+            ]
+        },
+        {
+            "identifier": "shell:allow-stdin-write",
+            "allow": [
+                {
+                    "name": "binaries/mcp-desktopcommander",
+                    "sidecar": true
+                },
+                {
+                    "name": "binaries/run-mcp",
+                    "sidecar": true
+                },
+                {
+                    "name": "binaries/mcp-github",
+                    "sidecar": true
+                }
+            ]
+        },
+        {
+            "identifier": "shell:allow-kill",
+            "allow": [
+                {
+                    "name": "exec-sh",
+                    "cmd": "sh",
+                    "args": true
+                }
+            ]
+        },
+        {
+            "identifier": "shell:allow-open",
+            "allow": [
+                {
+                    "name": "open",
+                    "cmd": "open",
+                    "args": true
+                }
+            ]
+        },
+        "fs:read-all",
+        "fs:write-all",
+        {
+            "identifier": "fs:scope",
+            "allow": ["**/*"],
+            "requireLiteralLeadingDot": false
+        },
+        {
+            "identifier": "http:default",
+            "allow": [{ "url": "https://*" }, { "url": "http://*" }]
+        },
+        "sql:default",
+        "sql:allow-execute",
+        "sql:allow-load",
+        "sql:allow-select",
+        "core:webview:allow-create-webview-window",
+        {
+            "identifier": "opener:allow-open-url"
+        },
+        {
+            "identifier": "opener:allow-default-urls"
+        }
+    ]
+}
