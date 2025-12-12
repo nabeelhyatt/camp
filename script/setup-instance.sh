@@ -117,4 +117,4 @@ fi
 
 echo ""
 echo "✅ Setup complete! You can now run:"
-echo "    pnpm run workspace $INSTANCE_NAME"
+echo "    pnpm run dev"
