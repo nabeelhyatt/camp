@@ -2,7 +2,7 @@ import { appDataDir } from "@tauri-apps/api/path";
 import { mkdir, readFile } from "@tauri-apps/plugin-fs";
 import { allowedExtensions, AttachmentType } from "@core/chorus/Models";
 import { v4 as uuidv4 } from "uuid";
-import FirecrawlApp, { ScrapeResponse } from "@mendable/firecrawl-js";
+import FirecrawlApp from "@mendable/firecrawl-js";
 import { fileTypeFromBuffer } from "file-type";
 import path from "path";
 import mime from "mime-types";
@@ -310,22 +310,19 @@ export async function scrapeUrlAndWriteToPath(
     try {
         const firecrawl = createFirecrawlClient(firecrawlApiKey);
         const mockScrapeAPI = false;
-        const scrapeResult: ScrapeResponse = mockScrapeAPI
-            ? await new Promise<ScrapeResponse>((resolve) => {
-                  setTimeout(() => {
-                      resolve({
-                          success: true,
-                          markdown: `test ${url}`,
-                          error: undefined,
-                      } as ScrapeResponse);
-                  }, 3000);
-              })
+        const scrapeResult = mockScrapeAPI
+            ? {
+                  success: true as const,
+                  markdown: `test ${url}`,
+              }
             : await firecrawl.scrapeUrl(url, {
                   formats: ["markdown"],
               });
 
         if (!scrapeResult.success) {
-            throw new Error(`Failed to scrape: ${scrapeResult.error}`);
+            throw new Error(
+                `Failed to scrape: ${"error" in scrapeResult ? scrapeResult.error : "Unknown error"}`,
+            );
         }
 
         const content = new TextEncoder().encode(
