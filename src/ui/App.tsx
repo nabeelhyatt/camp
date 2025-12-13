@@ -77,7 +77,6 @@ import * as AppMetadataAPI from "@core/chorus/api/AppMetadataAPI";
 import * as ToolsetsAPI from "@core/chorus/api/ToolsetsAPI";
 import * as ChatAPI from "@core/chorus/api/ChatAPI";
 import * as ProjectAPI from "@core/chorus/api/ProjectAPI";
-import { RiOpenaiFill } from "react-icons/ri";
 
 scan({
     enabled: true,
@@ -797,12 +796,11 @@ function AppContent() {
                         </button>
 
                         <AlertTitle className="flex items-center gap-2">
-                            <RiOpenaiFill className="w-4 h-4" />
-                            GPT-5
+                            Open Source
                         </AlertTitle>
                         <AlertDescription>
-                            The GPT-5 family of models are now available in
-                            Chorus!
+                            Chorus is now Open Source! It now runs on your own
+                            API keys. Add them in Settings → API Keys.
                             <br />
                             <br />
                             <div className="gap-4 mt-2">
@@ -810,11 +808,11 @@ function AppContent() {
                                     className="text-sm text-muted-foreground hover:text-foreground"
                                     onClick={() =>
                                         void openUrl(
-                                            "https://chorus.sh/changelog",
+                                            "https://github.com/meltylabs/chorus",
                                         )
                                     }
                                 >
-                                    See all changes
+                                    Learn more
                                 </button>
                             </div>
                         </AlertDescription>

@@ -79,7 +79,7 @@ export default function ApiKeysForm({
                     >
                         <div className="flex flex-col items-center gap-2 text-center">
                             {provider.id === "firecrawl" ? (
-                                <FlameIcon className="w-8 h-8 text-orange-500" />
+                                <FlameIcon className="w-4 h-4" />
                             ) : (
                                 <ProviderLogo
                                     provider={provider.id as ProviderName}
