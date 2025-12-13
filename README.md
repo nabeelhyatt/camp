@@ -7,7 +7,7 @@
 <p align="center">All the AI, on your Mac. Built by the creators of <a href="https://conductor.build">Conductor.</a></p>
 
 <p align="center">
-  <img src="[https://github.com/user-attachments/assets/54e02cd2-9532-4153-96fd-77b057409d45](https://github.com/user-attachments/assets/771262eb-5a0e-40cb-b1a5-9df6b903c626)" alt="Chorus screenshot" />
+  <img src="https://github.com/user-attachments/assets/771262eb-5a0e-40cb-b1a5-9df6b903c626" alt="Chorus screenshot" />
 </p>
 
 # Getting Started
