@@ -27,10 +27,26 @@ export default function WebsiteURLDialog({ onAddUrls }: WebsiteURLDialogProps) {
     );
 
     const parseUrls = (text: string): string[] => {
-        // Split by whitespace or newlines and filter valid URLs
-        const urlRegex = /https?:\/\/[^\s]+/gi;
-        const matches = text.match(urlRegex) || [];
-        return [...new Set(matches)]; // Remove duplicates
+        // Split by whitespace or newlines and extract URL-like strings
+        const words = text.split(/\s+/).filter((w) => w.length > 0);
+        const urls: string[] = [];
+
+        for (const word of words) {
+            let url = word.trim();
+            // Skip empty strings
+            if (!url) continue;
+
+            // Check if it looks like a URL (has a dot and no spaces)
+            if (url.includes(".") && !url.includes(" ")) {
+                // Add https:// if no protocol specified
+                if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                    url = "https://" + url;
+                }
+                urls.push(url);
+            }
+        }
+
+        return [...new Set(urls)]; // Remove duplicates
     };
 
     const handleInsert = async () => {
@@ -38,7 +54,7 @@ export default function WebsiteURLDialog({ onAddUrls }: WebsiteURLDialogProps) {
 
         if (urls.length === 0) {
             toast.error("No valid URLs found", {
-                description: "Please enter URLs starting with http:// or https://",
+                description: "Please enter website URLs (e.g., example.com)",
             });
             return;
         }

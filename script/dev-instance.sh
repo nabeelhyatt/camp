@@ -20,9 +20,33 @@ SAFE_INSTANCE_NAME=$(echo "$INSTANCE_NAME" | sed 's/[^a-zA-Z0-9_-]/_/g')
 IDENTIFIER="sh.chorus.app.dev.$SAFE_INSTANCE_NAME"
 
 # Calculate a unique port based on the instance name
-# Use a hash of the instance name to generate a port number between 1422 and 1520
+# Use a hash of the instance name to generate a port number between 1422 and 1620
 HASH=$(echo -n "$SAFE_INSTANCE_NAME" | cksum | cut -d' ' -f1)
-PORT=$((1422 + (($HASH % 100) * 2)))
+BASE_PORT=$((1422 + (($HASH % 100) * 2)))
+
+# Function to check if a port is available
+port_available() {
+    ! lsof -i :$1 > /dev/null 2>&1
+}
+
+# Find an available port starting from BASE_PORT
+PORT=$BASE_PORT
+MAX_ATTEMPTS=50
+ATTEMPT=0
+while ! port_available $PORT && [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+    PORT=$(($PORT + 2))
+    ATTEMPT=$(($ATTEMPT + 1))
+done
+
+if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+    echo "Error: Could not find an available port after $MAX_ATTEMPTS attempts"
+    exit 1
+fi
+
+if [ $PORT -ne $BASE_PORT ]; then
+    echo "Note: Port $BASE_PORT was busy, using port $PORT instead"
+fi
+
 HMR_PORT=$(($PORT + 1))
 
 # Check if custom icon exists for this instance

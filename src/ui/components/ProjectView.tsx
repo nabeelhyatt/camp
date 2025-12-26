@@ -55,6 +55,7 @@ import * as ProjectAPI from "@core/chorus/api/ProjectAPI";
 import * as ChatAPI from "@core/chorus/api/ChatAPI";
 import WebSearchInput from "./WebSearchInput";
 import WebsiteURLDialog, { WEBSITE_URL_DIALOG_ID } from "./WebsiteURLDialog";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 const deleteProjectDialogId = (projectId: string) =>
     `delete-project-dialog-${projectId}`;
@@ -558,25 +559,23 @@ const ProjectContextEditor = forwardRef<
         }
     };
 
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(true);
-    };
+    // Use Tauri's native drag-drop event listener
+    useEffect(() => {
+        const unlisten = getCurrentWebview().onDragDropEvent((event) => {
+            if (event.payload.type === "drop") {
+                setIsDragging(false);
+                fileDrop.mutate(event.payload.paths);
+            } else if (event.payload.type === "over") {
+                setIsDragging(true);
+            } else if (event.payload.type === "leave") {
+                setIsDragging(false);
+            }
+        });
 
-    const handleDragLeave = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-    };
-
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-        const fileList = e.dataTransfer.files;
-        if (fileList.length > 0) {
-            const files = Array.from(fileList);
-            void filePaste.mutateAsync(files);
-        }
-    };
+        return () => {
+            void unlisten.then((unlistenFn) => unlistenFn());
+        };
+    }, [fileDrop]);
 
     const hasAttachments = (attachmentsQuery.data?.length ?? 0) > 0;
 
@@ -601,9 +600,6 @@ const ProjectContextEditor = forwardRef<
                             ? "border-primary bg-primary/5"
                             : "border-border"
                     }`}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
                 >
                     <p className="text-muted-foreground text-sm mb-4">
                         or drop your files here

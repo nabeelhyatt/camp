@@ -134,7 +134,7 @@ export default function WebSearchInput({
 
     return (
         <div className={cn("relative", className)}>
-            <div className="flex items-center border border-border rounded-lg bg-background focus-within:border-primary transition-colors">
+            <div className="flex items-center rounded-lg bg-muted/50 focus-within:bg-background focus-within:ring-1 focus-within:ring-border transition-colors">
                 <div className="pl-3 text-muted-foreground">
                     <Search className="size-4" />
                 </div>
