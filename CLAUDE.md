@@ -24,6 +24,7 @@ Most of the functionality lives in this repo. There's also a backend that handle
 -   **NEVER edit existing migration files** - Create new migrations to fix issues (see Data model changes section)
 -   **TypeScript**: Avoid `any` types, use explicit typing
 -   **Test early**: Ask the user to test your changes in the app frequently
+-   **Upstream compatibility**: Before modifying any file, check `UPSTREAM-SYNC.md` to see if it's a Tier 1 (never modify) file
 
 ## Your role
 
@@ -237,6 +238,28 @@ Tauri uses different icon sets for different build configurations:
 -   `src-tauri/icons-qa/` - QA build icons
 
 When updating app icons, update all three directories.
+
+## Upstream Sync Strategy
+
+Camp is a fork of Chorus. To enable easy cherry-picking of upstream bug fixes and features, we classify files into tiers. **See `UPSTREAM-SYNC.md` for the complete policy.**
+
+### Quick Reference
+
+| Tier       | Policy                | Examples                                       |
+| ---------- | --------------------- | ---------------------------------------------- |
+| **Tier 1** | NEVER modify          | Model providers, MCP, ChatState, UI primitives |
+| **Tier 2** | Cherry-pick carefully | API layer, MultiChat, ManageModelsBox          |
+| **Tier 3** | Safe to customize     | campConfig.ts, Onboarding, Settings, branding  |
+
+### Key Principle
+
+All Camp customizations should flow through `campConfig.ts` or live in Tier 3 files. This keeps Tier 1 files pristine for upstream updates.
+
+**Before modifying any file in `src/core/chorus/`:**
+
+1. Check `UPSTREAM-SYNC.md` for its tier classification
+2. If Tier 1: Find an alternative approach (wrapper, config, new file)
+3. If Tier 2: Document the change and be prepared for merge conflicts
 
 ## Updating this onboarding doc
 
