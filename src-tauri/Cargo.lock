@@ -674,6 +674,49 @@ dependencies = [
 ]
 
 [[package]]
+name = "camp"
+version = "0.1.0"
+dependencies = [
+ "base64 0.21.7",
+ "chrono",
+ "cocoa",
+ "hex",
+ "hmac",
+ "image 0.24.9",
+ "monitor",
+ "obfstr",
+ "objc",
+ "reqwest",
+ "rusqlite",
+ "screenshots",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tauri",
+ "tauri-build",
+ "tauri-nspanel",
+ "tauri-plugin-clipboard-manager",
+ "tauri-plugin-deep-link",
+ "tauri-plugin-devtools",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-global-shortcut",
+ "tauri-plugin-http",
+ "tauri-plugin-macos-permissions",
+ "tauri-plugin-notification",
+ "tauri-plugin-opener",
+ "tauri-plugin-os",
+ "tauri-plugin-process",
+ "tauri-plugin-shell",
+ "tauri-plugin-sql",
+ "tauri-plugin-store",
+ "tauri-plugin-stronghold",
+ "tauri-plugin-updater",
+ "thiserror 1.0.69",
+ "window-vibrancy 0.5.3",
+]
+
+[[package]]
 name = "cargo-platform"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -776,49 +819,6 @@ dependencies = [
  "cipher",
  "poly1305",
  "zeroize",
-]
-
-[[package]]
-name = "chorus"
-version = "0.1.2"
-dependencies = [
- "base64 0.21.7",
- "chrono",
- "cocoa",
- "hex",
- "hmac",
- "image 0.24.9",
- "monitor",
- "obfstr",
- "objc",
- "reqwest",
- "rusqlite",
- "screenshots",
- "serde",
- "serde_json",
- "sha2",
- "tauri",
- "tauri-build",
- "tauri-nspanel",
- "tauri-plugin-clipboard-manager",
- "tauri-plugin-deep-link",
- "tauri-plugin-devtools",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-global-shortcut",
- "tauri-plugin-http",
- "tauri-plugin-macos-permissions",
- "tauri-plugin-notification",
- "tauri-plugin-opener",
- "tauri-plugin-os",
- "tauri-plugin-process",
- "tauri-plugin-shell",
- "tauri-plugin-sql",
- "tauri-plugin-store",
- "tauri-plugin-stronghold",
- "tauri-plugin-updater",
- "thiserror 1.0.69",
- "window-vibrancy 0.5.3",
 ]
 
 [[package]]
