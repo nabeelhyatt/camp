@@ -182,10 +182,10 @@ When we run into issues with the requests we're sending to model providers (e.g.
 
 Camp uses these environment variables:
 
-| Variable                       | Description                          | Required |
-| ------------------------------ | ------------------------------------ | -------- |
-| `VITE_DEFAULT_OPENROUTER_KEY`  | Default OpenRouter API key for users | No       |
-| `VITE_CAMP_BACKEND`            | Backend to use: "chorus" or "camp"   | No       |
+| Variable                      | Description                          | Required |
+| ----------------------------- | ------------------------------------ | -------- |
+| `VITE_DEFAULT_OPENROUTER_KEY` | Default OpenRouter API key for users | No       |
+| `VITE_CAMP_BACKEND`           | Backend to use: "chorus" or "camp"   | No       |
 
 To set up:
 
@@ -198,10 +198,10 @@ To set up:
 1. **Immediately rotate the key** on the provider's dashboard
 2. Remove from code and commit the fix
 3. Use `git filter-repo` to remove from history:
-   ```bash
-   echo 'SECRET_VALUE==>REDACTED' > /tmp/replacements.txt
-   git filter-repo --replace-text /tmp/replacements.txt --force
-   ```
+    ```bash
+    echo 'SECRET_VALUE==>REDACTED' > /tmp/replacements.txt
+    git filter-repo --replace-text /tmp/replacements.txt --force
+    ```
 4. Force push the cleaned history
 5. Notify the team
 
@@ -223,9 +223,9 @@ Camp uses `src/core/campConfig.ts` for centralized backend and service configura
 ```typescript
 import { campConfig } from "@core/campConfig";
 
-campConfig.proxyUrl      // Backend URL (app.chorus.sh or app.getcamp.ai)
-campConfig.backend       // "chorus" or "camp"
-campConfig.isDev         // Development mode flag
+campConfig.proxyUrl; // Backend URL (app.chorus.sh or app.getcamp.ai)
+campConfig.backend; // "chorus" or "camp"
+campConfig.isDev; // Development mode flag
 ```
 
 ### Icon Directories

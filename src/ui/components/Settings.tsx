@@ -1364,9 +1364,7 @@ export default function Settings({ tab = "general" }: SettingsProps) {
         <div className="flex flex-col h-full">
             <DialogHeader className="sr-only">
                 <DialogTitle>Settings</DialogTitle>
-                <DialogDescription>
-                    Manage your Camp settings
-                </DialogDescription>
+                <DialogDescription>Manage your Camp settings</DialogDescription>
             </DialogHeader>
 
             <div className="h-full flex">
@@ -1419,9 +1417,9 @@ export default function Settings({ tab = "general" }: SettingsProps) {
                             </div>
                             <div className="space-y-4">
                                 <p className="text-sm text-muted-foreground">
-                                    Camp requires you to bring your own API
-                                    keys to use AI models. Add your keys in the
-                                    API Keys tab.
+                                    Camp requires you to bring your own API keys
+                                    to use AI models. Add your keys in the API
+                                    Keys tab.
                                 </p>
                                 <div className="flex gap-2">
                                     <Button

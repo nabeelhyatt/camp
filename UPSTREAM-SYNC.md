@@ -4,8 +4,8 @@ Camp is a fork of [Chorus](https://github.com/meltylabs/chorus). This document d
 
 ## Git Remote Configuration
 
-- `origin` - Camp repository (github.com/nabeelhyatt/camp)
-- `upstream` - Chorus repository (github.com/meltylabs/chorus)
+-   `origin` - Camp repository (github.com/nabeelhyatt/camp)
+-   `upstream` - Chorus repository (github.com/meltylabs/chorus)
 
 ## Cherry-Picking Upstream Changes
 
@@ -25,16 +25,18 @@ git cherry-pick <commit-hash>
 ## What to Cherry-Pick
 
 **Do cherry-pick:**
-- Bug fixes
-- Security patches
-- Model provider updates
-- Performance improvements
-- MCP protocol updates
+
+-   Bug fixes
+-   Security patches
+-   Model provider updates
+-   Performance improvements
+-   MCP protocol updates
 
 **Don't cherry-pick:**
-- Branding changes
-- Features that conflict with Camp's direction
-- Changes to the Chorus backend integration (we maintain our own)
+
+-   Branding changes
+-   Features that conflict with Camp's direction
+-   Changes to the Chorus backend integration (we maintain our own)
 
 ## Handling Conflicts
 

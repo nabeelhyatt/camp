@@ -803,8 +803,9 @@ function AppContent() {
                             Open Source
                         </AlertTitle>
                         <AlertDescription>
-                            Camp is built on the open-source Chorus project! It runs on your own
-                            API keys. Add them in Settings → API Keys.
+                            Camp is built on the open-source Chorus project! It
+                            runs on your own API keys. Add them in Settings →
+                            API Keys.
                             <br />
                             <br />
                             <div className="gap-4 mt-2">

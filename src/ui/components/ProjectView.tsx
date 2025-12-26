@@ -306,7 +306,6 @@ export default function ProjectView() {
                         className="text-3xl font-medium ring-0 tracking-tight px-0 py-2 border-none rounded-none"
                     />
                 </div>
-
             </div>
 
             <div className="md:grid grid-cols-12 gap-4 w-full mt-8">
@@ -337,8 +336,8 @@ export default function ProjectView() {
                                 </span>
                             </h2>
                             <p className="text-sm text-muted-foreground font-[350] -mt-0.5">
-                                Add automatic summaries of chats in this group project
-                                to context
+                                Add automatic summaries of chats in this group
+                                project to context
                                 {project.isImported && (
                                     <span className="block text-xs mt-1 text-muted-foreground/70">
                                         Disabled for imported group projects
@@ -427,8 +426,8 @@ export default function ProjectView() {
                             &rdquo;
                         </DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to delete this group project and all
-                            its chats? This action cannot be undone.
+                            Are you sure you want to delete this group project
+                            and all its chats? This action cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="">
