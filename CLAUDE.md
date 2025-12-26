@@ -135,6 +135,53 @@ Then we'll go through the plan together. At each step, keep in mind your list of
 
 When we run into issues with the requests we're sending to model providers (e.g., the way we format system prompts, attachments, tool calls, or other parts of the conversation history) one helpful troubleshooting step is to add the line `console.log(`createParams: ${JSON.stringify(createParams, null, 2)}`);` to ProviderAnthropic.ts.
 
+## Security Best Practices
+
+**CRITICAL: Never commit secrets to the repository.**
+
+### API Keys and Secrets
+
+-   **NEVER hardcode API keys, tokens, or secrets in source code**
+-   Use environment variables for all sensitive configuration
+-   Environment variables are set in `.env` files (not committed) or CI/CD secrets
+-   Vite env vars must be prefixed with `VITE_` to be exposed to the frontend
+
+### Environment Variables
+
+Camp uses these environment variables:
+
+| Variable                       | Description                          | Required |
+| ------------------------------ | ------------------------------------ | -------- |
+| `VITE_DEFAULT_OPENROUTER_KEY`  | Default OpenRouter API key for users | No       |
+| `VITE_CAMP_BACKEND`            | Backend to use: "chorus" or "camp"   | No       |
+
+To set up:
+
+1. Copy `.env.example` to `.env`
+2. Fill in your values
+3. Never commit `.env` to git
+
+### If You Accidentally Commit a Secret
+
+1. **Immediately rotate the key** on the provider's dashboard
+2. Remove from code and commit the fix
+3. Use `git filter-repo` to remove from history:
+   ```bash
+   echo 'SECRET_VALUE==>REDACTED' > /tmp/replacements.txt
+   git filter-repo --replace-text /tmp/replacements.txt --force
+   ```
+4. Force push the cleaned history
+5. Notify the team
+
+### Code Review Checklist
+
+Before committing, verify:
+
+-   [ ] No API keys, tokens, or passwords in the diff
+-   [ ] No `.env` files being committed
+-   [ ] Secrets are read from environment variables
+-   [ ] New env vars are documented in `.env.example`
+
 ## Updating this onboarding doc
 
 Whenever you discover something that you wish you'd known earlier -- and seems likely to be helpful to future developers as well -- you can add it to the scratchpad section below. Feel free to edit the scratchpad section, but don't change the rest of this doc.

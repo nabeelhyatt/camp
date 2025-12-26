@@ -134,7 +134,12 @@ function AppContent() {
     const navigate = useNavigate();
     const location = useLocation();
     const { mode } = useTheme();
-    const hasDismissedOnboarding = AppMetadataAPI.useHasDismissedOnboarding();
+    const hasDismissedOnboardingDB = AppMetadataAPI.useHasDismissedOnboarding();
+    // Skip onboarding if a default API key is provided via env var
+    const hasDefaultApiKey = Boolean(
+        import.meta.env.VITE_DEFAULT_OPENROUTER_KEY,
+    );
+    const hasDismissedOnboarding = hasDismissedOnboardingDB || hasDefaultApiKey;
     const dismissedAlertVersion = AppMetadataAPI.useDismissedAlertVersion();
     const setDismissedAlertVersion =
         AppMetadataAPI.useSetDismissedAlertVersion();

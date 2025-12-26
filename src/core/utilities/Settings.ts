@@ -1,6 +1,10 @@
 import { getStore } from "@core/infra/Store";
 import { emit } from "@tauri-apps/api/event";
 
+// Default API key from environment variable (set at build time)
+const DEFAULT_OPENROUTER_KEY =
+    (import.meta.env.VITE_DEFAULT_OPENROUTER_KEY as string) || "";
+
 export interface Settings {
     defaultEditor: string;
     sansFont: string;
@@ -41,13 +45,19 @@ export class SettingsManager {
         try {
             const store = await getStore(this.storeName);
             const settings = await store.get("settings");
+            // Build default API keys from environment variables
+            const defaultApiKeys: Settings["apiKeys"] = {};
+            if (DEFAULT_OPENROUTER_KEY) {
+                defaultApiKeys.openrouter = DEFAULT_OPENROUTER_KEY;
+            }
+
             const defaultSettings = {
                 defaultEditor: "default",
                 sansFont: "Geist",
                 monoFont: "Geist Mono",
                 autoConvertLongText: true,
                 autoScrapeUrls: true,
-                apiKeys: {},
+                apiKeys: defaultApiKeys,
                 quickChat: {
                     enabled: true,
                     modelConfigId: "anthropic::claude-3-5-sonnet-latest",
@@ -64,13 +74,17 @@ export class SettingsManager {
             return (settings as Settings) || defaultSettings;
         } catch (error) {
             console.error("Failed to get settings:", error);
+            const fallbackApiKeys: Settings["apiKeys"] = {};
+            if (DEFAULT_OPENROUTER_KEY) {
+                fallbackApiKeys.openrouter = DEFAULT_OPENROUTER_KEY;
+            }
             return {
                 defaultEditor: "default",
                 sansFont: "Geist",
                 monoFont: "Fira Code",
                 autoConvertLongText: true,
                 autoScrapeUrls: true,
-                apiKeys: {},
+                apiKeys: fallbackApiKeys,
                 quickChat: {
                     enabled: true,
                     modelConfigId: "anthropic::claude-3-5-sonnet-latest",
