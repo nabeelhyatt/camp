@@ -1,10 +1,10 @@
 [package]
-name = "chorus"
-version = "0.1.2"
-description = "Talk to lots of AIs"
-authors = ["you"]
+name = "camp"
+version = "0.1.0"
+description = "Multiplayer AI workspace for group projects"
+authors = ["Spark Capital"]
 edition = "2021"
-default-run = "chorus"
+default-run = "camp"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

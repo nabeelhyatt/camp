@@ -1,8 +1,8 @@
 {
     "$schema": "https://schema.tauri.app/config/2.0.2",
-    "productName": "Chorus",
-    "version": "0.14.1",
-    "identifier": "sh.chorus.app.qa",
+    "productName": "Camp",
+    "version": "0.1.0",
+    "identifier": "ai.getcamp.app.qa",
     "build": {
         "beforeDevCommand": "pnpm vite:dev",
         "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
         "macOSPrivateApi": true,
         "windows": [
             {
-                "title": "Chorus QA",
+                "title": "Camp QA",
                 "label": "main",
                 "titleBarStyle": "Overlay",
                 "url": "/",
@@ -67,7 +67,7 @@
             "dialog": true,
             "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFBQzg0N0RDODVDRjJBQkMKUldTOEtzK0YzRWZJcXNLQ214MlBqRlRGR1pmaTlRVDQ3ZFhpNEVzRnNFdVNLUVZyaXBtWEdEQmEK",
             "endpoints": [
-                "https://cdn.crabnebula.app/update/chorus/chorus/{{target}}-{{arch}}/{{current_version}}?channel=qa"
+                "https://cdn.crabnebula.app/update/camp/camp/{{target}}-{{arch}}/{{current_version}}?channel=qa"
             ]
         },
         "shell": {
@@ -85,7 +85,7 @@
         },
         "deep-link": {
             "desktop": {
-                "schemes": ["chorus"]
+                "schemes": ["camp"]
             }
         }
     }
