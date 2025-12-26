@@ -17,6 +17,14 @@ Key features:
 
 Most of the functionality lives in this repo. There's also a backend that handles accounts, billing, and proxying the models' requests; currently using the Chorus backend at app.chorus.sh (written in Elixir).
 
+## Development Rules (CRITICAL)
+
+-   **NEVER COMMIT** unless explicitly asked by the user
+-   **Always work in feature branches**: `claude/feature-name` or `nabeelhyatt/feature-name`
+-   **NEVER edit existing migration files** - Create new migrations to fix issues (see Data model changes section)
+-   **TypeScript**: Avoid `any` types, use explicit typing
+-   **Test early**: Ask the user to test your changes in the app frequently
+
 ## Your role
 
 Your role is to write code. You do NOT have access to the running app, so you cannot test the code. You MUST rely on me, the user, to test the code.
@@ -66,6 +74,23 @@ We use pnpm to manage dependencies.
 
 Don't combine git commands -- e.g., instead of `git add -A && git commit`, run `git add -A` and `git commit` separately. This will save me time because I won't have to grant you permission to run the combined command.
 
+## Key Commands
+
+```bash
+# Development
+pnpm dev                      # Start Tauri dev server
+pnpm build                    # Build for production
+pnpm lint                     # Run ESLint
+
+# Tauri
+pnpm tauri dev                # Start Tauri in dev mode
+pnpm tauri build              # Build distributable app
+
+# Dependencies
+pnpm install                  # Install dependencies
+pnpm add <package>            # Add a package
+```
+
 ## Project Structure
 
 -   **UI:** React components in `src/ui/components/`
@@ -104,6 +129,13 @@ Changes to the data model will typically require most of the following steps:
 -   Modifying fetch and read functions in `src/core/chorus/DB.ts`
 -   Modifying data types (stored in a variety of places)
 -   Adding or modifying TanStack Query queries in `src/core/chorus/API.ts`
+
+### Migration File Rules (CRITICAL)
+
+-   **Migration order is IMMUTABLE**: Once a migration is added to `migrations.rs` and deployed, its position can NEVER change
+-   **NEVER delete and recreate migrations**: If you need to modify a migration that's been deployed, create a NEW migration to fix or modify it
+-   **NEVER reorder migration files**: The app tracks which migrations have run by their order
+-   **If you make a mistake**: Create a new migration to rollback or fix the issue - do not modify the original migration
 
 ## Coding style
 
@@ -181,6 +213,30 @@ Before committing, verify:
 -   [ ] No `.env` files being committed
 -   [ ] Secrets are read from environment variables
 -   [ ] New env vars are documented in `.env.example`
+
+## Configuration
+
+### Backend Configuration
+
+Camp uses `src/core/campConfig.ts` for centralized backend and service configuration:
+
+```typescript
+import { campConfig } from "@core/campConfig";
+
+campConfig.proxyUrl      // Backend URL (app.chorus.sh or app.getcamp.ai)
+campConfig.backend       // "chorus" or "camp"
+campConfig.isDev         // Development mode flag
+```
+
+### Icon Directories
+
+Tauri uses different icon sets for different build configurations:
+
+-   `src-tauri/icons/` - Production icons
+-   `src-tauri/icons-dev/` - Development build icons
+-   `src-tauri/icons-qa/` - QA build icons
+
+When updating app icons, update all three directories.
 
 ## Updating this onboarding doc
 
