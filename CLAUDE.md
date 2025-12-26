@@ -1,10 +1,10 @@
 # Claude's Onboarding Doc
 
-## What is Chorus?
+## What is Camp?
 
-Chorus is a native Mac AI chat app that lets you chat with all the AIs.
+Camp is a multiplayer AI workspace for group projects. It's a fork of [Chorus](https://github.com/meltylabs/chorus).
 
-It lets you send one prompt and see responses from Claude, o3-pro, Gemini, etc. all at once.
+It's a native Mac AI chat app that lets you chat with all the AIs. Send one prompt and see responses from Claude, o3-pro, Gemini, etc. all at once.
 
 It's built with Tauri, React, TypeScript, TanStack Query, and a local sqlite database.
 
@@ -12,10 +12,10 @@ Key features:
 
 -   MCP support
 -   Ambient chats (start a chat from anywhere)
--   Projects
+-   Group Projects
 -   Bring your own API keys
 
-Most of the functionality lives in this repo. There's also a backend that handles accounts, billing, and proxying the models' requests; that lives at app.chorus.sh and is written in Elixir.
+Most of the functionality lives in this repo. There's also a backend that handles accounts, billing, and proxying the models' requests; currently using the Chorus backend at app.chorus.sh (written in Elixir).
 
 ## Your role
 
