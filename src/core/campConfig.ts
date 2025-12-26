@@ -6,16 +6,16 @@
 const isDev = import.meta.env.DEV;
 
 // Backend selection - defaults to "chorus" for Phase 1
-const CAMP_BACKEND = import.meta.env.VITE_CAMP_BACKEND || "chorus";
+type BackendType = "chorus" | "camp";
+const CAMP_BACKEND: BackendType =
+    (import.meta.env.VITE_CAMP_BACKEND as BackendType) || "chorus";
 
-const BACKEND_URLS = {
+const BACKEND_URLS: Record<BackendType, string> = {
     chorus: "https://app.chorus.sh",
     camp: "https://app.getcamp.ai",
-} as const;
+};
 
-const CAMP_PROXY_URL =
-    BACKEND_URLS[CAMP_BACKEND as keyof typeof BACKEND_URLS] ||
-    BACKEND_URLS.chorus;
+const CAMP_PROXY_URL = BACKEND_URLS[CAMP_BACKEND] || BACKEND_URLS.chorus;
 
 // Analytics - disabled for Phase 1
 // TODO: Create Camp PostHog project and add key here
