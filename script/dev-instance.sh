@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to run isolated development instances of Chorus
+# Script to run isolated development instances of Camp
 # Usage: ./script/dev-instance.sh [instance-name]
 
 # Get the directory containing this script
@@ -17,7 +17,7 @@ INSTANCE_NAME="${1:-$DEFAULT_INSTANCE_NAME}"
 SAFE_INSTANCE_NAME=$(echo "$INSTANCE_NAME" | sed 's/[^a-zA-Z0-9_-]/_/g')
 
 # Create the unique identifier
-IDENTIFIER="sh.chorus.app.dev.$SAFE_INSTANCE_NAME"
+IDENTIFIER="ai.getcamp.app.dev.$SAFE_INSTANCE_NAME"
 
 # Calculate a unique port based on the instance name
 # Use a hash of the instance name to generate a port number between 1422 and 1620
@@ -63,7 +63,7 @@ if [ -f "$CUSTOM_ICON" ]; then
     cat > "$CONFIG_OVERRIDE" <<EOF
 {
   "identifier": "$IDENTIFIER",
-  "productName": "Chorus Dev - $INSTANCE_NAME",
+  "productName": "Camp Dev - $INSTANCE_NAME",
   "bundle": {
     "icon": ["$CUSTOM_ICON"]
   },
@@ -77,7 +77,7 @@ else
     cat > "$CONFIG_OVERRIDE" <<EOF
 {
   "identifier": "$IDENTIFIER",
-  "productName": "Chorus Dev - $INSTANCE_NAME",
+  "productName": "Camp Dev - $INSTANCE_NAME",
   "build": {
     "devUrl": "http://localhost:$PORT"
   }
@@ -85,13 +85,13 @@ else
 EOF
 fi
 
-echo "Starting Chorus development instance: $INSTANCE_NAME"
+echo "Starting Camp development instance: $INSTANCE_NAME"
 echo "App identifier: $IDENTIFIER"
 echo "Data directory: ~/Library/Application Support/$IDENTIFIER/"
 echo "Dev server port: $PORT (HMR: $HMR_PORT)"
 
 # Set environment variables
-export CHORUS_INSTANCE_NAME="$INSTANCE_NAME"
+export CAMP_INSTANCE_NAME="$INSTANCE_NAME"
 export VITE_PORT="$PORT"
 export VITE_HMR_PORT="$HMR_PORT"
 
