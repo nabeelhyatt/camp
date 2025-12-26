@@ -1,5 +1,6 @@
 import { MCPServer, Toolset } from "@core/chorus/Toolsets";
 import { StdioServerParameters } from "@core/chorus/MCPStdioTauri";
+import { campConfig } from "@core/campConfig";
 
 export class MCPServerGitHub extends MCPServer {
     protected getExecutionParameters(
@@ -29,7 +30,7 @@ export class ToolsetGithub extends Toolset {
                 },
             },
             "Manage repos, code, issues, and PRs",
-            "https://app.chorus.sh/auth/github_integration",
+            campConfig.githubAuthUrl,
         );
 
         const githubServer = new MCPServerGitHub();
