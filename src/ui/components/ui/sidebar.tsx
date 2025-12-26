@@ -63,7 +63,7 @@ const Sidebar = React.forwardRef<
                     <SheetContent
                         data-sidebar="sidebar"
                         data-mobile="true"
-                        className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+                        className="w-[--sidebar-width] bg-sidebar noise-bg p-0 text-sidebar-foreground [&>button]:hidden"
                         style={
                             {
                                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -71,7 +71,7 @@ const Sidebar = React.forwardRef<
                         }
                         side={side}
                     >
-                        <div className="flex h-full w-full flex-col">
+                        <div className="flex h-full w-full flex-col relative z-[1]">
                             {children}
                         </div>
                     </SheetContent>
@@ -114,7 +114,7 @@ const Sidebar = React.forwardRef<
                 >
                     <div
                         data-sidebar="sidebar"
-                        className="px-2 flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
+                        className="px-2 flex h-full w-full flex-col bg-sidebar noise-bg group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
                     >
                         <div
                             data-tauri-drag-region
