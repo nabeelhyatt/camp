@@ -229,7 +229,7 @@ export default function ProjectView() {
                             }}
                             className="font-normal"
                             editClassName="h-6 text-sm px-1 py-0 border-none"
-                            placeholder="New Project"
+                            placeholder="New Group Project"
                             showEditIcon={false}
                             disabled={false}
                         />
@@ -258,7 +258,7 @@ export default function ProjectView() {
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
-                            New chat in project{" "}
+                            New chat in group project{" "}
                             <kbd>
                                 <span>⌘</span>N
                             </kbd>
@@ -279,7 +279,7 @@ export default function ProjectView() {
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
-                            Delete project
+                            Delete group project
                         </TooltipContent>
                     </Tooltip>
                 </div>
@@ -301,7 +301,7 @@ export default function ProjectView() {
                                 contextEditorRef.current?.textareaRef.current?.focus();
                             }
                         }}
-                        placeholder="New Project"
+                        placeholder="New Group Project"
                         className="text-3xl font-medium ring-0 tracking-tight px-0 py-2 border-none rounded-none"
                     />
                 </div>
@@ -403,11 +403,11 @@ export default function ProjectView() {
                                 </span>
                             </h2>
                             <p className="text-sm text-muted-foreground font-[350] -mt-0.5">
-                                Add automatic summaries of chats in this project
+                                Add automatic summaries of chats in this group project
                                 to context
                                 {project.isImported && (
                                     <span className="block text-xs mt-1 text-muted-foreground/70">
-                                        Disabled for imported projects
+                                        Disabled for imported group projects
                                     </span>
                                 )}
                             </p>
@@ -468,7 +468,7 @@ export default function ProjectView() {
                                             strokeWidth={1.5}
                                             className="size-3 text-muted-foreground"
                                         />{" "}
-                                        New chat in project
+                                        New chat in group project
                                     </span>
                                     <span className="text-xs hidden group-hover/new-chat:block text-muted-foreground">
                                         ⌘N
@@ -493,7 +493,7 @@ export default function ProjectView() {
                             &rdquo;
                         </DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to delete this project and all
+                            Are you sure you want to delete this group project and all
                             its chats? This action cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
