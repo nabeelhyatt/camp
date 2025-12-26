@@ -13,6 +13,9 @@ import {
     FolderOpenIcon,
     SquarePlusIcon,
     TrashIcon,
+    Upload,
+    Link2,
+    Cloud,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -50,6 +53,8 @@ import { Link } from "react-router-dom";
 import { SidebarTrigger } from "./ui/sidebar";
 import * as ProjectAPI from "@core/chorus/api/ProjectAPI";
 import * as ChatAPI from "@core/chorus/api/ChatAPI";
+import WebSearchInput from "./WebSearchInput";
+import WebsiteURLDialog, { WEBSITE_URL_DIALOG_ID } from "./WebsiteURLDialog";
 
 const deleteProjectDialogId = (projectId: string) =>
     `delete-project-dialog-${projectId}`;
@@ -83,11 +88,6 @@ export default function ProjectView() {
             .filter((chat) => !chat.isNewChat) ?? [];
 
     const { open } = useSidebar();
-
-    // File attachment hook
-    const fileSelect = useFileSelect({
-        association: { type: "project", projectId: projectId || "" },
-    });
 
     // Callbacks - must be defined before any conditional returns
     const handleForwardNavigation = useCallback(() => {
@@ -306,73 +306,6 @@ export default function ProjectView() {
                     />
                 </div>
 
-                {/* Suggestion buttons and Add files */}
-                <div className="flex gap-2 mt-8 ml-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                            e.preventDefault();
-                            fileSelect.mutate();
-                        }}
-                        className="rounded-full text-foreground !border-input hover:bg-foreground/5 whitespace-nowrap h-7 text-sm"
-                    >
-                        <span className="text-base mr-1">+</span>
-                        Add files
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                            contextEditorRef.current?.handleTemplateSelect?.(
-                                PROJECT_TEMPLATE_PAIR_PROGRAMMER,
-                            );
-                        }}
-                        className="rounded-full text-foreground !border-input-border border-dashed hover:bg-foreground/5 whitespace-nowrap h-7 text-sm"
-                    >
-                        <AtSignIcon className="size-3" />
-                        Pair Programmer
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                            contextEditorRef.current?.handleTemplateSelect?.(
-                                PROJECT_TEMPLATE_COACH,
-                            );
-                        }}
-                        className="rounded-full text-foreground !border-input-border border-dashed hover:bg-foreground/5 whitespace-nowrap h-7 text-sm"
-                    >
-                        <AtSignIcon className="size-3" />
-                        Coach
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                            contextEditorRef.current?.handleTemplateSelect?.(
-                                PROJECT_TEMPLATE_HAMEL_WRITING_GUIDE,
-                            );
-                        }}
-                        className="rounded-full text-foreground !border-input-border border-dashed hover:bg-foreground/5 whitespace-nowrap h-7 text-sm"
-                    >
-                        <AtSignIcon className="size-3" />
-                        Writing Assistant
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                            contextEditorRef.current?.handleTemplateSelect?.(
-                                PROJECT_TEMPLATE_DECISION_ADVISOR,
-                            );
-                        }}
-                        className="rounded-full text-foreground !border-input-border border-dashed hover:bg-foreground/5 whitespace-nowrap h-7 text-sm"
-                    >
-                        <AtSignIcon className="size-3" />
-                        Decision Advisor
-                    </Button>
-                </div>
             </div>
 
             <div className="md:grid grid-cols-12 gap-4 w-full mt-8">
@@ -545,6 +478,7 @@ const ProjectContextEditor = forwardRef<
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const settings = useSettings();
     const [pendingTemplate, setPendingTemplate] = useState<string | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
     const isReplaceContextDialogOpen = useDialogStore(
         (state) => state.activeDialogId === replaceContextDialogId(projectId),
     );
@@ -589,6 +523,10 @@ const ProjectContextEditor = forwardRef<
         association: { type: "project", projectId },
     });
 
+    const fileSelect = useFileSelect({
+        association: { type: "project", projectId },
+    });
+
     const attachUrl = useAttachUrl({
         association: { type: "project", projectId },
     });
@@ -614,54 +552,208 @@ const ProjectContextEditor = forwardRef<
         }
     };
 
+    const handleAddUrls = async (urls: string[]) => {
+        for (const url of urls) {
+            await attachUrl.mutateAsync({ url });
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const fileList = e.dataTransfer.files;
+        if (fileList.length > 0) {
+            const files = Array.from(fileList);
+            void filePaste.mutateAsync(files);
+        }
+    };
+
+    const hasAttachments = (attachmentsQuery.data?.length ?? 0) > 0;
+
     return (
         <div className="mb-8 relative">
             <span className="absolute left-2 -top-2.5 bg-background px-2 text-xs font-geist-mono tracking-wider text-muted-foreground z-10">
                 CONTEXT
             </span>
 
-            {/* Integrated context box with attachments and textarea */}
-            <div className="border border-border rounded">
-                <AttachmentDropArea
-                    attachments={attachmentsQuery.data ?? []}
-                    onFileDrop={fileDrop.mutate}
-                    onRemove={(attachmentId) =>
-                        removeAttachment.mutate({
-                            attachmentId,
-                            projectId,
-                        })
-                    }
-                    inline={true}
+            <div className="border border-border rounded p-4 pt-5 space-y-4">
+                {/* Web Search Input */}
+                <WebSearchInput
+                    onAddUrl={async (url) => {
+                        await attachUrl.mutateAsync({ url });
+                    }}
                 />
 
-                <AutoExpandingTextarea
-                    ref={textareaRef}
-                    value={contextText}
-                    onChange={(e) => setContextText(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            const textarea = e.currentTarget;
-                            const start = textarea.selectionStart;
-                            const end = textarea.selectionEnd;
-                            const newValue =
-                                contextText.substring(0, start) +
-                                "\n" +
-                                contextText.substring(end);
-                            setContextText(newValue);
-                            // Set cursor position after the newline
-                            setTimeout(() => {
-                                textarea.selectionStart =
-                                    textarea.selectionEnd = start + 1;
-                            }, 0);
+                {/* Drop Zone with Action Buttons */}
+                <div
+                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                        isDragging
+                            ? "border-primary bg-primary/5"
+                            : "border-border"
+                    }`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                >
+                    <p className="text-muted-foreground text-sm mb-4">
+                        or drop your files here
+                    </p>
+                    <div className="flex justify-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fileSelect.mutate()}
+                            className="gap-2"
+                        >
+                            <Upload className="size-4" />
+                            Upload files
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                                dialogActions.openDialog(WEBSITE_URL_DIALOG_ID)
+                            }
+                            className="gap-2"
+                        >
+                            <Link2 className="size-4" />
+                            Websites
+                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled
+                                    className="gap-2 opacity-50"
+                                >
+                                    <Cloud className="size-4" />
+                                    Drive
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Coming soon</TooltipContent>
+                        </Tooltip>
+                    </div>
+                </div>
+
+                {/* Attachments Display */}
+                {hasAttachments && (
+                    <AttachmentDropArea
+                        attachments={attachmentsQuery.data ?? []}
+                        onFileDrop={fileDrop.mutate}
+                        onRemove={(attachmentId) =>
+                            removeAttachment.mutate({
+                                attachmentId,
+                                projectId,
+                            })
                         }
-                    }}
-                    onPaste={(e) => void handlePaste(e)}
-                    placeholder="What do you want all chats in this project to know?"
-                    className="pl-3.5 pr-12 py-3 max-h-[400px] h-full overflow-y-auto ring-0 border-0 rounded placeholder:text-muted-foreground placeholder:font-[350] w-full"
-                    rows={20}
-                />
+                        inline={true}
+                    />
+                )}
+
+                {/* Context Textarea */}
+                <div className="border border-border rounded">
+                    <AutoExpandingTextarea
+                        ref={textareaRef}
+                        value={contextText}
+                        onChange={(e) => setContextText(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                const textarea = e.currentTarget;
+                                const start = textarea.selectionStart;
+                                const end = textarea.selectionEnd;
+                                const newValue =
+                                    contextText.substring(0, start) +
+                                    "\n" +
+                                    contextText.substring(end);
+                                setContextText(newValue);
+                                // Set cursor position after the newline
+                                setTimeout(() => {
+                                    textarea.selectionStart =
+                                        textarea.selectionEnd = start + 1;
+                                }, 0);
+                            }
+                        }}
+                        onPaste={(e) => void handlePaste(e)}
+                        placeholder="Paste your Claude or ChatGPT conversation here..."
+                        className="pl-3.5 pr-12 py-3 max-h-[400px] h-full overflow-y-auto ring-0 border-0 rounded placeholder:text-muted-foreground placeholder:font-[350] w-full"
+                        rows={12}
+                    />
+                </div>
+
+                {/* Session Type Templates */}
+                <div className="pt-2">
+                    <p className="text-xs text-muted-foreground mb-2">
+                        Add Session Type
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                                handleTemplateSelect(
+                                    PROJECT_TEMPLATE_PAIR_PROGRAMMER,
+                                )
+                            }
+                            className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                            <AtSignIcon className="size-3 mr-1" />
+                            Pair Programmer
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                                handleTemplateSelect(PROJECT_TEMPLATE_COACH)
+                            }
+                            className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                            <AtSignIcon className="size-3 mr-1" />
+                            Coach
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                                handleTemplateSelect(
+                                    PROJECT_TEMPLATE_HAMEL_WRITING_GUIDE,
+                                )
+                            }
+                            className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                            <AtSignIcon className="size-3 mr-1" />
+                            Writing Assistant
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                                handleTemplateSelect(
+                                    PROJECT_TEMPLATE_DECISION_ADVISOR,
+                                )
+                            }
+                            className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                            <AtSignIcon className="size-3 mr-1" />
+                            Decision Advisor
+                        </Button>
+                    </div>
+                </div>
             </div>
+
+            {/* Website URL Dialog */}
+            <WebsiteURLDialog onAddUrls={handleAddUrls} />
 
             {/* Confirmation dialog */}
             <Dialog
