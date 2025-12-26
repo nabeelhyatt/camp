@@ -67,11 +67,6 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                         <p className="text text-muted-foreground pb-6">
                             Multiplayer AI workspace for group projects.
                         </p>
-                        <img
-                            src="https://meltylabs.t3.storage.dev/screenshot_light.png"
-                            className="rounded-lg max-w-3xl mx-auto border border-border shadow-sm"
-                            alt="Camp screenshot"
-                        />
                     </div>
 
                     <Button className="mt-4" onClick={handleNextStep}>
