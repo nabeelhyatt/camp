@@ -134,11 +134,7 @@ function AppContent() {
     const navigate = useNavigate();
     const location = useLocation();
     const { mode } = useTheme();
-    const hasDismissedOnboardingDB = AppMetadataAPI.useHasDismissedOnboarding();
-    const { data: apiKeys } = AppMetadataAPI.useApiKeys();
-    // Skip onboarding if user has already dismissed it OR if there's a default API key
-    const hasDismissedOnboarding =
-        hasDismissedOnboardingDB || Boolean(apiKeys?.openrouter);
+    const hasDismissedOnboarding = AppMetadataAPI.useHasDismissedOnboarding();
     const dismissedAlertVersion = AppMetadataAPI.useDismissedAlertVersion();
     const setDismissedAlertVersion =
         AppMetadataAPI.useSetDismissedAlertVersion();

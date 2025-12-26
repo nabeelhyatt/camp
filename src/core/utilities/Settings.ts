@@ -47,11 +47,7 @@ export class SettingsManager {
                 monoFont: "Geist Mono",
                 autoConvertLongText: true,
                 autoScrapeUrls: true,
-                apiKeys: {
-                    // Camp default OpenRouter API key for core support
-                    openrouter:
-                        "REDACTED_OPENROUTER_KEY",
-                },
+                apiKeys: {},
                 quickChat: {
                     enabled: true,
                     modelConfigId: "anthropic::claude-3-5-sonnet-latest",
@@ -74,11 +70,7 @@ export class SettingsManager {
                 monoFont: "Fira Code",
                 autoConvertLongText: true,
                 autoScrapeUrls: true,
-                apiKeys: {
-                    // Camp default OpenRouter API key for core support
-                    openrouter:
-                        "REDACTED_OPENROUTER_KEY",
-                },
+                apiKeys: {},
                 quickChat: {
                     enabled: true,
                     modelConfigId: "anthropic::claude-3-5-sonnet-latest",
