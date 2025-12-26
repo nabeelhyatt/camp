@@ -1,10 +1,10 @@
 # Claude's Onboarding Doc
 
-## What is Chorus?
+## What is Camp?
 
-Chorus is a native Mac AI chat app that lets you chat with all the AIs.
+Camp is a multiplayer AI workspace for group projects. It's a fork of [Chorus](https://github.com/meltylabs/chorus).
 
-It lets you send one prompt and see responses from Claude, o3-pro, Gemini, etc. all at once.
+It's a native Mac AI chat app that lets you chat with all the AIs. Send one prompt and see responses from Claude, o3-pro, Gemini, etc. all at once.
 
 It's built with Tauri, React, TypeScript, TanStack Query, and a local sqlite database.
 
@@ -12,10 +12,19 @@ Key features:
 
 -   MCP support
 -   Ambient chats (start a chat from anywhere)
--   Projects
+-   Group Projects
 -   Bring your own API keys
 
-Most of the functionality lives in this repo. There's also a backend that handles accounts, billing, and proxying the models' requests; that lives at app.chorus.sh and is written in Elixir.
+Most of the functionality lives in this repo. There's also a backend that handles accounts, billing, and proxying the models' requests; currently using the Chorus backend at app.chorus.sh (written in Elixir).
+
+## Development Rules (CRITICAL)
+
+-   **NEVER COMMIT** unless explicitly asked by the user
+-   **Always work in feature branches**: `claude/feature-name` or `nabeelhyatt/feature-name`
+-   **NEVER edit existing migration files** - Create new migrations to fix issues (see Data model changes section)
+-   **TypeScript**: Avoid `any` types, use explicit typing
+-   **Test early**: Ask the user to test your changes in the app frequently
+-   **Upstream compatibility**: Before modifying any file, check `UPSTREAM-SYNC.md` to see if it's a Tier 1 (never modify) file
 
 ## Your role
 
@@ -66,6 +75,23 @@ We use pnpm to manage dependencies.
 
 Don't combine git commands -- e.g., instead of `git add -A && git commit`, run `git add -A` and `git commit` separately. This will save me time because I won't have to grant you permission to run the combined command.
 
+## Key Commands
+
+```bash
+# Development
+pnpm dev                      # Start Tauri dev server
+pnpm build                    # Build for production
+pnpm lint                     # Run ESLint
+
+# Tauri
+pnpm tauri dev                # Start Tauri in dev mode
+pnpm tauri build              # Build distributable app
+
+# Dependencies
+pnpm install                  # Install dependencies
+pnpm add <package>            # Add a package
+```
+
 ## Project Structure
 
 -   **UI:** React components in `src/ui/components/`
@@ -105,6 +131,13 @@ Changes to the data model will typically require most of the following steps:
 -   Modifying data types (stored in a variety of places)
 -   Adding or modifying TanStack Query queries in `src/core/chorus/API.ts`
 
+### Migration File Rules (CRITICAL)
+
+-   **Migration order is IMMUTABLE**: Once a migration is added to `migrations.rs` and deployed, its position can NEVER change
+-   **NEVER delete and recreate migrations**: If you need to modify a migration that's been deployed, create a NEW migration to fix or modify it
+-   **NEVER reorder migration files**: The app tracks which migrations have run by their order
+-   **If you make a mistake**: Create a new migration to rollback or fix the issue - do not modify the original migration
+
 ## Coding style
 
 -   **TypeScript:** Strict typing enabled, ES2020 target. Use `as` only in exceptional
@@ -134,6 +167,99 @@ Whenever I report that code you wrote doesn't work, or report a bug, you should:
 Then we'll go through the plan together. At each step, keep in mind your list of hypotheses, and remember to re-evaluate each hypothesis against the evidence we've collected.
 
 When we run into issues with the requests we're sending to model providers (e.g., the way we format system prompts, attachments, tool calls, or other parts of the conversation history) one helpful troubleshooting step is to add the line `console.log(`createParams: ${JSON.stringify(createParams, null, 2)}`);` to ProviderAnthropic.ts.
+
+## Security Best Practices
+
+**CRITICAL: Never commit secrets to the repository.**
+
+### API Keys and Secrets
+
+-   **NEVER hardcode API keys, tokens, or secrets in source code**
+-   Use environment variables for all sensitive configuration
+-   Environment variables are set in `.env` files (not committed) or CI/CD secrets
+-   Vite env vars must be prefixed with `VITE_` to be exposed to the frontend
+
+### Environment Variables
+
+Camp uses these environment variables:
+
+| Variable                      | Description                          | Required |
+| ----------------------------- | ------------------------------------ | -------- |
+| `VITE_DEFAULT_OPENROUTER_KEY` | Default OpenRouter API key for users | No       |
+| `VITE_CAMP_BACKEND`           | Backend to use: "chorus" or "camp"   | No       |
+
+To set up:
+
+1. Copy `.env.example` to `.env`
+2. Fill in your values
+3. Never commit `.env` to git
+
+### If You Accidentally Commit a Secret
+
+1. **Immediately rotate the key** on the provider's dashboard
+2. Remove from code and commit the fix
+3. Use `git filter-repo` to remove from history:
+    ```bash
+    echo 'SECRET_VALUE==>REDACTED' > /tmp/replacements.txt
+    git filter-repo --replace-text /tmp/replacements.txt --force
+    ```
+4. Force push the cleaned history
+5. Notify the team
+
+### Code Review Checklist
+
+Before committing, verify:
+
+-   [ ] No API keys, tokens, or passwords in the diff
+-   [ ] No `.env` files being committed
+-   [ ] Secrets are read from environment variables
+-   [ ] New env vars are documented in `.env.example`
+
+## Configuration
+
+### Backend Configuration
+
+Camp uses `src/core/campConfig.ts` for centralized backend and service configuration:
+
+```typescript
+import { campConfig } from "@core/campConfig";
+
+campConfig.proxyUrl; // Backend URL (app.chorus.sh or app.getcamp.ai)
+campConfig.backend; // "chorus" or "camp"
+campConfig.isDev; // Development mode flag
+```
+
+### Icon Directories
+
+Tauri uses different icon sets for different build configurations:
+
+-   `src-tauri/icons/` - Production icons
+-   `src-tauri/icons-dev/` - Development build icons
+-   `src-tauri/icons-qa/` - QA build icons
+
+When updating app icons, update all three directories.
+
+## Upstream Sync Strategy
+
+Camp is a fork of Chorus. To enable easy cherry-picking of upstream bug fixes and features, we classify files into tiers. **See `UPSTREAM-SYNC.md` for the complete policy.**
+
+### Quick Reference
+
+| Tier       | Policy                | Examples                                       |
+| ---------- | --------------------- | ---------------------------------------------- |
+| **Tier 1** | NEVER modify          | Model providers, MCP, ChatState, UI primitives |
+| **Tier 2** | Cherry-pick carefully | API layer, MultiChat, ManageModelsBox          |
+| **Tier 3** | Safe to customize     | campConfig.ts, Onboarding, Settings, branding  |
+
+### Key Principle
+
+All Camp customizations should flow through `campConfig.ts` or live in Tier 3 files. This keeps Tier 1 files pristine for upstream updates.
+
+**Before modifying any file in `src/core/chorus/`:**
+
+1. Check `UPSTREAM-SYNC.md` for its tier classification
+2. If Tier 1: Find an alternative approach (wrapper, config, new file)
+3. If Tier 2: Document the change and be prepared for merge conflicts
 
 ## Updating this onboarding doc
 

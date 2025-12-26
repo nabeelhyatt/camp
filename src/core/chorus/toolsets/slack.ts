@@ -1,5 +1,6 @@
 import { MCPServer, Toolset } from "@core/chorus/Toolsets";
 import { StdioServerParameters } from "@core/chorus/MCPStdioTauri";
+import { campConfig } from "@core/campConfig";
 
 export class MCPServerSlack extends MCPServer {
     protected getExecutionParameters(
@@ -34,7 +35,7 @@ export class ToolsetSlack extends Toolset {
                 },
             },
             "Manage Slack channels, messages, and users",
-            "https://app.chorus.sh/auth/slack",
+            campConfig.slackAuthUrl,
         );
 
         const slackServer = new MCPServerSlack();

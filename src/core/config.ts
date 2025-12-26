@@ -1,14 +1,12 @@
 // Environment detection
-const isDev = import.meta.env.DEV;
+import { campConfig } from "@core/campConfig";
 
 const DB_URL = "sqlite:chats.db";
 
-// Note: meltyProxyUrl is kept for backwards compatibility with feedback submission
-// It can be removed once feedback is handled differently
-const MELTY_PROXY_URL = "https://app.chorus.sh";
-
 export const config = {
-    tellPostHogIAmATestUser: isDev,
+    tellPostHogIAmATestUser: campConfig.isDev,
     dbUrl: DB_URL,
-    meltyProxyUrl: MELTY_PROXY_URL,
+    // Use campConfig.proxyUrl for backend URL
+    // This is kept for backwards compatibility with existing code
+    meltyProxyUrl: campConfig.proxyUrl,
 } as const;

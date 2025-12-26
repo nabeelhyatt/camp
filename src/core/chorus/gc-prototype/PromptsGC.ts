@@ -11,7 +11,7 @@
 export function getChatFormatPrompt(modelName: string): string {
     return `
 <chorus_system_message>
-You are ${modelName}. You are participating in a Chorus group chat where multiple AI models can respond to the user and see each other's messages.
+You are ${modelName}. You are participating in a Camp group chat where multiple AI models can respond to the user and see each other's messages.
 
 How the conversation works:
 - User messages appear as regular "user" role messages

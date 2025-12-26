@@ -41,6 +41,7 @@
             "identifier": "http:default",
             "allow": [
                 { "url": "https://app.chorus.sh/*" },
+                { "url": "https://app.getcamp.ai/*" },
                 { "url": "http://localhost:4000/*" }
             ]
         },

@@ -136,11 +136,11 @@ pub fn run() {
         let handle = app.app_handle();
 
         // Create the application menu using Tauri v2 API
-        let app_menu = SubmenuBuilder::new(app, "Chorus")
+        let app_menu = SubmenuBuilder::new(app, "Camp")
             .item(&MenuItem::with_id(
                 app,
-                "about-chorus",
-                "About Chorus",
+                "about-camp",
+                "About Camp",
                 true,
                 None::<&str>,
             )?)
@@ -390,7 +390,7 @@ pub fn run() {
                 "settings" | "settings-shortcut" => {
                     app.emit("menu-settings", ()).unwrap();
                 }
-                "about-chorus" => {
+                "about-camp" => {
                     app.emit("menu-about", ()).unwrap();
                 }
                 "changelog" => {

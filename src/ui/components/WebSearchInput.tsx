@@ -45,7 +45,10 @@ export default function WebSearchInput({
                 const url = match[2];
                 const title = match[1] || url;
                 results.push({
-                    title: title.length > 60 ? title.substring(0, 60) + "..." : title,
+                    title:
+                        title.length > 60
+                            ? title.substring(0, 60) + "..."
+                            : title,
                     url,
                     snippet: "", // Perplexity doesn't give us individual snippets
                 });
@@ -179,7 +182,9 @@ export default function WebSearchInput({
                                 <button
                                     key={index}
                                     className="w-full text-left p-2 hover:bg-muted rounded-md flex items-center justify-between gap-2 group"
-                                    onClick={() => void handleAddResult(result.url)}
+                                    onClick={() =>
+                                        void handleAddResult(result.url)
+                                    }
                                     disabled={addingUrl === result.url}
                                 >
                                     <div className="flex-1 min-w-0">

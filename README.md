@@ -1,13 +1,13 @@
 <p align="center">
-  <img src="app-icon.png" alt="Chorus icon" width="128" />
+  <img src="app-icon.png" alt="Camp icon" width="128" />
 </p>
 
-<h1 align="center"><a href="https://chorus.sh">Chorus</a></h1>
+<h1 align="center"><a href="https://getcamp.ai">Camp</a></h1>
 
-<p align="center">All the AI, on your Mac. Built by the creators of <a href="https://conductor.build">Conductor.</a></p>
+<p align="center">Multiplayer AI workspace for group projects. Fork of <a href="https://chorus.sh">Chorus</a>.</p>
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/771262eb-5a0e-40cb-b1a5-9df6b903c626" alt="Chorus screenshot" />
+  <img src="https://github.com/user-attachments/assets/771262eb-5a0e-40cb-b1a5-9df6b903c626" alt="Camp screenshot" />
 </p>
 
 # Getting Started
@@ -30,3 +30,7 @@ pnpm run dev    # This is also our Conductor run script
 ```
 
 Vite will run on a random even-numbered port between 1422 and 1522, inclusive. HMR will run on the next port. If there's a collision, change the instance name (makes sure to rerun the setup script).
+
+# Upstream Sync
+
+Camp is a fork of [Chorus](https://github.com/meltylabs/chorus). See [UPSTREAM-SYNC.md](UPSTREAM-SYNC.md) for our policy on cherry-picking upstream fixes.

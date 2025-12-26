@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -13,11 +13,11 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
     const [isSaving, setIsSaving] = useState(false);
     const queryClient = useQueryClient();
 
-    const handleNextStep = () => {
+    const handleNextStep = useCallback(() => {
         setOnboardingStep.mutate({ step: 1 });
-    };
+    }, [setOnboardingStep]);
 
-    const handleSaveAndComplete = async () => {
+    const handleSaveAndComplete = useCallback(async () => {
         if (openRouterKey.trim()) {
             setIsSaving(true);
             const settingsManager = SettingsManager.getInstance();
@@ -34,7 +34,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
             setIsSaving(false);
         }
         onComplete();
-    };
+    }, [openRouterKey, queryClient, onComplete]);
 
     // Allow pressing Enter to continue quickly
     useEffect(() => {
@@ -51,7 +51,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
 
         document.addEventListener("keydown", handleKeyDown);
         return () => document.removeEventListener("keydown", handleKeyDown);
-    }, [onboardingStep, openRouterKey]);
+    }, [onboardingStep, handleNextStep, handleSaveAndComplete]);
 
     if (onboardingStep === 0) {
         return (
@@ -62,16 +62,11 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                 <div className="text-center space-y-6 max-w-3xl w-full">
                     <div className="space-y-2">
                         <h1 className="text-2xl font-semibold tracking-tight">
-                            Welcome to Chorus
+                            Welcome to Camp
                         </h1>
                         <p className="text text-muted-foreground pb-6">
-                            All the AI, on your Mac.
+                            Multiplayer AI workspace for group projects.
                         </p>
-                        <img
-                            src="https://meltylabs.t3.storage.dev/screenshot_light.png"
-                            className="rounded-lg max-w-3xl mx-auto border border-border shadow-sm"
-                            alt="Chorus screenshot"
-                        />
                     </div>
 
                     <Button className="mt-4" onClick={handleNextStep}>
@@ -94,7 +89,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                         Add an API Key
                     </h1>
                     <p className="text-muted-foreground">
-                        Chorus runs on API keys. We recommend{" "}
+                        Camp runs on API keys. We recommend{" "}
                         <a
                             href="https://openrouter.ai/keys"
                             target="_blank"

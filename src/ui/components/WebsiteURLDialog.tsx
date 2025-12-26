@@ -71,9 +71,12 @@ export default function WebsiteURLDialog({ onAddUrls }: WebsiteURLDialogProps) {
             await onAddUrls(urls);
             setUrlText("");
             dialogActions.closeDialog();
-            toast.success(`Adding ${urls.length} URL${urls.length > 1 ? "s" : ""}`, {
-                description: "Scraping website content...",
-            });
+            toast.success(
+                `Adding ${urls.length} URL${urls.length > 1 ? "s" : ""}`,
+                {
+                    description: "Scraping website content...",
+                },
+            );
         } catch (error) {
             toast.error("Failed to add URLs", {
                 description:
@@ -128,11 +131,13 @@ export default function WebsiteURLDialog({ onAddUrls }: WebsiteURLDialogProps) {
                     <ul className="mt-4 text-sm text-muted-foreground space-y-1">
                         <li className="flex items-start gap-2">
                             <span className="text-muted-foreground/70">•</span>
-                            To add multiple URLs, separate with a space or new line
+                            To add multiple URLs, separate with a space or new
+                            line
                         </li>
                         <li className="flex items-start gap-2">
                             <span className="text-muted-foreground/70">•</span>
-                            Only the visible text on the website will be imported
+                            Only the visible text on the website will be
+                            imported
                         </li>
                         <li className="flex items-start gap-2">
                             <span className="text-muted-foreground/70">•</span>
