@@ -105,7 +105,7 @@ pub fn migrations() -> Vec<Migration> {
                     }',
                     1
                 ),
-                ('gpt', 'GPT-4o', 'openai', 'NULL', 'gpt-4o',
+                ('gpt', 'GPT-4o', 'openai', NULL, 'gpt-4o',
                     NULL,
                     '{
                         "model": "gpt-4o",
