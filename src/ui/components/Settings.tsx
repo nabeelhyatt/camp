@@ -903,7 +903,7 @@ function ToolsTab() {
                                     Import MCPs from Claude Desktop. If you've
                                     made changes to your MCPs in Claude Desktop,
                                     you can click this button again to refresh
-                                    your Chorus MCPs.
+                                    your Camp MCPs.
                                 </TooltipContent>
                             </Tooltip>
                         </div>
@@ -1365,7 +1365,7 @@ export default function Settings({ tab = "general" }: SettingsProps) {
             <DialogHeader className="sr-only">
                 <DialogTitle>Settings</DialogTitle>
                 <DialogDescription>
-                    Manage your Chorus settings
+                    Manage your Camp settings
                 </DialogDescription>
             </DialogHeader>
 
@@ -1419,7 +1419,7 @@ export default function Settings({ tab = "general" }: SettingsProps) {
                             </div>
                             <div className="space-y-4">
                                 <p className="text-sm text-muted-foreground">
-                                    Chorus requires you to bring your own API
+                                    Camp requires you to bring your own API
                                     keys to use AI models. Add your keys in the
                                     API Keys tab.
                                 </p>

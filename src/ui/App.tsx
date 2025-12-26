@@ -329,7 +329,7 @@ function AppContent() {
                             });
                             toast.success("GitHub successfully connected", {
                                 description:
-                                    "You can now manage repos, code, issues, and PRs from Chorus",
+                                    "You can now manage repos, code, issues, and PRs from Camp",
                             });
                         }
                     } else if (urlObj.hostname === "chat") {
@@ -669,7 +669,7 @@ function AppContent() {
                 const info = `Version: ${appVersion}\nPlatform: ${plat}\nArchitecture: ${architecture}\nOS Version: ${osVer}\n\n`;
 
                 const shouldCopy = await confirm(info, {
-                    title: "Chorus",
+                    title: "Camp",
                     okLabel: "Copy",
                     cancelLabel: "Close",
                 });
@@ -799,7 +799,7 @@ function AppContent() {
                             Open Source
                         </AlertTitle>
                         <AlertDescription>
-                            Chorus is now Open Source! It now runs on your own
+                            Camp is built on the open-source Chorus project! It runs on your own
                             API keys. Add them in Settings → API Keys.
                             <br />
                             <br />
@@ -808,7 +808,7 @@ function AppContent() {
                                     className="text-sm text-muted-foreground hover:text-foreground"
                                     onClick={() =>
                                         void openUrl(
-                                            "https://github.com/meltylabs/chorus",
+                                            "https://github.com/nabeelhyatt/camp",
                                         )
                                     }
                                 >
@@ -829,7 +829,7 @@ function AppContent() {
                         <AlertDialogDescription>
                             Thanks for signing up! You've been added to our
                             waitlist. We'll email you as soon as your account is
-                            activated with full access to Chorus.
+                            activated with full access to Camp.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                 </AlertDialogContent>
@@ -1046,7 +1046,7 @@ function App() {
                                         Move to Applications Folder
                                     </AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        Looks like Chorus isn't in your
+                                        Looks like Camp isn't in your
                                         Applications folder! This means you
                                         won't be able to get updates.
                                     </AlertDialogDescription>

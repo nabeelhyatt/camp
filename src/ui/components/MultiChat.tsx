@@ -2002,7 +2002,7 @@ export default function MultiChat() {
         if (!visionModeEnabled && !hasPermissions) {
             toast("Screen Recording Permission Required", {
                 description:
-                    "Chorus needs screen recording permission to enable vision mode.",
+                    "Camp needs screen recording permission to enable vision mode.",
                 action: {
                     label: "Open Settings",
                     onClick: () => {
@@ -2217,10 +2217,10 @@ export default function MultiChat() {
                             <TooltipContent>
                                 {appMetadata["vision_mode_enabled"] ===
                                 "true" ? (
-                                    <>Chorus can see your screen</>
+                                    <>Camp can see your screen</>
                                 ) : (
                                     <>
-                                        Enable vision mode to show Chorus your
+                                        Enable vision mode to show Camp your
                                         screen
                                     </>
                                 )}

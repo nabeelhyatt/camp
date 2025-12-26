@@ -62,15 +62,15 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                 <div className="text-center space-y-6 max-w-3xl w-full">
                     <div className="space-y-2">
                         <h1 className="text-2xl font-semibold tracking-tight">
-                            Welcome to Chorus
+                            Welcome to Camp
                         </h1>
                         <p className="text text-muted-foreground pb-6">
-                            All the AI, on your Mac.
+                            Multiplayer AI workspace for group projects.
                         </p>
                         <img
                             src="https://meltylabs.t3.storage.dev/screenshot_light.png"
                             className="rounded-lg max-w-3xl mx-auto border border-border shadow-sm"
-                            alt="Chorus screenshot"
+                            alt="Camp screenshot"
                         />
                     </div>
 
@@ -94,7 +94,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                         Add an API Key
                     </h1>
                     <p className="text-muted-foreground">
-                        Chorus runs on API keys. We recommend{" "}
+                        Camp runs on API keys. We recommend{" "}
                         <a
                             href="https://openrouter.ai/keys"
                             target="_blank"
