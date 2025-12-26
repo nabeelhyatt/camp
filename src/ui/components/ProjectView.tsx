@@ -586,6 +586,37 @@ const ProjectContextEditor = forwardRef<
             </span>
 
             <div className="border border-border rounded p-4 pt-5 space-y-4">
+                {/* Context Textarea - First */}
+                <div className="border border-border rounded">
+                    <AutoExpandingTextarea
+                        ref={textareaRef}
+                        value={contextText}
+                        onChange={(e) => setContextText(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                const textarea = e.currentTarget;
+                                const start = textarea.selectionStart;
+                                const end = textarea.selectionEnd;
+                                const newValue =
+                                    contextText.substring(0, start) +
+                                    "\n" +
+                                    contextText.substring(end);
+                                setContextText(newValue);
+                                // Set cursor position after the newline
+                                setTimeout(() => {
+                                    textarea.selectionStart =
+                                        textarea.selectionEnd = start + 1;
+                                }, 0);
+                            }
+                        }}
+                        onPaste={(e) => void handlePaste(e)}
+                        placeholder="Copy paste your prior Claude chat, Granola notes, etc into here to get started..."
+                        className="pl-3.5 pr-12 py-3 max-h-[400px] h-full overflow-y-auto ring-0 border-0 rounded placeholder:text-muted-foreground placeholder:font-[350] w-full"
+                        rows={12}
+                    />
+                </div>
+
                 {/* Web Search Input */}
                 <WebSearchInput
                     onAddUrl={async (url) => {
@@ -656,37 +687,6 @@ const ProjectContextEditor = forwardRef<
                         inline={true}
                     />
                 )}
-
-                {/* Context Textarea */}
-                <div className="border border-border rounded">
-                    <AutoExpandingTextarea
-                        ref={textareaRef}
-                        value={contextText}
-                        onChange={(e) => setContextText(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault();
-                                const textarea = e.currentTarget;
-                                const start = textarea.selectionStart;
-                                const end = textarea.selectionEnd;
-                                const newValue =
-                                    contextText.substring(0, start) +
-                                    "\n" +
-                                    contextText.substring(end);
-                                setContextText(newValue);
-                                // Set cursor position after the newline
-                                setTimeout(() => {
-                                    textarea.selectionStart =
-                                        textarea.selectionEnd = start + 1;
-                                }, 0);
-                            }
-                        }}
-                        onPaste={(e) => void handlePaste(e)}
-                        placeholder="Paste your Claude or ChatGPT conversation here..."
-                        className="pl-3.5 pr-12 py-3 max-h-[400px] h-full overflow-y-auto ring-0 border-0 rounded placeholder:text-muted-foreground placeholder:font-[350] w-full"
-                        rows={12}
-                    />
-                </div>
 
                 {/* Session Type Templates */}
                 <div className="pt-2">
