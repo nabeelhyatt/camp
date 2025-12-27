@@ -28,8 +28,9 @@
         "paths": {
             "@ui/*": ["./src/ui/*"],
             "@core/*": ["./src/core/*"],
-            "@/*": ["./src/*"]
+            "@/*": ["./src/*"],
+            "@convex/*": ["./convex/*"]
         }
     },
-    "include": ["src/", "*.config.mjs", "*.config.cjs"]
+    "include": ["src/", "convex/", "*.config.mjs", "*.config.cjs"]
 }

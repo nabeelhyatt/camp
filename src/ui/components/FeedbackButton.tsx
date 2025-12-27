@@ -9,7 +9,7 @@ export default function FeedbackButton({
     className?: string;
 }) {
     const handleFeedbackClick = () => {
-        void openUrl("https://github.com/meltylabs/chorus/issues/new");
+        void openUrl("https://github.com/nabeelhyatt/camp/issues");
     };
 
     return (
