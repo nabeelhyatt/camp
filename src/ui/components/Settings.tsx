@@ -1096,12 +1096,10 @@ function AccountTab() {
             toast.success("Organization name updated");
             setIsEditingOrgName(false);
         } catch (error) {
-            toast.error(
-                "Failed to update organization name",
-                {
-                    description: error instanceof Error ? error.message : "Unknown error",
-                },
-            );
+            toast.error("Failed to update organization name", {
+                description:
+                    error instanceof Error ? error.message : "Unknown error",
+            });
         }
     };
 
@@ -1134,7 +1132,9 @@ function AccountTab() {
                                 />
                             )}
                             <div>
-                                <div className="font-medium">{user?.displayName}</div>
+                                <div className="font-medium">
+                                    {user?.displayName}
+                                </div>
                                 <div className="text-sm text-muted-foreground">
                                     {user?.email}
                                 </div>
@@ -1148,16 +1148,16 @@ function AccountTab() {
                     <div className="border rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="font-semibold">Organization</h3>
-                            {isOwner && (
-                                <Badge variant="default">Admin</Badge>
-                            )}
+                            {isOwner && <Badge variant="default">Admin</Badge>}
                         </div>
                         <div className="space-y-3">
                             {isEditingOrgName ? (
                                 <div className="space-y-2">
                                     <Input
                                         value={orgName}
-                                        onChange={(e) => setOrgName(e.target.value)}
+                                        onChange={(e) =>
+                                            setOrgName(e.target.value)
+                                        }
                                         placeholder="Organization name"
                                         onKeyDown={(e) => {
                                             if (e.key === "Enter") {
@@ -1172,7 +1172,9 @@ function AccountTab() {
                                     <div className="flex gap-2">
                                         <Button
                                             size="sm"
-                                            onClick={() => void handleSaveOrgName()}
+                                            onClick={() =>
+                                                void handleSaveOrgName()
+                                            }
                                         >
                                             Save
                                         </Button>
@@ -1195,7 +1197,9 @@ function AccountTab() {
                                             {organization.name}
                                         </div>
                                         <div className="text-sm text-muted-foreground">
-                                            {organization.domain.startsWith("personal-")
+                                            {organization.domain.startsWith(
+                                                "personal-",
+                                            )
                                                 ? "Personal workspace"
                                                 : organization.domain}
                                         </div>
@@ -1204,7 +1208,9 @@ function AccountTab() {
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => setIsEditingOrgName(true)}
+                                            onClick={() =>
+                                                setIsEditingOrgName(true)
+                                            }
                                         >
                                             <Pencil className="h-4 w-4" />
                                         </Button>
@@ -1927,9 +1933,7 @@ export default function Settings({ tab = "general" }: SettingsProps) {
                         </div>
                     )}
 
-                    {activeTab === "account" && (
-                        <AccountTab />
-                    )}
+                    {activeTab === "account" && <AccountTab />}
 
                     {activeTab === "quick-chat" && (
                         <div className="space-y-6 max-w-2xl">
