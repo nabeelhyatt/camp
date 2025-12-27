@@ -1,9 +1,5 @@
 import { FolderPlusIcon, UsersIcon } from "lucide-react";
-import {
-    SidebarMenu,
-    SidebarMenuItem,
-    SidebarMenuButton,
-} from "@ui/components/ui/sidebar";
+import { SidebarMenu } from "@ui/components/ui/sidebar";
 import {
     Tooltip,
     TooltipContent,

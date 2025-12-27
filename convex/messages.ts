@@ -163,7 +163,7 @@ export const createSet = mutation({
         const user = await getUserByClerkIdOrThrow(ctx, args.clerkId);
 
         // Verify chat access
-        const chat = await assertCanAccessChat(ctx, args.chatId, user._id);
+        await assertCanAccessChat(ctx, args.chatId, user._id);
 
         const now = Date.now();
 

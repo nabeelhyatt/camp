@@ -5,9 +5,7 @@ import {
     PlusIcon,
     FolderIcon,
     FolderOpenIcon,
-    FolderPlusIcon,
     SquarePlusIcon,
-    ArrowBigUpIcon,
     EllipsisIcon,
 } from "lucide-react";
 // Camp Multiplayer: Import sidebar sections for Team/Shared/Private structure
@@ -72,12 +70,11 @@ import {
     PointerSensor,
     useSensor,
     useSensors,
-    useDroppable,
 } from "@dnd-kit/core";
 import Droppable from "./Droppable";
 import Draggable from "./Draggable";
 import { dialogActions, useDialogStore } from "@core/infra/DialogStore";
-import { projectQueries, useCreateProject } from "@core/chorus/api/ProjectAPI";
+import { projectQueries } from "@core/chorus/api/ProjectAPI";
 import { chatQueries } from "@core/chorus/api/ChatAPI";
 import { useToggleProjectIsCollapsed } from "@core/chorus/api/ProjectAPI";
 
@@ -132,52 +129,7 @@ function groupChatsByDate(chats: Chat[]) {
     return groups;
 }
 
-function EmptyProjectState() {
-    const createProject = useCreateProject();
-    const { isOver, setNodeRef, active } = useDroppable({
-        id: "empty-project-state",
-    });
-
-    return (
-        <div
-            ref={setNodeRef}
-            className={`px-3 text-base text-muted-foreground border rounded-md p-2 mt-1 transition-all ${
-                isOver && active
-                    ? "border-sidebar-accent bg-sidebar-accent scale-[1.02]"
-                    : "border-muted-foreground/10"
-            }`}
-        >
-            <p className="mb-2 text-sm whitespace-normal break-words">
-                Group projects allow you to share context between chats.
-            </p>
-
-            <button
-                className="flex items-center justify-between w-full text-sidebar-muted-foreground hover:text-sidebar-accent-foreground group/create-project"
-                onClick={() => {
-                    createProject.mutate();
-                }}
-            >
-                <div className="flex items-center">
-                    <FolderPlusIcon
-                        strokeWidth={1.5}
-                        className="w-4 h-4 mr-2 text-muted-foreground group-hover/create-project:text-sidebar-accent-foreground"
-                    />
-                    <span className="font-[350]">
-                        {active
-                            ? "Drop to create a group project"
-                            : "Create a group project"}
-                    </span>
-                </div>
-                <span>
-                    <kbd className="invisible group-hover/create-project:visible">
-                        <span>⌘</span>
-                        <ArrowBigUpIcon className="size-3.5" />N
-                    </kbd>
-                </span>
-            </button>
-        </div>
-    );
-}
+// Note: EmptyProjectState was removed - now using TeamSectionEmpty from sidebar/TeamSection.tsx
 
 function EmptyChatState() {
     return (
