@@ -87,7 +87,7 @@ fi
 
 # Check if node_modules exists
 if [ ! -d "node_modules" ]; then
-    echo "Error: node_modules not found. Please run 'npm install' first."
+    echo "Error: node_modules not found. Please run 'pnpm install' first."
     exit 1
 fi
 
@@ -103,7 +103,7 @@ export VITE_HMR_PORT="$HMR_PORT"
 
 # Start Convex dev server in background (no-open flag prevents browser from opening)
 echo "Starting Convex dev server in background..."
-npm run convex:dev -- --no-open > /dev/null 2>&1 &
+pnpm run convex:dev -- --no-open > /dev/null 2>&1 &
 CONVEX_PID=$!
 
 # Cleanup function to kill background processes
@@ -115,4 +115,4 @@ cleanup() {
 trap cleanup EXIT
 
 # Run tauri dev with the base dev config and our override
-npm run tauri -- dev --config src-tauri/tauri.dev.conf.json --config "$CONFIG_OVERRIDE"
+pnpm run tauri -- dev --config src-tauri/tauri.dev.conf.json --config "$CONFIG_OVERRIDE"

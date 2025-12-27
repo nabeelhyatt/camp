@@ -1,6 +1,6 @@
 {
     "scripts": {
-        "setup": "npm run setup",
+        "setup": "pnpm run setup",
         "run": "./script/dev-instance.sh"
     }
 }
