@@ -9,15 +9,27 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as chats from "../chats.js";
+import type * as lib_audit from "../lib/audit.js";
+import type * as lib_featureFlags from "../lib/featureFlags.js";
+import type * as lib_permissions from "../lib/permissions.js";
+import type * as messages from "../messages.js";
+import type * as projects from "../projects.js";
 
 import type {
-    ApiFromModules,
-    FilterApi,
-    FunctionReference,
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-    auth: typeof auth;
+  auth: typeof auth;
+  chats: typeof chats;
+  "lib/audit": typeof lib_audit;
+  "lib/featureFlags": typeof lib_featureFlags;
+  "lib/permissions": typeof lib_permissions;
+  messages: typeof messages;
+  projects: typeof projects;
 }>;
 
 /**
@@ -29,8 +41,8 @@ declare const fullApi: ApiFromModules<{
  * ```
  */
 export declare const api: FilterApi<
-    typeof fullApi,
-    FunctionReference<any, "public">
+  typeof fullApi,
+  FunctionReference<any, "public">
 >;
 
 /**
@@ -42,8 +54,8 @@ export declare const api: FilterApi<
  * ```
  */
 export declare const internal: FilterApi<
-    typeof fullApi,
-    FunctionReference<any, "internal">
+  typeof fullApi,
+  FunctionReference<any, "internal">
 >;
 
 export declare const components: {};

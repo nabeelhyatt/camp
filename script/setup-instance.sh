@@ -75,6 +75,32 @@ else
     echo "⚠ No chats.db found in ai.getcamp.app.dev - database will start empty"
 fi
 
+# Copy .env file from main camp directory if it exists and we don't have one
+# Look in multiple possible locations
+MAIN_CAMP_DIR="$HOME/Code/camp"
+if [ ! -f "$REPO_DIR/.env" ]; then
+    if [ -f "$MAIN_CAMP_DIR/.env" ]; then
+        echo "Copying .env from main camp repo..."
+        cp "$MAIN_CAMP_DIR/.env" "$REPO_DIR/.env"
+        echo "✓ Environment variables copied successfully"
+    elif [ -f "$REPO_DIR/.env.local" ]; then
+        # Convex creates .env.local with VITE_CONVEX_URL
+        echo "Found .env.local from Convex, but .env is missing."
+        echo "⚠ Creating .env from .env.example - you need to add VITE_CLERK_PUBLISHABLE_KEY"
+        cp "$REPO_DIR/.env.example" "$REPO_DIR/.env"
+    elif [ -f "$REPO_DIR/.env.example" ]; then
+        echo "⚠ No .env file found. Creating from .env.example..."
+        echo "  You'll need to fill in VITE_CONVEX_URL and VITE_CLERK_PUBLISHABLE_KEY"
+        cp "$REPO_DIR/.env.example" "$REPO_DIR/.env"
+    else
+        echo "❌ No .env file found! The app requires:"
+        echo "   VITE_CONVEX_URL - from 'npx convex dev'"
+        echo "   VITE_CLERK_PUBLISHABLE_KEY - from Clerk dashboard"
+    fi
+else
+    echo "✓ .env file already exists"
+fi
+
 # Generate custom icon with ImageMagick if available
 if command -v magick >/dev/null 2>&1; then
     echo ""
