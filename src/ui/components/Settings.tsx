@@ -40,6 +40,7 @@ import {
     Import,
     BookOpen,
     Globe,
+    UserCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { config } from "@core/config";
@@ -87,6 +88,11 @@ import { dialogActions } from "@core/infra/DialogStore";
 import * as AppMetadataAPI from "@core/chorus/api/AppMetadataAPI";
 import { PermissionsTab } from "./PermissionsTab";
 import { cn } from "@ui/lib/utils";
+import { useCurrentUser } from "@core/camp/auth/useCurrentUser";
+import { useAuth } from "@clerk/clerk-react";
+import { useMutation } from "convex/react";
+import { api } from "@convex/_generated/api";
+import { Badge } from "./ui/badge";
 
 type ToolsetFormProps = {
     toolset: CustomToolsetConfig;
@@ -1065,6 +1071,181 @@ function ToolsTab() {
     );
 }
 
+function AccountTab() {
+    const { user, organization, clerkUser } = useCurrentUser();
+    const { signOut } = useAuth();
+    const [isEditingOrgName, setIsEditingOrgName] = useState(false);
+    const [orgName, setOrgName] = useState("");
+    const updateOrgName = useMutation(api.auth.updateOrganizationName);
+
+    // Initialize org name when loaded
+    useEffect(() => {
+        if (organization) {
+            setOrgName(organization.name);
+        }
+    }, [organization]);
+
+    const handleSaveOrgName = async () => {
+        if (!clerkUser || !orgName.trim()) return;
+
+        try {
+            await updateOrgName({
+                clerkId: clerkUser.id,
+                newName: orgName.trim(),
+            });
+            toast.success("Organization name updated");
+            setIsEditingOrgName(false);
+        } catch (error) {
+            toast.error(
+                "Failed to update organization name",
+                {
+                    description: error instanceof Error ? error.message : "Unknown error",
+                },
+            );
+        }
+    };
+
+    const handleLogout = async () => {
+        await signOut();
+    };
+
+    const isOwner = user?.role === "owner";
+
+    return (
+        <div className="space-y-6 max-w-2xl">
+            <div>
+                <h2 className="text-2xl font-semibold mb-2">Account</h2>
+                <p className="text-sm text-muted-foreground">
+                    Manage your account and organization settings
+                </p>
+            </div>
+
+            {/* User Info */}
+            <div className="space-y-4">
+                <div className="border rounded-lg p-4">
+                    <h3 className="font-semibold mb-3">Profile</h3>
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                            {clerkUser?.imageUrl && (
+                                <img
+                                    src={clerkUser.imageUrl}
+                                    alt={user?.displayName || "User"}
+                                    className="w-12 h-12 rounded-full"
+                                />
+                            )}
+                            <div>
+                                <div className="font-medium">{user?.displayName}</div>
+                                <div className="text-sm text-muted-foreground">
+                                    {user?.email}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Organization Info */}
+                {organization && (
+                    <div className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="font-semibold">Organization</h3>
+                            {isOwner && (
+                                <Badge variant="default">Admin</Badge>
+                            )}
+                        </div>
+                        <div className="space-y-3">
+                            {isEditingOrgName ? (
+                                <div className="space-y-2">
+                                    <Input
+                                        value={orgName}
+                                        onChange={(e) => setOrgName(e.target.value)}
+                                        placeholder="Organization name"
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                void handleSaveOrgName();
+                                            } else if (e.key === "Escape") {
+                                                setOrgName(organization.name);
+                                                setIsEditingOrgName(false);
+                                            }
+                                        }}
+                                        autoFocus
+                                    />
+                                    <div className="flex gap-2">
+                                        <Button
+                                            size="sm"
+                                            onClick={() => void handleSaveOrgName()}
+                                        >
+                                            Save
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setOrgName(organization.name);
+                                                setIsEditingOrgName(false);
+                                            }}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <div className="font-medium">
+                                            {organization.name}
+                                        </div>
+                                        <div className="text-sm text-muted-foreground">
+                                            {organization.domain.startsWith("personal-")
+                                                ? "Personal workspace"
+                                                : organization.domain}
+                                        </div>
+                                    </div>
+                                    {isOwner && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setIsEditingOrgName(true)}
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Coming Soon */}
+                <div className="border rounded-lg p-4 border-dashed">
+                    <h3 className="font-semibold mb-2 text-muted-foreground">
+                        Coming Soon
+                    </h3>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• Invite team members</li>
+                        <li>• Manage organization members</li>
+                        <li>• Billing & subscription</li>
+                    </ul>
+                </div>
+            </div>
+
+            <Separator />
+
+            {/* Logout */}
+            <div className="flex justify-between items-center">
+                <div>
+                    <div className="font-semibold">Sign out</div>
+                    <div className="text-sm text-muted-foreground">
+                        Sign out of your Camp account
+                    </div>
+                </div>
+                <Button variant="outline" onClick={() => void handleLogout()}>
+                    Sign Out
+                </Button>
+            </div>
+        </div>
+    );
+}
+
 export const SETTINGS_DIALOG_ID = "settings";
 
 interface SettingsProps {
@@ -1095,6 +1276,7 @@ export type SettingsTabId =
     | "import"
     | "system-prompt"
     | "api-keys"
+    | "account"
     | "quick-chat"
     | "connections"
     | "permissions"
@@ -1111,6 +1293,7 @@ const TABS: Record<SettingsTabId, TabConfig> = {
     import: { label: "Import", icon: Import },
     "system-prompt": { label: "System Prompt", icon: FileText },
     "api-keys": { label: "API Keys", icon: Key },
+    account: { label: "Account", icon: UserCircle },
     "quick-chat": { label: "Ambient Chat", icon: Fullscreen },
     connections: { label: "Connections", icon: PlugIcon },
     permissions: { label: "Tool Permissions", icon: ShieldCheckIcon },
@@ -1742,6 +1925,10 @@ export default function Settings({ tab = "general" }: SettingsProps) {
                                 </Collapsible>
                             </div>
                         </div>
+                    )}
+
+                    {activeTab === "account" && (
+                        <AccountTab />
                     )}
 
                     {activeTab === "quick-chat" && (

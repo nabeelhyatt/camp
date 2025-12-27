@@ -30,6 +30,29 @@ export function CampAuthProvider({ children }: CampAuthProviderProps) {
         <ClerkReactProvider
             publishableKey={campConfig.clerkPublishableKey}
             afterSignOutUrl="/"
+            appearance={{
+                variables: {
+                    colorBackground: "#1a1a1a",
+                    colorText: "#ffffff",
+                    colorTextSecondary: "#a0a0a0",
+                    colorPrimary: "#ffffff",
+                },
+                elements: {
+                    card: {
+                        backgroundColor: "#1a1a1a",
+                    },
+                    socialButtonsBlockButton: {
+                        color: "#ffffff",
+                        backgroundColor: "#2a2a2a",
+                        "&:hover": {
+                            backgroundColor: "#3a3a3a",
+                        },
+                    },
+                    socialButtonsBlockButtonText: {
+                        color: "#ffffff",
+                    },
+                },
+            }}
         >
             <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
                 {children}

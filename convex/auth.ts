@@ -316,3 +316,48 @@ export const completeOnboarding = mutation({
         return { success: true };
     },
 });
+
+/**
+ * Update organization name (admin/owner only)
+ */
+export const updateOrganizationName = mutation({
+    args: {
+        clerkId: v.string(),
+        newName: v.string(),
+    },
+    handler: async (ctx, args) => {
+        // Get the user
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+            .first();
+
+        if (!user) {
+            throw new Error("User not found");
+        }
+
+        // Get the organization
+        const org = await ctx.db.get(user.orgId);
+        if (!org) {
+            throw new Error("Organization not found");
+        }
+
+        // Check if user is the owner
+        if (user.role !== "owner") {
+            throw new Error("Only organization owners can update the name");
+        }
+
+        // Validate new name
+        if (!args.newName.trim()) {
+            throw new Error("Organization name cannot be empty");
+        }
+
+        // Update the organization name
+        await ctx.db.patch(org._id, {
+            name: args.newName.trim(),
+            updatedAt: Date.now(),
+        });
+
+        return { success: true };
+    },
+});
