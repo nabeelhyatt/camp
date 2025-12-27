@@ -60,5 +60,3 @@ export function CampAuthProvider({ children }: CampAuthProviderProps) {
         </ClerkReactProvider>
     );
 }
-
-export { useAuth };

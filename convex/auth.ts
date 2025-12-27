@@ -214,7 +214,7 @@ export const syncUser = mutation({
             let teamWorkspace = await ctx.db
                 .query("workspaces")
                 .withIndex("by_org_and_type", (q) =>
-                    q.eq("orgId", org!._id).eq("type", "team"),
+                    q.eq("orgId", org._id).eq("type", "team"),
                 )
                 .first();
 

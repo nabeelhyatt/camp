@@ -175,14 +175,14 @@ export function useSetVisionModeEnabled() {
     });
 }
 
-export async function getApiKeys() {
+export async function getApiKeys(): Promise<Models.ApiKeys> {
     const settingsManager = SettingsManager.getInstance();
     const settings = await settingsManager.get();
     const userApiKeys = (settings.apiKeys || {}) as Models.ApiKeys;
 
     // If user hasn't set an OpenRouter key, use the default from config
     // This allows new users to try models without setting up their own keys
-    const apiKeys = { ...userApiKeys };
+    const apiKeys: Models.ApiKeys = { ...userApiKeys };
     if (!apiKeys.openrouter && campConfig.defaultOpenRouterKey) {
         apiKeys.openrouter = campConfig.defaultOpenRouterKey;
     }

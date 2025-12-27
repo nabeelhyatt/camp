@@ -3,27 +3,31 @@
 // - "chorus" (default): Use Chorus backend at app.chorus.sh
 // - "camp": Use Camp backend at app.getcamp.ai (Phase 2)
 
-const isDev = import.meta.env.DEV;
+const isDev: boolean = import.meta.env.DEV;
 
 // Backend selection - defaults to "chorus" for Phase 1
 type BackendType = "chorus" | "camp";
+const envBackend = import.meta.env.VITE_CAMP_BACKEND as string | undefined;
 const CAMP_BACKEND: BackendType =
-    (import.meta.env.VITE_CAMP_BACKEND as BackendType) || "chorus";
+    envBackend === "camp" || envBackend === "chorus" ? envBackend : "chorus";
 
 const BACKEND_URLS: Record<BackendType, string> = {
     chorus: "https://app.chorus.sh",
     camp: "https://app.getcamp.ai",
 };
 
-const CAMP_PROXY_URL = BACKEND_URLS[CAMP_BACKEND] || BACKEND_URLS.chorus;
+const CAMP_PROXY_URL: string = BACKEND_URLS[CAMP_BACKEND] || BACKEND_URLS.chorus;
 
 // Analytics - disabled for Phase 1
 // TODO: Create Camp PostHog project and add key here
 const POSTHOG_KEY = "";
 
 // Multiplayer configuration (required)
-const CONVEX_URL = import.meta.env.VITE_CONVEX_URL;
-const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const CONVEX_URL: string | undefined = import.meta.env.VITE_CONVEX_URL as
+    | string
+    | undefined;
+const CLERK_PUBLISHABLE_KEY: string | undefined = import.meta.env
+    .VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
 
 if (!CONVEX_URL) {
     throw new Error("Missing VITE_CONVEX_URL environment variable");
@@ -34,7 +38,8 @@ if (!CLERK_PUBLISHABLE_KEY) {
 
 // Default OpenRouter API key for new users (optional)
 // This provides a fallback so users can try models before setting up their own keys
-const DEFAULT_OPENROUTER_KEY = import.meta.env.VITE_DEFAULT_OPENROUTER_KEY;
+const DEFAULT_OPENROUTER_KEY: string | undefined = import.meta.env
+    .VITE_DEFAULT_OPENROUTER_KEY as string | undefined;
 
 export const campConfig = {
     isDev,
