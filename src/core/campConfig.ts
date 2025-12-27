@@ -16,7 +16,8 @@ const BACKEND_URLS: Record<BackendType, string> = {
     camp: "https://app.getcamp.ai",
 };
 
-const CAMP_PROXY_URL: string = BACKEND_URLS[CAMP_BACKEND] || BACKEND_URLS.chorus;
+const CAMP_PROXY_URL: string =
+    BACKEND_URLS[CAMP_BACKEND] || BACKEND_URLS.chorus;
 
 // Analytics - disabled for Phase 1
 // TODO: Create Camp PostHog project and add key here
