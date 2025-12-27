@@ -1,0 +1,198 @@
+import {
+    LockIcon,
+    GitBranchIcon,
+    ChevronRightIcon,
+    FolderPlusIcon,
+} from "lucide-react";
+import {
+    SidebarMenu,
+    SidebarMenuItem,
+    SidebarMenuButton,
+} from "@ui/components/ui/sidebar";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@ui/components/ui/tooltip";
+import { useNavigate } from "react-router-dom";
+
+/**
+ * Private Section - Shows user's private projects and forks
+ *
+ * Phase 1: Greyed out placeholder ("Coming soon")
+ * Phase 2: Activated for private forks only
+ * Phase 4: Full activation with private projects
+ */
+
+interface PrivateFork {
+    id: string;
+    title: string;
+    parentChat?: {
+        id: string;
+        title?: string;
+    };
+    updatedAt: number;
+}
+
+interface PrivateSectionProps {
+    enabled?: boolean;
+    privateForks?: PrivateFork[];
+    onCreatePrivateProject?: () => void;
+    children?: React.ReactNode;
+}
+
+export function PrivateSection({
+    enabled = false,
+    privateForks = [],
+    onCreatePrivateProject,
+    children,
+}: PrivateSectionProps) {
+    if (!enabled) {
+        return <PrivateSectionPlaceholder />;
+    }
+
+    const hasForks = privateForks.length > 0;
+    const hasChildren = React.Children.count(children) > 0;
+
+    return (
+        <div className="mb-4">
+            {/* Section Header */}
+            <div className="pt-2 flex items-center justify-between group/section">
+                <div className="sidebar-label flex w-full items-center gap-2 px-3 text-muted-foreground">
+                    <LockIcon className="size-3.5" strokeWidth={1.5} />
+                    Private
+                </div>
+                {onCreatePrivateProject && (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                className="text-muted-foreground hover:text-foreground p-1 pr-3 rounded opacity-0 group-hover/section:opacity-100 transition-opacity"
+                                onClick={onCreatePrivateProject}
+                            >
+                                <FolderPlusIcon
+                                    className="size-3.5"
+                                    strokeWidth={1.5}
+                                />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent>New Private Project</TooltipContent>
+                    </Tooltip>
+                )}
+            </div>
+
+            {/* Section Content */}
+            <SidebarMenu className="truncate">
+                {/* Private Forks */}
+                {hasForks && (
+                    <div className="mb-2">
+                        {privateForks.map((fork) => (
+                            <PrivateForkItem key={fork.id} fork={fork} />
+                        ))}
+                    </div>
+                )}
+
+                {/* Other private content */}
+                {children}
+
+                {/* Empty state */}
+                {!hasForks && !hasChildren && <PrivateSectionEmpty />}
+            </SidebarMenu>
+        </div>
+    );
+}
+
+// Need to import React for Children.count
+import React from "react";
+
+/**
+ * Individual private fork item in the sidebar
+ */
+function PrivateForkItem({ fork }: { fork: PrivateFork }) {
+    const navigate = useNavigate();
+
+    return (
+        <SidebarMenuItem>
+            <SidebarMenuButton
+                onClick={() => navigate(`/chat/${fork.id}`)}
+                className="group/fork flex items-center justify-between"
+            >
+                <span className="flex items-center gap-2 truncate">
+                    <GitBranchIcon
+                        className="size-3.5 text-muted-foreground flex-shrink-0"
+                        strokeWidth={1.5}
+                    />
+                    <span className="truncate text-sm">
+                        {fork.title || "Private exploration"}
+                    </span>
+                </span>
+
+                {/* Parent chat indicator */}
+                {fork.parentChat && (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/chat/${fork.parentChat!.id}`);
+                                }}
+                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground opacity-0 group-hover/fork:opacity-100 transition-opacity"
+                            >
+                                <span className="truncate max-w-[80px]">
+                                    {fork.parentChat.title || "Parent"}
+                                </span>
+                                <ChevronRightIcon className="size-3" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            Go to parent chat:{" "}
+                            {fork.parentChat.title || "Untitled"}
+                        </TooltipContent>
+                    </Tooltip>
+                )}
+            </SidebarMenuButton>
+        </SidebarMenuItem>
+    );
+}
+
+/**
+ * Placeholder shown when Private section is not yet enabled
+ */
+function PrivateSectionPlaceholder() {
+    return (
+        <div className="mb-4 opacity-50 cursor-not-allowed">
+            {/* Section Header */}
+            <div className="pt-2 flex items-center justify-between">
+                <div className="sidebar-label flex w-full items-center gap-2 px-3 text-muted-foreground">
+                    <LockIcon className="size-3.5" strokeWidth={1.5} />
+                    Private
+                </div>
+                <div className="pr-3">
+                    <LockIcon className="size-3 text-muted-foreground/50" />
+                </div>
+            </div>
+
+            {/* Placeholder Content */}
+            <div className="px-3 py-2">
+                <p className="text-xs text-muted-foreground/60 italic">
+                    Coming soon
+                </p>
+            </div>
+        </div>
+    );
+}
+
+/**
+ * Empty state when Private section is enabled but has no content
+ */
+export function PrivateSectionEmpty() {
+    return (
+        <div className="px-3 text-base text-muted-foreground border rounded-md p-2 mt-1 border-muted-foreground/10">
+            <p className="text-sm whitespace-normal break-words">
+                Your private explorations will appear here.
+            </p>
+            <p className="text-xs text-muted-foreground/70 mt-1">
+                Reply privately to any team message to start exploring.
+            </p>
+        </div>
+    );
+}
