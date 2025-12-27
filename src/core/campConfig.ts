@@ -21,6 +21,12 @@ const CAMP_PROXY_URL = BACKEND_URLS[CAMP_BACKEND] || BACKEND_URLS.chorus;
 // TODO: Create Camp PostHog project and add key here
 const POSTHOG_KEY = "";
 
+// Multiplayer configuration
+const CONVEX_URL = import.meta.env.VITE_CONVEX_URL || "";
+const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "";
+const MULTIPLAYER_ENABLED =
+    import.meta.env.VITE_MULTIPLAYER_ENABLED === "true";
+
 export const campConfig = {
     isDev,
     backend: CAMP_BACKEND,
@@ -29,4 +35,10 @@ export const campConfig = {
     slackAuthUrl: `${CAMP_PROXY_URL}/auth/slack`,
     posthogKey: POSTHOG_KEY,
     isUsingChorusBackend: CAMP_BACKEND === "chorus",
+
+    // Multiplayer (Phase 1)
+    convexUrl: CONVEX_URL,
+    clerkPublishableKey: CLERK_PUBLISHABLE_KEY,
+    multiplayerEnabled: MULTIPLAYER_ENABLED,
+    isMultiplayerConfigured: Boolean(CONVEX_URL && CLERK_PUBLISHABLE_KEY),
 } as const;

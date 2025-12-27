@@ -30,6 +30,8 @@ import NewPrompt from "./components/NewPrompt";
 import ListPrompts from "./components/ListPrompts";
 import Onboarding from "./components/Onboarding";
 import ProjectView from "./components/ProjectView";
+import { AuthGuard } from "./components/SignIn";
+import { CampAuthProvider } from "@core/camp/auth";
 import {
     onOpenUrl,
     getCurrent as getCurrentDeepLink,
@@ -296,7 +298,23 @@ function AppContent() {
             console.log("handleDeepLink", url);
             try {
                 const urlObj = new URL(url);
-                if (urlObj.protocol === "chorus:") {
+                // Handle both camp: and camp-dev: protocols (and legacy chorus:)
+                const isCampProtocol =
+                    urlObj.protocol === "camp:" ||
+                    urlObj.protocol === "camp-dev:" ||
+                    urlObj.protocol === "chorus:";
+
+                if (isCampProtocol) {
+                    // Auth callback from Clerk OAuth
+                    if (urlObj.hostname === "auth") {
+                        // Clerk handles this automatically via the hash router
+                        // The callback URL includes OAuth tokens that Clerk will process
+                        console.log("Auth callback received, Clerk will handle authentication");
+                        // Navigate to home - Clerk will process the OAuth callback
+                        navigate("/");
+                        return;
+                    }
+
                     if (urlObj.hostname === "slack") {
                         const accessToken =
                             urlObj.searchParams.get("access_token");
@@ -342,8 +360,16 @@ function AppContent() {
                         if (chatId) {
                             navigate(`/chat/${chatId}`);
                         }
+                    } else if (urlObj.hostname === "invite") {
+                        // Handle workspace invitation deep links
+                        const inviteToken = urlObj.pathname.split("/")[1];
+                        if (inviteToken) {
+                            // Store invite token for processing after auth
+                            sessionStorage.setItem("pendingInviteToken", inviteToken);
+                            navigate("/");
+                        }
                     } else {
-                        throw new Error(`Unrecognized deep link ${url}`);
+                        console.warn(`Unrecognized deep link hostname: ${urlObj.hostname}`);
                     }
                 }
             } catch (error) {
@@ -1020,25 +1046,28 @@ function App() {
         <QueryClientProvider client={queryClient}>
             <script src="https://unpkg.com/react-scan/dist/auto.global.js"></script>
             <Router>
-                <ThemeProvider storageKey="melty-theme">
-                    <ErrorBoundary>
-                        {db ? (
-                            <DatabaseProvider db={db}>
-                                <AppProvider>
-                                    <QueryClientProvider client={queryClient}>
-                                        <AppMetadataProvider>
-                                            <AppContent />
-                                        </AppMetadataProvider>
-                                    </QueryClientProvider>
-                                </AppProvider>
-                            </DatabaseProvider>
-                        ) : (
-                            <div className="p-10 text-sm text-muted-foreground">
-                                <RetroSpinner />
-                                Loading database...
-                            </div>
-                        )}
-                    </ErrorBoundary>
+                <CampAuthProvider>
+                    <ThemeProvider storageKey="melty-theme">
+                        <ErrorBoundary>
+                            <AuthGuard>
+                                {db ? (
+                                    <DatabaseProvider db={db}>
+                                        <AppProvider>
+                                            <QueryClientProvider client={queryClient}>
+                                                <AppMetadataProvider>
+                                                    <AppContent />
+                                                </AppMetadataProvider>
+                                            </QueryClientProvider>
+                                        </AppProvider>
+                                    </DatabaseProvider>
+                                ) : (
+                                    <div className="p-10 text-sm text-muted-foreground">
+                                        <RetroSpinner />
+                                        Loading database...
+                                    </div>
+                                )}
+                            </AuthGuard>
+                        </ErrorBoundary>
 
                     <ErrorBoundary>
                         <AlertDialog
@@ -1071,7 +1100,8 @@ function App() {
                             </AlertDialogContent>
                         </AlertDialog>
                     </ErrorBoundary>
-                </ThemeProvider>
+                    </ThemeProvider>
+                </CampAuthProvider>
             </Router>
             <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>

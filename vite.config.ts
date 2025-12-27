@@ -30,6 +30,7 @@ export default defineConfig(async () => ({
             "@ui": path.resolve(__dirname, "./src/ui"),
             "@core": path.resolve(__dirname, "./src/core"),
             "@": path.resolve(__dirname, "./src"),
+            "@convex": path.resolve(__dirname, "./convex"),
         },
     },
     build: {
