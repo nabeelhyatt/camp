@@ -95,8 +95,25 @@ export CAMP_INSTANCE_NAME="$INSTANCE_NAME"
 export VITE_PORT="$PORT"
 export VITE_HMR_PORT="$HMR_PORT"
 
-# Run tauri dev with the base dev config and our override
-pnpm run tauri dev --config src-tauri/tauri.dev.conf.json --config "$CONFIG_OVERRIDE"
+# Start Convex dev server in background
+echo "Starting Convex dev server..."
+npx convex dev --once &
+CONVEX_PID=$!
 
-# Clean up the temporary file when done
-rm -f "$CONFIG_OVERRIDE"
+# Wait for Convex to initialize (give it a moment to sync)
+sleep 2
+
+# Start Convex in watch mode in background
+npx convex dev &
+CONVEX_WATCH_PID=$!
+
+# Cleanup function to kill background processes
+cleanup() {
+    echo "Shutting down..."
+    kill $CONVEX_WATCH_PID 2>/dev/null
+    rm -f "$CONFIG_OVERRIDE"
+}
+trap cleanup EXIT
+
+# Run tauri dev with the base dev config and our override
+npm run tauri dev --config src-tauri/tauri.dev.conf.json --config "$CONFIG_OVERRIDE"
