@@ -61,7 +61,7 @@ export default defineSchema({
         role: v.union(
             v.literal("owner"),
             v.literal("admin"),
-            v.literal("member")
+            v.literal("member"),
         ),
         joinedAt: v.number(),
     })
@@ -116,7 +116,7 @@ export default defineSchema({
             v.literal("pending"),
             v.literal("streaming"),
             v.literal("complete"),
-            v.literal("error")
+            v.literal("error"),
         ),
         errorMessage: v.optional(v.string()),
         // Streaming state
@@ -137,7 +137,7 @@ export default defineSchema({
             v.literal("tool_call"),
             v.literal("tool_result"),
             v.literal("image"),
-            v.literal("file")
+            v.literal("file"),
         ),
         content: v.string(), // Text content or JSON for structured data
         language: v.optional(v.string()), // For code blocks
@@ -209,7 +209,7 @@ export default defineSchema({
         status: v.union(
             v.literal("active"),
             v.literal("idle"),
-            v.literal("offline")
+            v.literal("offline"),
         ),
         lastHeartbeat: v.number(),
     })
@@ -225,14 +225,14 @@ export default defineSchema({
         role: v.union(
             v.literal("owner"),
             v.literal("admin"),
-            v.literal("member")
+            v.literal("member"),
         ),
         token: v.string(), // Unique invitation token
         invitedBy: v.id("users"),
         status: v.union(
             v.literal("pending"),
             v.literal("accepted"),
-            v.literal("expired")
+            v.literal("expired"),
         ),
         expiresAt: v.number(),
         createdAt: v.number(),

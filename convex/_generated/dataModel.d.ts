@@ -23,8 +23,8 @@ export type TableNames = TableNamesInDataModel<DataModel>;
  * @typeParam TableName - A string literal type of the table name (like "users").
  */
 export type Doc<TableName extends TableNames> = DocumentByName<
-  DataModel,
-  TableName
+    DataModel,
+    TableName
 >;
 
 /**
@@ -41,7 +41,7 @@ export type Doc<TableName extends TableNames> = DocumentByName<
  * @typeParam TableName - A string literal type of the table name (like "users").
  */
 export type Id<TableName extends TableNames> = string & {
-  __tableName: TableName;
+    __tableName: TableName;
 };
 
 /**

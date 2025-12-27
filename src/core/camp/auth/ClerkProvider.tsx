@@ -1,4 +1,7 @@
-import { ClerkProvider as ClerkReactProvider, useAuth } from "@clerk/clerk-react";
+import {
+    ClerkProvider as ClerkReactProvider,
+    useAuth,
+} from "@clerk/clerk-react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexReactClient } from "convex/react";
 import { campConfig } from "@core/campConfig";

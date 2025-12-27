@@ -93,7 +93,7 @@ export const getCurrentUser = query({
                 return workspace
                     ? { ...workspace, role: membership.role }
                     : null;
-            })
+            }),
         );
 
         return {
@@ -214,7 +214,7 @@ export const syncUser = mutation({
             let teamWorkspace = await ctx.db
                 .query("workspaces")
                 .withIndex("by_org_and_type", (q) =>
-                    q.eq("orgId", org!._id).eq("type", "team")
+                    q.eq("orgId", org!._id).eq("type", "team"),
                 )
                 .first();
 
@@ -277,7 +277,7 @@ export const setActiveWorkspace = mutation({
         const membership = await ctx.db
             .query("workspaceMembers")
             .withIndex("by_workspace_and_user", (q) =>
-                q.eq("workspaceId", args.workspaceId).eq("userId", user._id)
+                q.eq("workspaceId", args.workspaceId).eq("userId", user._id),
             )
             .first();
 

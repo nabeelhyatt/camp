@@ -21,7 +21,7 @@ export function useCurrentUser() {
     // Get current user from Convex
     const convexUser = useQuery(
         api.auth.getCurrentUser,
-        clerkId ? { clerkId } : "skip"
+        clerkId ? { clerkId } : "skip",
     );
 
     // Sync Clerk user to Convex when signed in

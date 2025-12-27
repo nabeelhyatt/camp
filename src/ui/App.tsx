@@ -309,7 +309,9 @@ function AppContent() {
                     if (urlObj.hostname === "auth") {
                         // Clerk handles this automatically via the hash router
                         // The callback URL includes OAuth tokens that Clerk will process
-                        console.log("Auth callback received, Clerk will handle authentication");
+                        console.log(
+                            "Auth callback received, Clerk will handle authentication",
+                        );
                         // Navigate to home - Clerk will process the OAuth callback
                         navigate("/");
                         return;
@@ -365,11 +367,16 @@ function AppContent() {
                         const inviteToken = urlObj.pathname.split("/")[1];
                         if (inviteToken) {
                             // Store invite token for processing after auth
-                            sessionStorage.setItem("pendingInviteToken", inviteToken);
+                            sessionStorage.setItem(
+                                "pendingInviteToken",
+                                inviteToken,
+                            );
                             navigate("/");
                         }
                     } else {
-                        console.warn(`Unrecognized deep link hostname: ${urlObj.hostname}`);
+                        console.warn(
+                            `Unrecognized deep link hostname: ${urlObj.hostname}`,
+                        );
                     }
                 }
             } catch (error) {
@@ -1053,7 +1060,9 @@ function App() {
                                 {db ? (
                                     <DatabaseProvider db={db}>
                                         <AppProvider>
-                                            <QueryClientProvider client={queryClient}>
+                                            <QueryClientProvider
+                                                client={queryClient}
+                                            >
                                                 <AppMetadataProvider>
                                                     <AppContent />
                                                 </AppMetadataProvider>
@@ -1069,37 +1078,37 @@ function App() {
                             </AuthGuard>
                         </ErrorBoundary>
 
-                    <ErrorBoundary>
-                        <AlertDialog
-                            open={appLocationDialogOpen}
-                            onOpenChange={setAppLocationDialogOpen}
-                        >
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>
-                                        Move to Applications Folder
-                                    </AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Looks like Camp isn't in your
-                                        Applications folder! This means you
-                                        won't be able to get updates.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogAction
-                                        onClick={() => {
-                                            setAppLocationDialogOpen(false);
-                                            void openPath(
-                                                "/Applications",
-                                            ).catch(console.error);
-                                        }}
-                                    >
-                                        Open Applications Folder
-                                    </AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </ErrorBoundary>
+                        <ErrorBoundary>
+                            <AlertDialog
+                                open={appLocationDialogOpen}
+                                onOpenChange={setAppLocationDialogOpen}
+                            >
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>
+                                            Move to Applications Folder
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Looks like Camp isn't in your
+                                            Applications folder! This means you
+                                            won't be able to get updates.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogAction
+                                            onClick={() => {
+                                                setAppLocationDialogOpen(false);
+                                                void openPath(
+                                                    "/Applications",
+                                                ).catch(console.error);
+                                            }}
+                                        >
+                                            Open Applications Folder
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </ErrorBoundary>
                     </ThemeProvider>
                 </CampAuthProvider>
             </Router>
