@@ -2,6 +2,7 @@ import { useUser, useAuth } from "@clerk/clerk-react";
 import { useQuery, useMutation } from "convex/react";
 import { useEffect } from "react";
 import { api } from "@convex/_generated/api";
+import { Id } from "@convex/_generated/dataModel";
 
 /**
  * Hook to get the current authenticated user with their organization and workspace data
@@ -126,16 +127,14 @@ export function useSetActiveWorkspace() {
     const { userId: clerkId } = useAuth();
     const setActiveWorkspace = useMutation(api.auth.setActiveWorkspace);
 
-    return async (workspaceId: string) => {
+    return async (workspaceId: Id<"workspaces">) => {
         if (!clerkId) {
             throw new Error("Not authenticated");
         }
 
-        // Note: We need to cast the workspaceId to the correct Convex ID type
-        // This is handled internally by Convex
         await setActiveWorkspace({
             clerkId,
-            workspaceId: workspaceId as any,
+            workspaceId,
         });
     };
 }
