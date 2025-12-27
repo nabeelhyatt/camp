@@ -32,6 +32,10 @@ if (!CLERK_PUBLISHABLE_KEY) {
     throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY environment variable");
 }
 
+// Default OpenRouter API key for new users (optional)
+// This provides a fallback so users can try models before setting up their own keys
+const DEFAULT_OPENROUTER_KEY = import.meta.env.VITE_DEFAULT_OPENROUTER_KEY;
+
 export const campConfig = {
     isDev,
     backend: CAMP_BACKEND,
@@ -44,4 +48,7 @@ export const campConfig = {
     // Multiplayer (required)
     convexUrl: CONVEX_URL,
     clerkPublishableKey: CLERK_PUBLISHABLE_KEY,
+
+    // Default API keys (optional)
+    defaultOpenRouterKey: DEFAULT_OPENROUTER_KEY,
 } as const;
