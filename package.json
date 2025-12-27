@@ -5,7 +5,7 @@
     "version": "0.1.0",
     "type": "module",
     "scripts": {
-        "tauri": "tauri",
+        "tauri": "npx @tauri-apps/cli",
         "setup": "./script/setup-instance.sh",
         "dev": "./script/dev-instance.sh",
         "generate-schema": "cd src-tauri && cargo run --bin generate_schema && cd ..",

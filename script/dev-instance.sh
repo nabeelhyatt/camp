@@ -85,6 +85,12 @@ else
 EOF
 fi
 
+# Check if node_modules exists
+if [ ! -d "node_modules" ]; then
+    echo "Error: node_modules not found. Please run 'npm install' first."
+    exit 1
+fi
+
 echo "Starting Camp development instance: $INSTANCE_NAME"
 echo "App identifier: $IDENTIFIER"
 echo "Data directory: ~/Library/Application Support/$IDENTIFIER/"
@@ -97,7 +103,7 @@ export VITE_HMR_PORT="$HMR_PORT"
 
 # Start Convex dev server in background (no-open flag prevents browser from opening)
 echo "Starting Convex dev server in background..."
-npx convex dev --no-open > /dev/null 2>&1 &
+npm run convex:dev -- --no-open > /dev/null 2>&1 &
 CONVEX_PID=$!
 
 # Cleanup function to kill background processes
