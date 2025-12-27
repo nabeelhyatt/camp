@@ -95,22 +95,15 @@ export CAMP_INSTANCE_NAME="$INSTANCE_NAME"
 export VITE_PORT="$PORT"
 export VITE_HMR_PORT="$HMR_PORT"
 
-# Start Convex dev server in background
-echo "Starting Convex dev server..."
-npx convex dev --once &
+# Start Convex dev server in background (no-open flag prevents browser from opening)
+echo "Starting Convex dev server in background..."
+npx convex dev --no-open > /dev/null 2>&1 &
 CONVEX_PID=$!
-
-# Wait for Convex to initialize (give it a moment to sync)
-sleep 2
-
-# Start Convex in watch mode in background
-npx convex dev &
-CONVEX_WATCH_PID=$!
 
 # Cleanup function to kill background processes
 cleanup() {
     echo "Shutting down..."
-    kill $CONVEX_WATCH_PID 2>/dev/null
+    kill $CONVEX_PID 2>/dev/null
     rm -f "$CONFIG_OVERRIDE"
 }
 trap cleanup EXIT
