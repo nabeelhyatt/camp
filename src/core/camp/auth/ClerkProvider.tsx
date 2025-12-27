@@ -5,7 +5,7 @@ import { campConfig } from "@core/campConfig";
 import { ReactNode, useMemo } from "react";
 
 /**
- * Combined Clerk + Convex provider for Camp multiplayer
+ * Combined Clerk + Convex provider for Camp
  *
  * This provider:
  * 1. Wraps the app with Clerk for authentication
@@ -20,16 +20,8 @@ interface CampAuthProviderProps {
 export function CampAuthProvider({ children }: CampAuthProviderProps) {
     // Create Convex client once
     const convexClient = useMemo(() => {
-        if (!campConfig.convexUrl) {
-            return null;
-        }
         return new ConvexReactClient(campConfig.convexUrl);
     }, []);
-
-    // If multiplayer is not configured, just render children
-    if (!campConfig.isMultiplayerConfigured || !convexClient) {
-        return <>{children}</>;
-    }
 
     return (
         <ClerkReactProvider

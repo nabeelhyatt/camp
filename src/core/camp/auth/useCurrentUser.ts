@@ -2,7 +2,6 @@ import { useUser, useAuth } from "@clerk/clerk-react";
 import { useQuery, useMutation } from "convex/react";
 import { useEffect } from "react";
 import { api } from "@convex/_generated/api";
-import { campConfig } from "@core/campConfig";
 
 /**
  * Hook to get the current authenticated user with their organization and workspace data
@@ -47,19 +46,6 @@ export function useCurrentUser() {
             }
         }
     }, [isSignedIn, clerkUser, clerkId, syncUser]);
-
-    // Not configured for multiplayer
-    if (!campConfig.isMultiplayerConfigured) {
-        return {
-            isLoading: false,
-            isAuthenticated: false,
-            user: null,
-            organization: null,
-            activeWorkspace: null,
-            workspaces: [],
-            clerkUser: null,
-        };
-    }
 
     // Still loading auth
     if (!isAuthLoaded) {

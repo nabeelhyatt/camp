@@ -1,14 +1,10 @@
 import { SignIn as ClerkSignIn, useAuth } from "@clerk/clerk-react";
-import { campConfig } from "@core/campConfig";
 import RetroSpinner from "./ui/retro-spinner";
 
 /**
- * Sign-in screen for Camp multiplayer
+ * Sign-in screen for Camp
  *
- * This component shows the Clerk sign-in UI when:
- * 1. Multiplayer is enabled
- * 2. User is not authenticated
- *
+ * This component shows the Clerk sign-in UI when user is not authenticated.
  * Uses Clerk's pre-built SignIn component with Google OAuth.
  */
 export default function SignIn() {
@@ -94,11 +90,6 @@ export default function SignIn() {
  */
 export function AuthGuard({ children }: { children: React.ReactNode }) {
     const { isLoaded, isSignedIn } = useAuth();
-
-    // Multiplayer not configured - render children (local-only mode)
-    if (!campConfig.isMultiplayerConfigured) {
-        return <>{children}</>;
-    }
 
     // Still loading
     if (!isLoaded) {

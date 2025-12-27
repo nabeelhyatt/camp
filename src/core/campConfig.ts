@@ -21,11 +21,16 @@ const CAMP_PROXY_URL = BACKEND_URLS[CAMP_BACKEND] || BACKEND_URLS.chorus;
 // TODO: Create Camp PostHog project and add key here
 const POSTHOG_KEY = "";
 
-// Multiplayer configuration
-const CONVEX_URL = import.meta.env.VITE_CONVEX_URL || "";
-const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "";
-const MULTIPLAYER_ENABLED =
-    import.meta.env.VITE_MULTIPLAYER_ENABLED === "true";
+// Multiplayer configuration (required)
+const CONVEX_URL = import.meta.env.VITE_CONVEX_URL;
+const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+if (!CONVEX_URL) {
+    throw new Error("Missing VITE_CONVEX_URL environment variable");
+}
+if (!CLERK_PUBLISHABLE_KEY) {
+    throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY environment variable");
+}
 
 export const campConfig = {
     isDev,
@@ -36,9 +41,7 @@ export const campConfig = {
     posthogKey: POSTHOG_KEY,
     isUsingChorusBackend: CAMP_BACKEND === "chorus",
 
-    // Multiplayer (Phase 1)
+    // Multiplayer (required)
     convexUrl: CONVEX_URL,
     clerkPublishableKey: CLERK_PUBLISHABLE_KEY,
-    multiplayerEnabled: MULTIPLAYER_ENABLED,
-    isMultiplayerConfigured: Boolean(CONVEX_URL && CLERK_PUBLISHABLE_KEY),
 } as const;
