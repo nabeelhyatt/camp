@@ -18,15 +18,23 @@ You will need:
 2. Rust and Cargo installed and on your path (verify with `rustc --version`, `cargo --version`)
 3. `imagemagick` (optional)
 4. `git-lfs` (`brew install git-lfs`)
-5. `pnpm` (`brew install pnpm`)
+5. A package manager:
+   - **For local development**: `pnpm` (`brew install pnpm`) - recommended for faster installs
+   - **For Conductor**: Uses `npm` (comes with Node.js) automatically
 
 Once you have those set up, please run:
 
 ```bash
 git lfs install --force
 git lfs pull
-pnpm run setup  # This is also our Conductor setup script
-pnpm run dev    # This is also our Conductor run script
+
+# Local development (recommended):
+pnpm run setup
+pnpm run dev
+
+# OR using npm (Conductor uses this):
+npm run setup
+npm run dev
 ```
 
 Vite will run on a random even-numbered port between 1422 and 1522, inclusive. HMR will run on the next port. If there's a collision, change the instance name (makes sure to rerun the setup script).

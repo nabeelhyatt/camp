@@ -22,9 +22,24 @@ IDENTIFIER="ai.getcamp.app.dev.$SAFE_INSTANCE_NAME"
 echo "Setting up Camp development instance: $INSTANCE_NAME"
 echo "App identifier: $IDENTIFIER"
 
+# Copy .env file if it doesn't exist
+if [ ! -f "$REPO_DIR/.env" ]; then
+    # Try to find .env in main repo
+    MAIN_REPO_DIR="$HOME/Code/camp-v1"
+    if [ -f "$MAIN_REPO_DIR/.env" ]; then
+        echo "Copying .env from main repo..."
+        cp "$MAIN_REPO_DIR/.env" "$REPO_DIR/.env"
+        echo "✓ .env copied"
+    else
+        echo "⚠️  WARNING: No .env file found!"
+        echo "   Please copy .env from your main Camp directory"
+        echo "   The app will not start without VITE_CONVEX_URL and VITE_CLERK_PUBLISHABLE_KEY"
+    fi
+fi
+
 # Install dependencies
 echo "Installing dependencies..."
-pnpm install
+npm install
 
 # Create the Application Support directory
 APP_SUPPORT_DIR="$HOME/Library/Application Support"
@@ -117,4 +132,4 @@ fi
 
 echo ""
 echo "✅ Setup complete! You can now run:"
-echo "    pnpm run dev"
+echo "    npm run dev"

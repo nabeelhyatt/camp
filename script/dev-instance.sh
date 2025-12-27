@@ -87,7 +87,7 @@ fi
 
 # Check if node_modules exists
 if [ ! -d "node_modules" ]; then
-    echo "Error: node_modules not found. Please run 'pnpm install' first."
+    echo "Error: node_modules not found. Please run Conductor setup first."
     exit 1
 fi
 
@@ -101,18 +101,39 @@ export CAMP_INSTANCE_NAME="$INSTANCE_NAME"
 export VITE_PORT="$PORT"
 export VITE_HMR_PORT="$HMR_PORT"
 
-# Start Convex dev server in background (no-open flag prevents browser from opening)
-echo "Starting Convex dev server in background..."
-pnpm run convex:dev -- --no-open > /dev/null 2>&1 &
+# Start Convex dev server in background
+echo "Starting Convex dev server..."
+CONVEX_LOG="$INSTANCE_DIR/convex.log"
+npm run convex:dev -- --no-open > "$CONVEX_LOG" 2>&1 &
 CONVEX_PID=$!
+
+# Wait for Convex to be ready (with 30 second timeout)
+echo "Waiting for Convex to initialize..."
+SECONDS=0
+MAX_WAIT=30
+while [ $SECONDS -lt $MAX_WAIT ]; do
+    if [ -f "$CONVEX_LOG" ] && grep -q "Convex functions ready\|dashboard.*convex\.dev" "$CONVEX_LOG"; then
+        echo "✓ Convex ready"
+        break
+    fi
+    sleep 1
+done
+
+if [ $SECONDS -ge $MAX_WAIT ]; then
+    echo "❌ Error: Convex failed to start within $MAX_WAIT seconds"
+    echo "Check log: $CONVEX_LOG"
+    kill $CONVEX_PID 2>/dev/null
+    exit 1
+fi
 
 # Cleanup function to kill background processes
 cleanup() {
     echo "Shutting down..."
     kill $CONVEX_PID 2>/dev/null
     rm -f "$CONFIG_OVERRIDE"
+    rm -f "$CONVEX_LOG"
 }
 trap cleanup EXIT
 
 # Run tauri dev with the base dev config and our override
-pnpm run tauri -- dev --config src-tauri/tauri.dev.conf.json --config "$CONFIG_OVERRIDE"
+npm run tauri -- dev --config src-tauri/tauri.dev.conf.json --config "$CONFIG_OVERRIDE"
