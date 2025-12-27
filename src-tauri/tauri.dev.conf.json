@@ -4,9 +4,9 @@
     "version": "0.1.0",
     "identifier": "ai.getcamp.app.dev",
     "build": {
-        "beforeDevCommand": "pnpm vite:dev",
+        "beforeDevCommand": "npm run vite:dev",
         "devUrl": "http://localhost:1420",
-        "beforeBuildCommand": "pnpm build",
+        "beforeBuildCommand": "npm run build",
         "frontendDist": "../dist"
     },
     "app": {

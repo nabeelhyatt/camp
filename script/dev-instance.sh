@@ -109,4 +109,4 @@ cleanup() {
 trap cleanup EXIT
 
 # Run tauri dev with the base dev config and our override
-npm run tauri dev --config src-tauri/tauri.dev.conf.json --config "$CONFIG_OVERRIDE"
+npm run tauri -- dev --config src-tauri/tauri.dev.conf.json --config "$CONFIG_OVERRIDE"
