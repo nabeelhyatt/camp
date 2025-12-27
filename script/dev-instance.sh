@@ -104,7 +104,7 @@ export VITE_HMR_PORT="$HMR_PORT"
 # Start Convex dev server in background
 echo "Starting Convex dev server..."
 CONVEX_LOG="$INSTANCE_DIR/convex.log"
-npm run convex:dev -- --no-open > "$CONVEX_LOG" 2>&1 &
+npx --yes corepack pnpm run convex:dev -- --no-open > "$CONVEX_LOG" 2>&1 &
 CONVEX_PID=$!
 
 # Wait for Convex to be ready (with 30 second timeout)

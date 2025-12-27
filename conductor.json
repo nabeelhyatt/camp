@@ -1,6 +1,6 @@
 {
     "scripts": {
-        "setup": "npm run setup",
+        "setup": "npx --yes corepack pnpm run setup",
         "run": "./script/dev-instance.sh"
     }
 }
