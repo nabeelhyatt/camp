@@ -80,8 +80,8 @@ function evaluateFlag(
 
     // For gradual rollout, need a userId to determine bucket
     if (!userId) {
-        // Without userId, fall back to fully enabled if percentage > 0
-        return true;
+        // Without userId, cannot determine bucket - deny access to partial rollouts
+        return false;
     }
 
     // Hash userId to get a consistent bucket (0-99)

@@ -144,11 +144,16 @@ export const create = mutation({
         // Verify workspace access
         await assertCanAccessWorkspace(ctx, args.workspaceId, user._id);
 
+        const name = args.name.trim();
+        if (!name) {
+            throw new Error("Project name cannot be empty");
+        }
+
         const now = Date.now();
 
         const projectId = await ctx.db.insert("projects", {
             workspaceId: args.workspaceId,
-            name: args.name.trim(),
+            name,
             description: args.description?.trim(),
             createdBy: user._id,
             createdAt: now,

@@ -130,18 +130,28 @@ function PrivateForkItem({ fork }: { fork: PrivateFork }) {
                 {fork.parentChat && (
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <button
+                            <span
+                                role="button"
+                                tabIndex={0}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     navigate(`/chat/${fork.parentChat!.id}`);
                                 }}
-                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground opacity-0 group-hover/fork:opacity-100 transition-opacity"
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        e.stopPropagation();
+                                        navigate(
+                                            `/chat/${fork.parentChat!.id}`,
+                                        );
+                                    }
+                                }}
+                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground opacity-0 group-hover/fork:opacity-100 transition-opacity cursor-pointer"
                             >
                                 <span className="truncate max-w-[80px]">
                                     {fork.parentChat.title || "Parent"}
                                 </span>
                                 <ChevronRightIcon className="size-3" />
-                            </button>
+                            </span>
                         </TooltipTrigger>
                         <TooltipContent>
                             Go to parent chat:{" "}

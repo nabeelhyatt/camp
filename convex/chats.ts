@@ -129,13 +129,14 @@ export const getWithCreator = query({
 
         return {
             ...chat,
-            creator: creator
-                ? {
-                      id: creator._id,
-                      displayName: creator.displayName,
-                      avatarUrl: creator.avatarUrl,
-                  }
-                : undefined,
+            creator:
+                creator && !creator.deletedAt
+                    ? {
+                          id: creator._id,
+                          displayName: creator.displayName,
+                          avatarUrl: creator.avatarUrl,
+                      }
+                    : undefined,
         };
     },
 });

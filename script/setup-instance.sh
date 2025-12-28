@@ -67,8 +67,9 @@ npx --yes corepack pnpm install
 # Step 3: Initialize Convex (if not already set up)
 # ============================================
 # Check if we have Convex configured (either in .env or .env.local)
-if ! grep -q "VITE_CONVEX_URL=https://" "$REPO_DIR/.env" 2>/dev/null && \
-   ! grep -q "VITE_CONVEX_URL=https://" "$REPO_DIR/.env.local" 2>/dev/null; then
+# Pattern matches with or without quotes: VITE_CONVEX_URL=https:// or VITE_CONVEX_URL="https://"
+if ! grep -qE '^[[:space:]]*VITE_CONVEX_URL=["\047]?https://' "$REPO_DIR/.env" 2>/dev/null && \
+   ! grep -qE '^[[:space:]]*VITE_CONVEX_URL=["\047]?https://' "$REPO_DIR/.env.local" 2>/dev/null; then
     echo ""
     echo "⚠️  Convex not configured. You need to run:"
     echo "   npx convex login   # (if not already logged in)"

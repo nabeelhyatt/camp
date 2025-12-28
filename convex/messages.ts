@@ -459,10 +459,11 @@ export const remove = mutation({
             deletedBy: user._id,
         });
 
-        // Soft delete all parts
+        // Soft delete all parts (only those not already deleted)
         const parts = await ctx.db
             .query("messageParts")
             .withIndex("by_message", (q) => q.eq("messageId", args.messageId))
+            .filter((q) => q.eq(q.field("deletedAt"), undefined))
             .collect();
 
         for (const part of parts) {
