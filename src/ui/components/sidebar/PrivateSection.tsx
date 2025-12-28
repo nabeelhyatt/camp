@@ -1,3 +1,4 @@
+import React from "react";
 import {
     LockIcon,
     GitBranchIcon,
@@ -100,9 +101,6 @@ export function PrivateSection({
         </div>
     );
 }
-
-// Need to import React for Children.count
-import React from "react";
 
 /**
  * Individual private fork item in the sidebar
