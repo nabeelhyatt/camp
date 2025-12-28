@@ -107,6 +107,7 @@ These are MORE important than: full Shared/Private visibility tiers, or presence
 ### MVP Design Decisions:
 
 -   **Author attribution**: Only on team chats (private chats implicitly "you")
+    -   **Note (Phase 1 Implementation):** `MessageAttribution` component exists but integration into `MultiChat.tsx` is deferred to Phase 2 (Private Forks). Focus Phase 1 on auth/infrastructure.
 -   **Permissions**: Proper access control from day 1 (check workspace membership)
 -   **Sidebar**: Full structure stubbed so users see the vision, Shared/Private greyed
 
@@ -777,6 +778,11 @@ _Covered above - core multiplayer functionality_
 -   Background jobs for summary generation
 -   Prompt template management system
 -   Cross-reference detection
+
+**Deferred Improvements (from Phase 1 review):**
+
+-   **Personal email domains list**: Currently hardcoded in `convex/auth.ts`. Consider using a library like `is-disposable-email` or making configurable via Convex table for easier maintenance.
+-   **Audit logging integration**: `convex/lib/audit.ts` exists with `logAudit()` helper but is not yet called from mutations. Wire up audit calls to critical mutations when building audit log UI.
 
 ---
 

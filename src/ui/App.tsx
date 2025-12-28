@@ -1060,13 +1060,9 @@ function App() {
                                 {db ? (
                                     <DatabaseProvider db={db}>
                                         <AppProvider>
-                                            <QueryClientProvider
-                                                client={queryClient}
-                                            >
-                                                <AppMetadataProvider>
-                                                    <AppContent />
-                                                </AppMetadataProvider>
-                                            </QueryClientProvider>
+                                            <AppMetadataProvider>
+                                                <AppContent />
+                                            </AppMetadataProvider>
                                         </AppProvider>
                                     </DatabaseProvider>
                                 ) : (

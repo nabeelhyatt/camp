@@ -1,6 +1,6 @@
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { useQuery, useMutation } from "convex/react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { api } from "@convex/_generated/api";
 import { Id } from "@convex/_generated/dataModel";
 
@@ -19,16 +19,18 @@ export function useCurrentUser() {
     // Sync user to Convex
     const syncUser = useMutation(api.auth.syncUser);
 
+    // Track if we've already synced this session to avoid redundant calls
+    const hasSyncedRef = useRef(false);
+
     // Get current user from Convex
     const convexUser = useQuery(
         api.auth.getCurrentUser,
         clerkId ? { clerkId } : "skip",
     );
 
-    // Sync Clerk user to Convex when signed in
+    // Sync Clerk user to Convex when signed in (once per session)
     useEffect(() => {
-        if (isSignedIn && clerkUser && clerkId) {
-            // Only sync if we haven't already or user data changed
+        if (isSignedIn && clerkUser && clerkId && !hasSyncedRef.current) {
             const email = clerkUser.primaryEmailAddress?.emailAddress;
             const displayName =
                 clerkUser.fullName ||
@@ -38,6 +40,7 @@ export function useCurrentUser() {
             const avatarUrl = clerkUser.imageUrl;
 
             if (email) {
+                hasSyncedRef.current = true;
                 void syncUser({
                     clerkId,
                     email,
@@ -46,7 +49,7 @@ export function useCurrentUser() {
                 });
             }
         }
-    }, [isSignedIn, clerkUser, clerkId, syncUser]);
+    }, [isSignedIn, clerkId, clerkUser, syncUser]);
 
     // Still loading auth
     if (!isAuthLoaded) {
