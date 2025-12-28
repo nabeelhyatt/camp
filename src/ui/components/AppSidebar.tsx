@@ -5,11 +5,13 @@ import {
     PlusIcon,
     FolderIcon,
     FolderOpenIcon,
-    FolderPlusIcon,
     SquarePlusIcon,
-    ArrowBigUpIcon,
     EllipsisIcon,
 } from "lucide-react";
+// Camp Multiplayer: Import sidebar sections for Team/Shared/Private structure
+import { TeamSection, TeamSectionEmpty } from "./sidebar/TeamSection";
+import { SharedSection } from "./sidebar/SharedSection";
+import { PrivateSection } from "./sidebar/PrivateSection";
 import {
     Sidebar,
     SidebarContent,
@@ -68,12 +70,11 @@ import {
     PointerSensor,
     useSensor,
     useSensors,
-    useDroppable,
 } from "@dnd-kit/core";
 import Droppable from "./Droppable";
 import Draggable from "./Draggable";
 import { dialogActions, useDialogStore } from "@core/infra/DialogStore";
-import { projectQueries, useCreateProject } from "@core/chorus/api/ProjectAPI";
+import { projectQueries } from "@core/chorus/api/ProjectAPI";
 import { chatQueries } from "@core/chorus/api/ChatAPI";
 import { useToggleProjectIsCollapsed } from "@core/chorus/api/ProjectAPI";
 
@@ -128,52 +129,7 @@ function groupChatsByDate(chats: Chat[]) {
     return groups;
 }
 
-function EmptyProjectState() {
-    const createProject = useCreateProject();
-    const { isOver, setNodeRef, active } = useDroppable({
-        id: "empty-project-state",
-    });
-
-    return (
-        <div
-            ref={setNodeRef}
-            className={`px-3 text-base text-muted-foreground border rounded-md p-2 mt-1 transition-all ${
-                isOver && active
-                    ? "border-sidebar-accent bg-sidebar-accent scale-[1.02]"
-                    : "border-muted-foreground/10"
-            }`}
-        >
-            <p className="mb-2 text-sm whitespace-normal break-words">
-                Group projects allow you to share context between chats.
-            </p>
-
-            <button
-                className="flex items-center justify-between w-full text-sidebar-muted-foreground hover:text-sidebar-accent-foreground group/create-project"
-                onClick={() => {
-                    createProject.mutate();
-                }}
-            >
-                <div className="flex items-center">
-                    <FolderPlusIcon
-                        strokeWidth={1.5}
-                        className="w-4 h-4 mr-2 text-muted-foreground group-hover/create-project:text-sidebar-accent-foreground"
-                    />
-                    <span className="font-[350]">
-                        {active
-                            ? "Drop to create a group project"
-                            : "Create a group project"}
-                    </span>
-                </div>
-                <span>
-                    <kbd className="invisible group-hover/create-project:visible">
-                        <span>⌘</span>
-                        <ArrowBigUpIcon className="size-3.5" />N
-                    </kbd>
-                </span>
-            </button>
-        </div>
-    );
-}
+// Note: EmptyProjectState was removed - now using TeamSectionEmpty from sidebar/TeamSection.tsx
 
 function EmptyChatState() {
     return (
@@ -558,36 +514,21 @@ export function AppSidebarInner() {
                                     </span>
                                 </button>
 
-                                {/* add new project */}
-                                {hasNonQuickChats && (
-                                    <>
-                                        <div className="pt-2 flex items-center justify-between group/projects">
-                                            <div className="sidebar-label flex w-full items-center gap-2 px-3 text-muted-foreground">
-                                                Group Projects
-                                            </div>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    {projectsToDisplay.length && (
-                                                        <button
-                                                            className="text-muted-foreground hover:text-foreground p-1 pr-3 rounded"
-                                                            onClick={() =>
-                                                                createProject.mutate()
-                                                            }
-                                                        >
-                                                            <FolderPlusIcon
-                                                                className="size-3.5"
-                                                                strokeWidth={
-                                                                    1.5
-                                                                }
-                                                            />
-                                                        </button>
-                                                    )}
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    New Group Project
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </div>
+                                {/* ============================================================
+                                    Camp Multiplayer: Team/Shared/Private sidebar structure
+                                    - Team: Projects visible to all workspace members
+                                    - Shared: Projects shared with specific people (Phase 4)
+                                    - Private: User's private projects and forks (Phase 2+)
+                                   ============================================================ */}
+
+                                {/* TEAM SECTION - Main workspace content */}
+                                <TeamSection
+                                    onCreateProject={() =>
+                                        createProject.mutate()
+                                    }
+                                >
+                                    {/* Team Projects */}
+                                    {hasNonQuickChats && (
                                         <div className="flex flex-col">
                                             {projectsToDisplay.length ? (
                                                 projectsToDisplay.map(
@@ -605,62 +546,77 @@ export function AppSidebarInner() {
                                                     ),
                                                 )
                                             ) : (
-                                                <EmptyProjectState />
+                                                <TeamSectionEmpty
+                                                    onCreateProject={() =>
+                                                        createProject.mutate()
+                                                    }
+                                                />
                                             )}
                                         </div>
-                                    </>
-                                )}
-                                {/* Spacer */}
-                                <div className="h-3" />
-
-                                <Droppable id="default">
-                                    {/* Grouped chats */}
-                                    {groupedChats.length > 0 ? (
-                                        groupedChats.map(
-                                            ({ label, chats: groupChats }) => (
-                                                <div
-                                                    key={label}
-                                                    className="pb-3"
-                                                >
-                                                    <div className="px-3 mb-1 sidebar-label flex items-center gap-2 text-muted-foreground">
-                                                        {label}
-                                                    </div>
-                                                    {groupChats.map((chat) => (
-                                                        <ChatListItem
-                                                            key={
-                                                                chat.id +
-                                                                "-sidebar"
-                                                            }
-                                                            chat={chat}
-                                                            isActive={
-                                                                currentChatId ===
-                                                                chat.id
-                                                            }
-                                                        />
-                                                    ))}
-                                                </div>
-                                            ),
-                                        )
-                                    ) : (
-                                        <EmptyChatState />
                                     )}
-                                    {defaultChats.length >
-                                        NUM_DEFAULT_CHATS_TO_SHOW_BY_DEFAULT &&
-                                        !showAllChats && (
-                                            <SidebarMenuItem className="w-full">
-                                                <SidebarMenuButton
-                                                    onClick={() =>
-                                                        setShowAllChats(true)
-                                                    }
-                                                >
-                                                    <EllipsisIcon className="size-4 text-muted-foreground" />
-                                                    <span className="text-base text-muted-foreground">
-                                                        Show More
-                                                    </span>
-                                                </SidebarMenuButton>
-                                            </SidebarMenuItem>
-                                        )}
-                                </Droppable>
+
+                                    {/* Ungrouped team chats */}
+                                    <Droppable id="default">
+                                        {groupedChats.length > 0 ? (
+                                            groupedChats.map(
+                                                ({
+                                                    label,
+                                                    chats: groupChats,
+                                                }) => (
+                                                    <div
+                                                        key={label}
+                                                        className="pb-3"
+                                                    >
+                                                        <div className="px-3 mb-1 sidebar-label flex items-center gap-2 text-muted-foreground">
+                                                            {label}
+                                                        </div>
+                                                        {groupChats.map(
+                                                            (chat) => (
+                                                                <ChatListItem
+                                                                    key={
+                                                                        chat.id +
+                                                                        "-sidebar"
+                                                                    }
+                                                                    chat={chat}
+                                                                    isActive={
+                                                                        currentChatId ===
+                                                                        chat.id
+                                                                    }
+                                                                />
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                ),
+                                            )
+                                        ) : !hasNonQuickChats ? (
+                                            <EmptyChatState />
+                                        ) : null}
+                                        {defaultChats.length >
+                                            NUM_DEFAULT_CHATS_TO_SHOW_BY_DEFAULT &&
+                                            !showAllChats && (
+                                                <SidebarMenuItem className="w-full">
+                                                    <SidebarMenuButton
+                                                        onClick={() =>
+                                                            setShowAllChats(
+                                                                true,
+                                                            )
+                                                        }
+                                                    >
+                                                        <EllipsisIcon className="size-4 text-muted-foreground" />
+                                                        <span className="text-base text-muted-foreground">
+                                                            Show More
+                                                        </span>
+                                                    </SidebarMenuButton>
+                                                </SidebarMenuItem>
+                                            )}
+                                    </Droppable>
+                                </TeamSection>
+
+                                {/* SHARED SECTION - Coming soon (Phase 4) */}
+                                <SharedSection enabled={false} />
+
+                                {/* PRIVATE SECTION - Coming soon (Phase 2) */}
+                                <PrivateSection enabled={false} />
                             </SidebarMenu>
                         </SidebarGroupContent>
                     </SidebarGroup>
