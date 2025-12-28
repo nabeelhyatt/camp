@@ -795,7 +795,7 @@ Currently, large file attachments (PDFs, images) are embedded as base64 in API r
 - Team-wide file storage with Convex
 - Much larger context windows without request size limits
 
-See: https://github.com/conductor-is/boise/issues/7
+See: https://github.com/nabeelhyatt/camp/issues/7
 
 **Phased Approach:**
 1. **Q1 (Phase 1):** Implement Anthropic Files API for individual chats (fixes timeout bug)

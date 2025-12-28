@@ -69,10 +69,10 @@ npx --yes corepack pnpm install
 # The Convex CLI needs CONVEX_DEPLOYMENT to run non-interactively
 # Extract the deployment name from VITE_CONVEX_URL (e.g., "dutiful-gecko-899" from "https://dutiful-gecko-899.convex.cloud")
 if [ ! -f "$REPO_DIR/.env.local" ]; then
-    # Try to extract CONVEX_URL from .env
-    CONVEX_URL=$(grep -E '^[[:space:]]*VITE_CONVEX_URL=' "$REPO_DIR/.env" 2>/dev/null | sed 's/.*=//' | tr -d '"' | tr -d "'" | tr -d '[:space:]')
+    # Try to extract CONVEX_URL from .env (use -m1 to get only first match)
+    CONVEX_URL=$(grep -m1 -E '^[[:space:]]*VITE_CONVEX_URL=' "$REPO_DIR/.env" 2>/dev/null | sed 's/.*=//' | tr -d '"' | tr -d "'" | tr -d '[:space:]')
 
-    if [ -n "$CONVEX_URL" ] && [[ "$CONVEX_URL" == https://*.convex.cloud ]]; then
+    if [ -n "$CONVEX_URL" ] && [[ "$CONVEX_URL" == https://*.convex.cloud* ]]; then
         # Extract deployment name: "https://dutiful-gecko-899.convex.cloud" -> "dev:dutiful-gecko-899"
         DEPLOYMENT_NAME=$(echo "$CONVEX_URL" | sed 's|https://||' | sed 's|\.convex\.cloud.*||')
         echo "Creating .env.local with Convex deployment: $DEPLOYMENT_NAME"

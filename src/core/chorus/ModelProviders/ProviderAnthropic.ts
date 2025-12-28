@@ -139,8 +139,8 @@ export class ProviderAnthropic implements IProvider {
             baseURL: customBaseUrl,
             dangerouslyAllowBrowser: true,
             defaultHeaders: headers,
-            // Increase timeout for requests with large attachments (PDFs, images, etc.)
-            // Default is 10 minutes (600000ms), but large document uploads can take longer
+            // Set explicit timeout for large attachments (PDFs, images, etc.)
+            // Matches SDK default of 10 minutes (600000ms)
             timeout: 10 * 60 * 1000, // 10 minutes
         });
 
