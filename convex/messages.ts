@@ -207,7 +207,11 @@ export const createUserMessage = mutation({
         }
 
         // Verify chat access
-        const chat = await assertCanAccessChat(ctx, messageSet.chatId, user._id);
+        const chat = await assertCanAccessChat(
+            ctx,
+            messageSet.chatId,
+            user._id,
+        );
 
         const now = Date.now();
 

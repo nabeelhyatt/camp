@@ -19,8 +19,8 @@ You will need:
 3. `imagemagick` (optional)
 4. `git-lfs` (`brew install git-lfs`)
 5. A package manager:
-   - **For local development**: `pnpm` (`brew install pnpm`) - recommended for faster installs
-   - **For Conductor**: Uses `npm` (comes with Node.js) automatically
+    - **For local development**: `pnpm` (`brew install pnpm`) - recommended for faster installs
+    - **For Conductor**: Uses `npm` (comes with Node.js) automatically
 
 Once you have those set up, please run:
 

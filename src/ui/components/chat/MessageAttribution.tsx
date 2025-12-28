@@ -134,7 +134,10 @@ export function RelativeTime({ timestamp }: { timestamp: number }) {
     });
 
     return (
-        <span className="text-xs text-muted-foreground" title={formatTime(timestamp)}>
+        <span
+            className="text-xs text-muted-foreground"
+            title={formatTime(timestamp)}
+        >
             {relative}
         </span>
     );
@@ -158,7 +161,9 @@ function getInitials(name: string): string {
     if (parts.length === 1) {
         return parts[0].charAt(0).toUpperCase();
     }
-    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    return (
+        parts[0].charAt(0) + parts[parts.length - 1].charAt(0)
+    ).toUpperCase();
 }
 
 /**

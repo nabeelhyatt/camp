@@ -34,9 +34,7 @@ export async function isFeatureEnabled(
         const workspaceFlag = await ctx.db
             .query("featureFlags")
             .withIndex("by_key", (q) => q.eq("key", key))
-            .filter((q) =>
-                q.eq(q.field("workspaceId"), options.workspaceId),
-            )
+            .filter((q) => q.eq(q.field("workspaceId"), options.workspaceId))
             .first();
 
         if (workspaceFlag) {
@@ -71,10 +69,7 @@ function evaluateFlag(
     }
 
     // If no rollout percentage, feature is fully enabled
-    if (
-        flag.rolloutPercentage === undefined ||
-        flag.rolloutPercentage >= 100
-    ) {
+    if (flag.rolloutPercentage === undefined || flag.rolloutPercentage >= 100) {
         return true;
     }
 
@@ -120,8 +115,7 @@ export async function getAllFeatureFlags(
     // Filter by workspace if provided
     if (workspaceId) {
         return flags.filter(
-            (f) =>
-                f.workspaceId === undefined || f.workspaceId === workspaceId,
+            (f) => f.workspaceId === undefined || f.workspaceId === workspaceId,
         );
     }
 

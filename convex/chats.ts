@@ -195,7 +195,9 @@ export const listPrivateForks = query({
         const privateForks = await ctx.db
             .query("chats")
             .withIndex("by_workspace_and_visibility", (q) =>
-                q.eq("workspaceId", args.workspaceId).eq("visibility", "private"),
+                q
+                    .eq("workspaceId", args.workspaceId)
+                    .eq("visibility", "private"),
             )
             .filter((q) =>
                 q.and(

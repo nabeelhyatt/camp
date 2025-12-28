@@ -9,7 +9,4 @@
 
 export { TeamSection, TeamSectionEmpty } from "./TeamSection";
 export { SharedSection, SharedSectionEmpty } from "./SharedSection";
-export {
-    PrivateSection,
-    PrivateSectionEmpty,
-} from "./PrivateSection";
+export { PrivateSection, PrivateSectionEmpty } from "./PrivateSection";
