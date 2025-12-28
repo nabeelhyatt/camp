@@ -73,25 +73,25 @@ Sometimes, after you've been working on one feature, I will ask you to start wor
 
 Don't combine git commands -- e.g., instead of `git add -A && git commit`, run `git add -A` and `git commit` separately. This will save me time because I won't have to grant you permission to run the combined command.
 
-## Package Managers: npm vs pnpm
+## Package Managers: pnpm
 
-### For Local Development
+### For All Environments
 
--   **Recommended**: Use `pnpm` for faster installs and better disk space usage
+-   **Use pnpm** for faster installs and better disk space usage
 -   Commands: `pnpm install`, `pnpm run dev`, etc.
 -   Why: pnpm is faster and handles the peer dependency issues with use-react-query-auto-sync
 
 ### For Conductor Workspaces
 
--   **Required**: Conductor scripts use `npm` (guaranteed to be in PATH)
--   The setup and dev scripts automatically use npm when run via Conductor
--   Why: npm ships with Node.js and is always available in Conductor's execution environment
+-   Conductor scripts use `npx --yes corepack pnpm` to ensure pnpm is available regardless of PATH
+-   The setup script copies `.env` from the workspace parent directory (e.g., `/workspaces/camp-v1/.env`)
+-   This allows sharing environment variables across multiple worktrees
 
-### Both Work
+### Environment Setup
 
--   The project has both `pnpm-lock.yaml` and will work with `npm` via the `legacy-peer-deps` flag in `.npmrc`
--   You can switch between them, but stick to one for consistency
--   Conductor automatically handles the npm setup for you
+-   Copy `.env` from the workspace parent directory or from `.env.example`
+-   Required variables: `VITE_CONVEX_URL`, `VITE_CLERK_PUBLISHABLE_KEY`
+-   Optional: `VITE_DEFAULT_OPENROUTER_KEY` for default API key
 
 ## Key Commands
 

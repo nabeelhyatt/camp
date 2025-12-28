@@ -6,7 +6,6 @@ import {
     assertCanAccessChat,
     assertCanAccessProject,
     canDeleteChat,
-    countChildForks,
     getDescendantChatIds,
 } from "./lib/permissions";
 import { logAudit } from "./lib/audit";
@@ -46,6 +45,15 @@ export const list = query({
         let chatsQuery;
 
         if (args.projectId) {
+            // Verify project belongs to this workspace
+            const project = await assertCanAccessProject(
+                ctx,
+                args.projectId,
+                user._id,
+            );
+            if (project.workspaceId !== args.workspaceId) {
+                throw new Error("Access denied: project not in workspace");
+            }
             chatsQuery = ctx.db
                 .query("chats")
                 .withIndex("by_project", (q) =>
@@ -427,23 +435,20 @@ export const remove = mutation({
             );
         }
 
-        // Check for child forks
-        const forkCount = await countChildForks(ctx, args.chatId);
+        // Get all descendants for cascade delete (including nested forks)
+        const descendantIds = await getDescendantChatIds(ctx, args.chatId);
 
-        if (forkCount > 0 && !args.confirmCascade) {
+        if (descendantIds.length > 0 && !args.confirmCascade) {
             // Return warning instead of deleting
             return {
                 success: false,
                 requiresConfirmation: true,
-                forkCount,
-                message: `This will delete ${forkCount} private fork(s) from other team members.`,
+                forkCount: descendantIds.length,
+                message: `This will delete ${descendantIds.length} fork(s), including nested forks.`,
             };
         }
 
         const now = Date.now();
-
-        // Get all descendants for cascade delete
-        const descendantIds = await getDescendantChatIds(ctx, args.chatId);
 
         // Soft delete the chat
         await ctx.db.patch(args.chatId, {
