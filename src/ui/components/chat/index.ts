@@ -5,8 +5,11 @@
 export {
     MessageAttribution,
     RelativeTime,
+    type AuthorSnapshot,
+} from "./MessageAttribution";
+
+export {
     shouldShowAttribution,
     isNewAuthorBlock,
-    type AuthorSnapshot,
     type MessageSetForAttribution,
-} from "./MessageAttribution";
+} from "./messageAttributionUtils";
