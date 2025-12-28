@@ -85,13 +85,17 @@ Don't combine git commands -- e.g., instead of `git add -A && git commit`, run `
 
 -   Conductor scripts use `npx --yes corepack pnpm` to ensure pnpm is available regardless of PATH
 -   The setup script copies `.env` from the workspace parent directory (e.g., `/workspaces/camp-v1/.env`)
+-   The setup script auto-creates `.env.local` with `CONVEX_DEPLOYMENT` extracted from `VITE_CONVEX_URL`
 -   This allows sharing environment variables across multiple worktrees
 
 ### Environment Setup
 
 -   Copy `.env` from the workspace parent directory or from `.env.example`
--   Required variables: `VITE_CONVEX_URL`, `VITE_CLERK_PUBLISHABLE_KEY`
+-   Required in `.env`: `VITE_CONVEX_URL`, `VITE_CLERK_PUBLISHABLE_KEY`
+-   Required in `.env.local`: `CONVEX_DEPLOYMENT` (auto-created by setup script)
 -   Optional: `VITE_DEFAULT_OPENROUTER_KEY` for default API key
+
+**Note:** The Convex CLI requires `CONVEX_DEPLOYMENT` in `.env.local` to run non-interactively. The setup script extracts this from `VITE_CONVEX_URL` (e.g., `https://dutiful-gecko-899.convex.cloud` → `CONVEX_DEPLOYMENT=dev:dutiful-gecko-899`).
 
 ## Key Commands
 
