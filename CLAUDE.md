@@ -93,7 +93,8 @@ Don't combine git commands -- e.g., instead of `git add -A && git commit`, run `
 -   Copy `.env` from the workspace parent directory or from `.env.example`
 -   Required in `.env`: `VITE_CONVEX_URL`, `VITE_CLERK_PUBLISHABLE_KEY`
 -   Required in `.env.local`: `CONVEX_DEPLOYMENT` (auto-created by setup script)
--   Optional: `VITE_DEFAULT_OPENROUTER_KEY` for default API key
+-   Optional: `VITE_DEFAULT_OPENROUTER_KEY` for default OpenRouter API key
+-   Optional: `VITE_DEFAULT_FIRECRAWL_KEY` for default Firecrawl API key (URL scraping)
 
 **Note:** The Convex CLI requires `CONVEX_DEPLOYMENT` in `.env.local` to run non-interactively. The setup script extracts this from `VITE_CONVEX_URL` (e.g., `https://dutiful-gecko-899.convex.cloud` → `CONVEX_DEPLOYMENT=dev:dutiful-gecko-899`).
 
