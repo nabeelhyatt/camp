@@ -102,19 +102,29 @@ export VITE_PORT="$PORT"
 export VITE_HMR_PORT="$HMR_PORT"
 
 # Start Convex dev server in background
+# Run npx convex dev directly to avoid pnpm output buffering
 echo "Starting Convex dev server..."
+mkdir -p "$INSTANCE_DIR"
 CONVEX_LOG="$INSTANCE_DIR/convex.log"
-npx --yes corepack pnpm run convex:dev > "$CONVEX_LOG" 2>&1 &
+npx convex dev > "$CONVEX_LOG" 2>&1 &
 CONVEX_PID=$!
 
-# Wait for Convex to be ready (with 30 second timeout)
+# Wait for Convex to be ready (with 45 second timeout)
+# Convex can take longer on first run or after schema changes
 echo "Waiting for Convex to initialize..."
 SECONDS=0
-MAX_WAIT=30
+MAX_WAIT=45
 while [ $SECONDS -lt $MAX_WAIT ]; do
     if [ -f "$CONVEX_LOG" ] && grep -q "Convex functions ready\|dashboard.*convex\.dev" "$CONVEX_LOG"; then
         echo "✓ Convex ready"
         break
+    fi
+    # Also check if the process died unexpectedly
+    if ! kill -0 $CONVEX_PID 2>/dev/null; then
+        echo "❌ Error: Convex process exited unexpectedly"
+        echo "Log output:"
+        cat "$CONVEX_LOG" 2>/dev/null
+        exit 1
     fi
     sleep 1
 done
