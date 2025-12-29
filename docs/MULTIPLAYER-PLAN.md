@@ -1038,9 +1038,40 @@ messages: defineTable({
 
 ---
 
+## SQLite → Convex Migration Strategy
+
+**This is a ONE-WAY MIGRATION. SQLite will be fully removed, not maintained alongside Convex.**
+
+### Migration Philosophy
+
+When `useConvexData=true`:
+
+-   **SQLite data is IGNORED, not mixed** - We don't show SQLite chats/projects alongside Convex ones
+-   **Clean separation** - Users see only Convex data, avoiding confusion about what syncs
+-   **SQLite IDs are rejected** - Navigating to a SQLite chat ID returns empty, not the local data
+
+This approach means:
+
+1. We don't need to maintain dual data sources long-term
+2. We don't need to build SQLite↔Convex sync logic
+3. Users start fresh with Convex (no migration of existing local data)
+4. SQLite code can be deleted once all features are migrated
+
+### Migration Phases
+
+| Phase     | What Gets Migrated                        | SQLite Code Status                |
+| --------- | ----------------------------------------- | --------------------------------- |
+| Phase 1   | Project/chat queries, basic mutations     | Still used for chat creation      |
+| Phase 1.5 | `useGetOrCreateNewChat` and creation flow | Chat creation moves to Convex     |
+| Phase 2   | Message streaming and mutations           | Messages move to Convex           |
+| Phase 3   | Project context, attachments              | Project features move to Convex   |
+| Final     | -                                         | **SQLite layer removed entirely** |
+
+---
+
 ## Phase 1 Incomplete Features (SQLite-Only)
 
-**⚠️ IMPORTANT: The following hooks are NOT YET implemented for Convex and will continue to use SQLite even when `useConvexData=true`. They will NOT work correctly in multiplayer mode until migrated.**
+**⚠️ IMPORTANT: The following hooks are NOT YET implemented for Convex and will continue to use SQLite even when `useConvexData=true`. These features will NOT work in multiplayer mode until migrated.**
 
 ### Chat Hooks Still Using SQLite
 
