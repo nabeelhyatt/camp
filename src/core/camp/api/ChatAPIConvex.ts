@@ -18,6 +18,7 @@ import {
     isSentinelProjectId,
     isQuickChatByProjectId,
     stringToConvexIdStrict,
+    isSQLiteId,
 } from "./convexTypes";
 import { chatQueries } from "@core/chorus/api/ChatAPI";
 import { campConfig } from "@core/campConfig";
@@ -87,9 +88,12 @@ export function useChatQueryConvex(chatId: string | undefined) {
     // Skip Convex queries when not using Convex data layer
     const shouldSkip = !campConfig.useConvexData;
 
+    // Also skip if this is a SQLite ID (existing local chat) - can't query Convex with it
+    const isSqliteChat = isSQLiteId(chatId);
+
     const result = useQuery(
         api.chats.get,
-        !shouldSkip && clerkId && chatId
+        !shouldSkip && !isSqliteChat && clerkId && chatId
             ? { clerkId, chatId: stringToConvexIdStrict<"chats">(chatId) }
             : "skip",
     );
@@ -98,9 +102,11 @@ export function useChatQueryConvex(chatId: string | undefined) {
 
     return {
         data,
-        isLoading: result === undefined && !!chatId,
+        isLoading: result === undefined && !!chatId && !isSqliteChat,
         isError: false,
         error: null,
+        // Flag to indicate this is a SQLite chat that needs local lookup
+        isSQLiteChat: isSqliteChat,
     };
 }
 

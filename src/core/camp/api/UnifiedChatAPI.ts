@@ -105,12 +105,21 @@ export function useChatsQuery(options?: { projectId?: string }) {
 
 /**
  * Get a single chat by ID
+ *
+ * Note: If the chatId is a SQLite ID (32-char hex) and useConvexData is true,
+ * we fall back to SQLite since we can't query Convex with a SQLite ID.
+ * This handles the case of navigating to existing local chats.
  */
 export function useChatQuery(chatId: string | undefined) {
     // Always call both hooks (React hooks rule)
     // Note: SQLite hook requires a string, so we pass empty string when undefined
     const sqliteResult = useChatSQLite(chatId ?? "");
     const convexResult = useChatQueryConvex(chatId);
+
+    // If Convex mode but this is a SQLite ID, fall back to SQLite
+    if (campConfig.useConvexData && convexResult.isSQLiteChat) {
+        return sqliteResult;
+    }
 
     return campConfig.useConvexData ? convexResult : sqliteResult;
 }

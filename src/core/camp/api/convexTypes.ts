@@ -48,6 +48,32 @@ export function isQuickChatByProjectId(projectId: string | undefined): boolean {
     return projectId === SENTINEL_PROJECT_IDS.QUICK_CHAT;
 }
 
+/**
+ * Check if an ID looks like a SQLite ID (32-char hex string / UUID without dashes).
+ * SQLite IDs in this app are generated with uuidv4().replace(/-/g, '').
+ * Convex IDs have a different format (shorter, different character set).
+ *
+ * This is used to detect when a SQLite ID is being used in a Convex context,
+ * which happens when navigating to an existing SQLite chat while useConvexData=true.
+ */
+export function isSQLiteId(id: string | undefined): boolean {
+    if (!id) return false;
+    // SQLite IDs are 32-character hex strings (UUID without dashes)
+    return /^[0-9a-f]{32}$/i.test(id);
+}
+
+/**
+ * Check if an ID appears to be a valid Convex ID.
+ * Returns false for SQLite IDs and sentinel IDs.
+ */
+export function isLikelyConvexId(id: string | undefined): boolean {
+    if (!id) return false;
+    if (isSentinelProjectId(id)) return false;
+    if (isSQLiteId(id)) return false;
+    // If it's not a sentinel or SQLite ID, assume it's a Convex ID
+    return true;
+}
+
 // ============================================================
 // ID Conversion Utilities
 // ============================================================
