@@ -30,7 +30,6 @@ import {
     formatQuickChatShortcut,
 } from "@ui/lib/utils";
 import { SETTINGS_DIALOG_ID } from "./Settings";
-import { useQuery } from "@tanstack/react-query";
 import { dialogActions } from "@core/infra/DialogStore";
 import { Chat } from "@core/camp/api/UnifiedChatAPI";
 import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
@@ -44,7 +43,7 @@ const SEARCH_CONTEXT_LENGTH = 100;
 
 export function CommandMenu() {
     const settings = useSettings();
-    const chatsQuery = useQuery(ChatAPI.chatQueries.list());
+    const chatsQuery = ChatAPI.useChatsQuery();
     const chats = (chatsQuery.data ?? []).filter(
         (chat: Chat) => !chat.isNewChat,
     );

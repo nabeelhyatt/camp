@@ -65,7 +65,6 @@ import {
     MutationCache,
     QueryClient,
     QueryClientProvider,
-    useQuery,
 } from "@tanstack/react-query";
 import { AppMetadataProvider } from "@ui/providers/AppMetadataProvider";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
@@ -155,7 +154,7 @@ function AppContent() {
     }, []);
 
     // Get all chats to determine if user is new
-    const { data: chats } = useQuery(ChatAPI.chatQueries.list());
+    const { data: chats } = ChatAPI.useChatsQuery();
 
     // We want to auto-dismiss educational tooltip when someone opens
     // the app for the first time. As a hack for something similar,
