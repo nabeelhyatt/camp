@@ -147,10 +147,7 @@ export class ProviderAnthropic implements IProvider {
         const stream = client.messages.stream(createParams);
 
         stream.on("error", (error) => {
-            console.error(
-                "Error streaming Anthropic response",
-                error,
-            );
+            console.error("Error streaming Anthropic response", error);
             // Log the size of attachments for debugging
             const attachmentCount = llmConversation.reduce((count, msg) => {
                 if (msg.role === "user" && msg.attachments) {
