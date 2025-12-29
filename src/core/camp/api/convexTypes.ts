@@ -13,6 +13,42 @@ import type { Project } from "@core/chorus/api/ProjectAPI";
 import type { Chat } from "@core/chorus/api/ChatAPI";
 
 // ============================================================
+// Sentinel ID Handling
+// ============================================================
+
+/**
+ * SQLite uses special string IDs like "default" and "quick-chat" for projects.
+ * Convex uses real Ids. These utilities handle the mapping.
+ */
+
+/** Sentinel IDs used by SQLite that don't exist in Convex */
+export const SENTINEL_PROJECT_IDS = {
+    DEFAULT: "default",
+    QUICK_CHAT: "quick-chat",
+} as const;
+
+/** Type for sentinel project IDs - exported for use in components */
+export type SentinelProjectId =
+    (typeof SENTINEL_PROJECT_IDS)[keyof typeof SENTINEL_PROJECT_IDS];
+
+/**
+ * Check if a project ID is a SQLite sentinel (not a real Convex ID)
+ */
+export function isSentinelProjectId(id: string | undefined): boolean {
+    return (
+        id === SENTINEL_PROJECT_IDS.DEFAULT ||
+        id === SENTINEL_PROJECT_IDS.QUICK_CHAT
+    );
+}
+
+/**
+ * Check if a chat should be treated as a quick/ambient chat based on projectId
+ */
+export function isQuickChatByProjectId(projectId: string | undefined): boolean {
+    return projectId === SENTINEL_PROJECT_IDS.QUICK_CHAT;
+}
+
+// ============================================================
 // ID Conversion Utilities
 // ============================================================
 
@@ -26,9 +62,31 @@ export function convexIdToString<T extends TableNames>(id: Id<T>): string {
 }
 
 /**
- * Convert a string back to a Convex Id for API calls
+ * Convert a string back to a Convex Id for API calls.
+ * Returns undefined if the string is a sentinel ID.
  */
-export function stringToConvexId<T extends TableNames>(str: string): Id<T> {
+export function stringToConvexId<T extends TableNames>(
+    str: string,
+): Id<T> | undefined {
+    // Don't try to convert sentinel IDs - they don't exist in Convex
+    if (isSentinelProjectId(str)) {
+        return undefined;
+    }
+    return str as unknown as Id<T>;
+}
+
+/**
+ * Convert a string to Convex Id, throwing if it's a sentinel.
+ * Use when you know the ID must be a real Convex ID.
+ */
+export function stringToConvexIdStrict<T extends TableNames>(
+    str: string,
+): Id<T> {
+    if (isSentinelProjectId(str)) {
+        throw new Error(
+            `Cannot convert sentinel ID "${str}" to Convex Id. Use stringToConvexId for optional handling.`,
+        );
+    }
     return str as unknown as Id<T>;
 }
 
@@ -109,12 +167,23 @@ export function convexProjectsToProjects(docs: Doc<"projects">[]): Project[] {
  * - Convex uses optional fields, frontend uses null for some
  * - summary, projectContextSummary, replyToId not in Convex schema yet
  * - gcPrototype: deprecated field, defaults to false
+ * - projectId: Maps to "default" for ungrouped, "quick-chat" for ambient
  */
 export function convexChatToChat(doc: Doc<"chats">): Chat {
+    // Map projectId for compatibility with SQLite expectations
+    let projectId: string;
+    if (doc.isAmbient) {
+        projectId = SENTINEL_PROJECT_IDS.QUICK_CHAT;
+    } else if (doc.projectId) {
+        projectId = convexIdToString(doc.projectId);
+    } else {
+        projectId = SENTINEL_PROJECT_IDS.DEFAULT;
+    }
+
     return {
         id: convexIdToString(doc._id),
         title: doc.title ?? "New Chat",
-        projectId: doc.projectId ? convexIdToString(doc.projectId) : "",
+        projectId,
         updatedAt: new Date(doc.updatedAt).toISOString(),
         createdAt: new Date(doc.createdAt).toISOString(),
         quickChat: doc.isAmbient,

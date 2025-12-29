@@ -14,9 +14,10 @@ import { useWorkspaceContext } from "./useWorkspaceHooks";
 import {
     convexProjectToProject,
     convexProjectsToProjects,
-    stringToConvexId,
+    stringToConvexIdStrict,
 } from "./convexTypes";
 import { projectKeys, projectQueries } from "@core/chorus/api/ProjectAPI";
+import { campConfig } from "@core/campConfig";
 
 // ============================================================
 // Query Keys (for cache management)
@@ -41,9 +42,14 @@ export function useProjectsQueryConvex() {
         isLoading: contextLoading,
     } = useWorkspaceContext();
 
+    // Skip Convex queries when not using Convex data layer
+    const shouldSkip = !campConfig.useConvexData;
+
     const result = useQuery(
         api.projects.list,
-        clerkId && workspaceId ? { clerkId, workspaceId } : "skip",
+        !shouldSkip && clerkId && workspaceId
+            ? { clerkId, workspaceId }
+            : "skip",
     );
 
     // Transform to frontend types
@@ -67,10 +73,16 @@ export function useProjectsQueryConvex() {
 export function useProjectQueryConvex(projectId: string | undefined) {
     const { clerkId } = useWorkspaceContext();
 
+    // Skip Convex queries when not using Convex data layer
+    const shouldSkip = !campConfig.useConvexData;
+
     const result = useQuery(
         api.projects.get,
-        clerkId && projectId
-            ? { clerkId, projectId: stringToConvexId<"projects">(projectId) }
+        !shouldSkip && clerkId && projectId
+            ? {
+                  clerkId,
+                  projectId: stringToConvexIdStrict<"projects">(projectId),
+              }
             : "skip",
     );
 
@@ -94,9 +106,14 @@ export function useProjectsWithChatCountsQueryConvex() {
         isLoading: contextLoading,
     } = useWorkspaceContext();
 
+    // Skip Convex queries when not using Convex data layer
+    const shouldSkip = !campConfig.useConvexData;
+
     const result = useQuery(
         api.projects.listWithChatCounts,
-        clerkId && workspaceId ? { clerkId, workspaceId } : "skip",
+        !shouldSkip && clerkId && workspaceId
+            ? { clerkId, workspaceId }
+            : "skip",
     );
 
     // Transform to frontend types with chatCount added
@@ -172,7 +189,7 @@ export function useRenameProjectConvex() {
 
             await updateProject({
                 clerkId,
-                projectId: stringToConvexId<"projects">(args.projectId),
+                projectId: stringToConvexIdStrict<"projects">(args.projectId),
                 name: args.newName,
             });
 
@@ -202,7 +219,7 @@ export function useUpdateProjectDescriptionConvex() {
 
             await updateProject({
                 clerkId,
-                projectId: stringToConvexId<"projects">(args.projectId),
+                projectId: stringToConvexIdStrict<"projects">(args.projectId),
                 description: args.description,
             });
 
@@ -228,7 +245,7 @@ export function useDeleteProjectConvex() {
 
             await removeProject({
                 clerkId,
-                projectId: stringToConvexId<"projects">(args.projectId),
+                projectId: stringToConvexIdStrict<"projects">(args.projectId),
             });
 
             // Invalidate caches

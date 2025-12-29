@@ -9,8 +9,9 @@
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useWorkspaceContext } from "./useWorkspaceHooks";
-import { stringToConvexId, convexIdToString } from "./convexTypes";
+import { stringToConvexIdStrict, convexIdToString } from "./convexTypes";
 import type { AuthorSnapshot } from "./convexTypes";
+import { campConfig } from "@core/campConfig";
 
 // ============================================================
 // Types
@@ -68,10 +69,13 @@ export interface ConvexMessageSet {
 export function useMessageSetsQueryConvex(chatId: string | undefined) {
     const { clerkId, isLoading: contextLoading } = useWorkspaceContext();
 
+    // Skip Convex queries when not using Convex data layer
+    const shouldSkip = !campConfig.useConvexData;
+
     const result = useQuery(
         api.messages.listSetsWithMessages,
-        clerkId && chatId
-            ? { clerkId, chatId: stringToConvexId<"chats">(chatId) }
+        !shouldSkip && clerkId && chatId
+            ? { clerkId, chatId: stringToConvexIdStrict<"chats">(chatId) }
             : "skip",
     );
 
@@ -132,10 +136,16 @@ export function useMessageSetsQueryConvex(chatId: string | undefined) {
 export function useMessageQueryConvex(messageId: string | undefined) {
     const { clerkId } = useWorkspaceContext();
 
+    // Skip Convex queries when not using Convex data layer
+    const shouldSkip = !campConfig.useConvexData;
+
     const result = useQuery(
         api.messages.get,
-        clerkId && messageId
-            ? { clerkId, messageId: stringToConvexId<"messages">(messageId) }
+        !shouldSkip && clerkId && messageId
+            ? {
+                  clerkId,
+                  messageId: stringToConvexIdStrict<"messages">(messageId),
+              }
             : "skip",
     );
 

@@ -15,8 +15,12 @@ import {
     convexChatToChat,
     convexChatsToChats,
     stringToConvexId,
+    isSentinelProjectId,
+    isQuickChatByProjectId,
+    stringToConvexIdStrict,
 } from "./convexTypes";
 import { chatQueries } from "@core/chorus/api/ChatAPI";
+import { campConfig } from "@core/campConfig";
 
 // Re-export for cache compatibility
 export { chatQueries };
@@ -41,15 +45,23 @@ export function useChatsQueryConvex(options?: { projectId?: string }) {
         isLoading: contextLoading,
     } = useWorkspaceContext();
 
+    // Skip Convex queries when not using Convex data layer
+    const shouldSkip = !campConfig.useConvexData;
+
+    // Handle sentinel project IDs - only pass real Convex IDs
+    const projectIdForQuery =
+        options?.projectId && !isSentinelProjectId(options.projectId)
+            ? stringToConvexId<"projects">(options.projectId)
+            : undefined;
+
     const result = useQuery(
         api.chats.list,
-        clerkId && workspaceId
+        !shouldSkip && clerkId && workspaceId
             ? {
                   clerkId,
                   workspaceId,
-                  projectId: options?.projectId
-                      ? stringToConvexId<"projects">(options.projectId)
-                      : undefined,
+                  projectId: projectIdForQuery,
+                  includeAmbient: true, // Include quick/ambient chats
               }
             : "skip",
     );
@@ -72,10 +84,13 @@ export function useChatsQueryConvex(options?: { projectId?: string }) {
 export function useChatQueryConvex(chatId: string | undefined) {
     const { clerkId } = useWorkspaceContext();
 
+    // Skip Convex queries when not using Convex data layer
+    const shouldSkip = !campConfig.useConvexData;
+
     const result = useQuery(
         api.chats.get,
-        clerkId && chatId
-            ? { clerkId, chatId: stringToConvexId<"chats">(chatId) }
+        !shouldSkip && clerkId && chatId
+            ? { clerkId, chatId: stringToConvexIdStrict<"chats">(chatId) }
             : "skip",
     );
 
@@ -99,9 +114,14 @@ export function useUngroupedChatsQueryConvex() {
         isLoading: contextLoading,
     } = useWorkspaceContext();
 
+    // Skip Convex queries when not using Convex data layer
+    const shouldSkip = !campConfig.useConvexData;
+
     const result = useQuery(
         api.chats.listUngrouped,
-        clerkId && workspaceId ? { clerkId, workspaceId } : "skip",
+        !shouldSkip && clerkId && workspaceId
+            ? { clerkId, workspaceId, includeAmbient: true }
+            : "skip",
     );
 
     const data = result ? convexChatsToChats(result) : undefined;
@@ -124,9 +144,14 @@ export function usePrivateForksQueryConvex() {
         isLoading: contextLoading,
     } = useWorkspaceContext();
 
+    // Skip Convex queries when not using Convex data layer
+    const shouldSkip = !campConfig.useConvexData;
+
     const result = useQuery(
         api.chats.listPrivateForks,
-        clerkId && workspaceId ? { clerkId, workspaceId } : "skip",
+        !shouldSkip && clerkId && workspaceId
+            ? { clerkId, workspaceId }
+            : "skip",
     );
 
     // Transform and include parent chat info
@@ -174,14 +199,22 @@ export function useCreateChatConvex() {
                 throw new Error("Not authenticated or no active workspace");
             }
 
+            // Handle sentinel project IDs from SQLite
+            // "default" means no project, "quick-chat" means ambient
+            const isAmbient =
+                options?.isAmbient ||
+                isQuickChatByProjectId(options?.projectId);
+            const projectId =
+                options?.projectId && !isSentinelProjectId(options.projectId)
+                    ? stringToConvexId<"projects">(options.projectId)
+                    : undefined;
+
             const chatId = await createChat({
                 clerkId,
                 workspaceId,
-                projectId: options?.projectId
-                    ? stringToConvexId<"projects">(options.projectId)
-                    : undefined,
+                projectId,
                 title: options?.title,
-                isAmbient: options?.isAmbient,
+                isAmbient,
             });
 
             void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
@@ -190,7 +223,7 @@ export function useCreateChatConvex() {
             const shouldNavigate =
                 options?.navigateToChat ?? !options?.isAmbient;
             if (shouldNavigate) {
-                navigate(`/chats/${chatId}`);
+                navigate(`/chat/${chatId}`);
             }
 
             return chatId as unknown as string;
@@ -215,7 +248,7 @@ export function useRenameChatConvex() {
 
             await updateChat({
                 clerkId,
-                chatId: stringToConvexId<"chats">(args.chatId),
+                chatId: stringToConvexIdStrict<"chats">(args.chatId),
                 title: args.newTitle,
             });
 
@@ -239,12 +272,16 @@ export function useSetChatProjectConvex() {
                 throw new Error("Not authenticated");
             }
 
+            // Handle sentinel project IDs - "default" means remove from project
+            const projectId =
+                args.projectId && !isSentinelProjectId(args.projectId)
+                    ? stringToConvexId<"projects">(args.projectId)
+                    : undefined;
+
             await updateChat({
                 clerkId,
-                chatId: stringToConvexId<"chats">(args.chatId),
-                projectId: args.projectId
-                    ? stringToConvexId<"projects">(args.projectId)
-                    : undefined,
+                chatId: stringToConvexIdStrict<"chats">(args.chatId),
+                projectId,
             });
 
             void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
@@ -272,7 +309,7 @@ export function useDeleteChatConvex() {
 
             const result = await removeChat({
                 clerkId,
-                chatId: stringToConvexId<"chats">(args.chatId),
+                chatId: stringToConvexIdStrict<"chats">(args.chatId),
                 confirmCascade: args.confirmCascade,
             });
 
@@ -313,9 +350,11 @@ export function useCreatePrivateForkConvex() {
 
             const chatId = await createFork({
                 clerkId,
-                parentChatId: stringToConvexId<"chats">(args.parentChatId),
+                parentChatId: stringToConvexIdStrict<"chats">(
+                    args.parentChatId,
+                ),
                 forkFromMessageId: args.forkFromMessageId
-                    ? stringToConvexId<"messages">(args.forkFromMessageId)
+                    ? stringToConvexIdStrict<"messages">(args.forkFromMessageId)
                     : undefined,
                 title: args.title,
             });
@@ -323,7 +362,7 @@ export function useCreatePrivateForkConvex() {
             void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
 
             if (args.navigateToChat !== false) {
-                navigate(`/chats/${chatId}`);
+                navigate(`/chat/${chatId}`);
             }
 
             return chatId as unknown as string;
@@ -348,7 +387,7 @@ export function usePublishSummaryConvex() {
 
             const result = await publishSummary({
                 clerkId,
-                chatId: stringToConvexId<"chats">(args.chatId),
+                chatId: stringToConvexIdStrict<"chats">(args.chatId),
                 summary: args.summary,
             });
 

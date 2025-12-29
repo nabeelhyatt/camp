@@ -144,10 +144,8 @@ export const create = mutation({
         // Verify workspace access
         await assertCanAccessWorkspace(ctx, args.workspaceId, user._id);
 
+        // Allow empty name - UI creates with empty name for inline rename
         const name = args.name.trim();
-        if (!name) {
-            throw new Error("Project name cannot be empty");
-        }
 
         const now = Date.now();
 
