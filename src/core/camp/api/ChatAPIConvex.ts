@@ -188,47 +188,51 @@ export function useCreateChatConvex() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
 
+    const mutateAsync = async (options?: {
+        projectId?: string;
+        title?: string;
+        isAmbient?: boolean;
+        navigateToChat?: boolean;
+    }) => {
+        if (!clerkId || !workspaceId) {
+            throw new Error("Not authenticated or no active workspace");
+        }
+
+        // Handle sentinel project IDs from SQLite
+        // "default" means no project, "quick-chat" means ambient
+        const isAmbient =
+            options?.isAmbient || isQuickChatByProjectId(options?.projectId);
+        const projectId =
+            options?.projectId && !isSentinelProjectId(options.projectId)
+                ? stringToConvexId<"projects">(options.projectId)
+                : undefined;
+
+        const chatId = await createChat({
+            clerkId,
+            workspaceId,
+            projectId,
+            title: options?.title,
+            isAmbient,
+        });
+
+        void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
+
+        // Navigate if requested (default true for non-ambient)
+        const shouldNavigate = options?.navigateToChat ?? !options?.isAmbient;
+        if (shouldNavigate) {
+            navigate(`/chat/${chatId}`);
+        }
+
+        return chatId as unknown as string;
+    };
+
     return {
-        mutateAsync: async (options?: {
-            projectId?: string;
-            title?: string;
-            isAmbient?: boolean;
-            navigateToChat?: boolean;
-        }) => {
-            if (!clerkId || !workspaceId) {
-                throw new Error("Not authenticated or no active workspace");
-            }
-
-            // Handle sentinel project IDs from SQLite
-            // "default" means no project, "quick-chat" means ambient
-            const isAmbient =
-                options?.isAmbient ||
-                isQuickChatByProjectId(options?.projectId);
-            const projectId =
-                options?.projectId && !isSentinelProjectId(options.projectId)
-                    ? stringToConvexId<"projects">(options.projectId)
-                    : undefined;
-
-            const chatId = await createChat({
-                clerkId,
-                workspaceId,
-                projectId,
-                title: options?.title,
-                isAmbient,
-            });
-
-            void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
-
-            // Navigate if requested (default true for non-ambient)
-            const shouldNavigate =
-                options?.navigateToChat ?? !options?.isAmbient;
-            if (shouldNavigate) {
-                navigate(`/chat/${chatId}`);
-            }
-
-            return chatId as unknown as string;
-        },
+        mutateAsync,
+        mutate: (options?: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(options),
         isLoading: false,
+        isPending: false,
+        isIdle: true,
     };
 }
 
@@ -240,21 +244,27 @@ export function useRenameChatConvex() {
     const updateChat = useMutation(api.chats.update);
     const queryClient = useQueryClient();
 
+    const mutateAsync = async (args: { chatId: string; newTitle: string }) => {
+        if (!clerkId) {
+            throw new Error("Not authenticated");
+        }
+
+        await updateChat({
+            clerkId,
+            chatId: stringToConvexIdStrict<"chats">(args.chatId),
+            title: args.newTitle,
+        });
+
+        void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
+    };
+
     return {
-        mutateAsync: async (args: { chatId: string; newTitle: string }) => {
-            if (!clerkId) {
-                throw new Error("Not authenticated");
-            }
-
-            await updateChat({
-                clerkId,
-                chatId: stringToConvexIdStrict<"chats">(args.chatId),
-                title: args.newTitle,
-            });
-
-            void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
-        },
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
         isLoading: false,
+        isPending: false,
+        isIdle: true,
     };
 }
 
@@ -266,27 +276,33 @@ export function useSetChatProjectConvex() {
     const updateChat = useMutation(api.chats.update);
     const queryClient = useQueryClient();
 
+    const mutateAsync = async (args: { chatId: string; projectId: string }) => {
+        if (!clerkId) {
+            throw new Error("Not authenticated");
+        }
+
+        // Handle sentinel project IDs - "default" means remove from project
+        const projectId =
+            args.projectId && !isSentinelProjectId(args.projectId)
+                ? stringToConvexId<"projects">(args.projectId)
+                : undefined;
+
+        await updateChat({
+            clerkId,
+            chatId: stringToConvexIdStrict<"chats">(args.chatId),
+            projectId,
+        });
+
+        void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
+    };
+
     return {
-        mutateAsync: async (args: { chatId: string; projectId: string }) => {
-            if (!clerkId) {
-                throw new Error("Not authenticated");
-            }
-
-            // Handle sentinel project IDs - "default" means remove from project
-            const projectId =
-                args.projectId && !isSentinelProjectId(args.projectId)
-                    ? stringToConvexId<"projects">(args.projectId)
-                    : undefined;
-
-            await updateChat({
-                clerkId,
-                chatId: stringToConvexIdStrict<"chats">(args.chatId),
-                projectId,
-            });
-
-            void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
-        },
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
         isLoading: false,
+        isPending: false,
+        isIdle: true,
     };
 }
 
@@ -298,33 +314,36 @@ export function useDeleteChatConvex() {
     const removeChat = useMutation(api.chats.remove);
     const queryClient = useQueryClient();
 
-    return {
-        mutateAsync: async (args: {
-            chatId: string;
-            confirmCascade?: boolean;
-        }) => {
-            if (!clerkId) {
-                throw new Error("Not authenticated");
-            }
+    const mutateAsync = async (args: {
+        chatId: string;
+        confirmCascade?: boolean;
+    }) => {
+        if (!clerkId) {
+            throw new Error("Not authenticated");
+        }
 
-            const result = await removeChat({
-                clerkId,
-                chatId: stringToConvexIdStrict<"chats">(args.chatId),
-                confirmCascade: args.confirmCascade,
-            });
+        const result = await removeChat({
+            clerkId,
+            chatId: stringToConvexIdStrict<"chats">(args.chatId),
+            confirmCascade: args.confirmCascade,
+        });
 
-            // If cascade confirmation is required, return the result
-            if (
-                "requiresConfirmation" in result &&
-                result.requiresConfirmation
-            ) {
-                return result;
-            }
-
-            void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
+        // If cascade confirmation is required, return the result
+        if ("requiresConfirmation" in result && result.requiresConfirmation) {
             return result;
-        },
+        }
+
+        void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
+        return result;
+    };
+
+    return {
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
         isLoading: false,
+        isPending: false,
+        isIdle: true,
     };
 }
 
@@ -337,37 +356,41 @@ export function useCreatePrivateForkConvex() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
 
+    const mutateAsync = async (args: {
+        parentChatId: string;
+        forkFromMessageId?: string;
+        title?: string;
+        navigateToChat?: boolean;
+    }) => {
+        if (!clerkId) {
+            throw new Error("Not authenticated");
+        }
+
+        const chatId = await createFork({
+            clerkId,
+            parentChatId: stringToConvexIdStrict<"chats">(args.parentChatId),
+            forkFromMessageId: args.forkFromMessageId
+                ? stringToConvexIdStrict<"messages">(args.forkFromMessageId)
+                : undefined,
+            title: args.title,
+        });
+
+        void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
+
+        if (args.navigateToChat !== false) {
+            navigate(`/chat/${chatId}`);
+        }
+
+        return chatId as unknown as string;
+    };
+
     return {
-        mutateAsync: async (args: {
-            parentChatId: string;
-            forkFromMessageId?: string;
-            title?: string;
-            navigateToChat?: boolean;
-        }) => {
-            if (!clerkId) {
-                throw new Error("Not authenticated");
-            }
-
-            const chatId = await createFork({
-                clerkId,
-                parentChatId: stringToConvexIdStrict<"chats">(
-                    args.parentChatId,
-                ),
-                forkFromMessageId: args.forkFromMessageId
-                    ? stringToConvexIdStrict<"messages">(args.forkFromMessageId)
-                    : undefined,
-                title: args.title,
-            });
-
-            void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
-
-            if (args.navigateToChat !== false) {
-                navigate(`/chat/${chatId}`);
-            }
-
-            return chatId as unknown as string;
-        },
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
         isLoading: false,
+        isPending: false,
+        isIdle: true,
     };
 }
 
@@ -379,22 +402,28 @@ export function usePublishSummaryConvex() {
     const publishSummary = useMutation(api.chats.publishSummary);
     const queryClient = useQueryClient();
 
+    const mutateAsync = async (args: { chatId: string; summary: string }) => {
+        if (!clerkId) {
+            throw new Error("Not authenticated");
+        }
+
+        const result = await publishSummary({
+            clerkId,
+            chatId: stringToConvexIdStrict<"chats">(args.chatId),
+            summary: args.summary,
+        });
+
+        void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
+
+        return result;
+    };
+
     return {
-        mutateAsync: async (args: { chatId: string; summary: string }) => {
-            if (!clerkId) {
-                throw new Error("Not authenticated");
-            }
-
-            const result = await publishSummary({
-                clerkId,
-                chatId: stringToConvexIdStrict<"chats">(args.chatId),
-                summary: args.summary,
-            });
-
-            void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
-
-            return result;
-        },
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
         isLoading: false,
+        isPending: false,
+        isIdle: true,
     };
 }

@@ -23,6 +23,7 @@ import {
     projectKeys,
     projectQueries,
 } from "./ProjectAPIConvex";
+import { useSetChatProjectConvex } from "./ChatAPIConvex";
 import {
     useCreateProject as useCreateProjectSQLite,
     useRenameProject as useRenameProjectSQLite,
@@ -30,8 +31,39 @@ import {
     useToggleProjectIsCollapsed as useToggleProjectIsCollapsedSQLite,
     fetchProjects,
     fetchProject,
+    // Re-export hooks that don't yet have Convex equivalents
+    useAutoSyncProjectContextText,
+    useGetProjectContextLLMMessage,
+    useSetMagicProjectsEnabled,
+    useMarkProjectContextSummaryAsStale,
+    useRegenerateProjectContextSummaries,
+    useDeleteAttachmentFromProject,
+    useFinalizeAttachmentForProject,
+    useSetChatProject as useSetChatProjectSQLite,
+    projectContextQueries,
+    fetchProjectContextText,
+    fetchProjectContextAttachments,
+    // Re-export types
+    type Project,
+    type Projects,
 } from "@core/chorus/api/ProjectAPI";
 import { useQuery } from "@tanstack/react-query";
+
+// Re-export hooks that don't yet have Convex equivalents (for backwards compatibility)
+export {
+    useAutoSyncProjectContextText,
+    useGetProjectContextLLMMessage,
+    useSetMagicProjectsEnabled,
+    useMarkProjectContextSummaryAsStale,
+    useRegenerateProjectContextSummaries,
+    useDeleteAttachmentFromProject,
+    useFinalizeAttachmentForProject,
+    projectContextQueries,
+    fetchProjectContextText,
+    fetchProjectContextAttachments,
+    type Project,
+    type Projects,
+};
 
 // Re-export query keys for cache compatibility
 export { projectKeys, projectQueries };
@@ -130,6 +162,17 @@ export function useToggleProjectIsCollapsed() {
     // Always call both hooks (React hooks rule)
     const convexMutation = useToggleProjectIsCollapsedConvex();
     const sqliteMutation = useToggleProjectIsCollapsedSQLite();
+
+    return campConfig.useConvexData ? convexMutation : sqliteMutation;
+}
+
+/**
+ * Set a chat's project (move chat to a different project)
+ */
+export function useSetChatProject() {
+    // Always call both hooks (React hooks rule)
+    const convexMutation = useSetChatProjectConvex();
+    const sqliteMutation = useSetChatProjectSQLite();
 
     return campConfig.useConvexData ? convexMutation : sqliteMutation;
 }

@@ -41,7 +41,7 @@ import { useSearchParams } from "react-router-dom";
 import * as ModelsAPI from "@core/chorus/api/ModelsAPI";
 import * as DraftAPI from "@core/chorus/api/DraftAPI";
 import * as ModelConfigChatAPI from "@core/chorus/api/ModelConfigChatAPI";
-import * as ProjectAPI from "@core/chorus/api/ProjectAPI";
+import * as ProjectAPI from "@core/camp/api/UnifiedProjectAPI";
 
 const DEFAULT_CHAT_INPUT_ID = "default-chat-input";
 const REPLY_CHAT_INPUT_ID = "reply-chat-input";

@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useChat } from "@core/chorus/api/ChatAPI";
+import { useChat } from "@core/camp/api/UnifiedChatAPI";
 import {
     useGCMainMessages,
     useSendGCMessage,

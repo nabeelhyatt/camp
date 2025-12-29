@@ -14,7 +14,7 @@ import * as AttachmentsAPI from "@core/chorus/api/AttachmentsAPI";
 import { open } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { captureWholeScreenCompressed } from "@core/chorus/screenshot";
-import * as ProjectAPI from "@core/chorus/api/ProjectAPI";
+import * as ProjectAPI from "@core/camp/api/UnifiedProjectAPI";
 import * as DraftAPI from "@core/chorus/api/DraftAPI";
 import { invoke } from "@tauri-apps/api/core";
 import { SettingsManager } from "@core/utilities/Settings";

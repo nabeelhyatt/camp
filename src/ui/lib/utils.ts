@@ -1,4 +1,4 @@
-import { Chat } from "@core/chorus/api/ChatAPI";
+import { Chat } from "@core/camp/api/UnifiedChatAPI";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";

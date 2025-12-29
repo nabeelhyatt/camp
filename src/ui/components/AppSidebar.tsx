@@ -40,7 +40,7 @@ import React, {
 import { invoke } from "@tauri-apps/api/core";
 import { Button } from "./ui/button";
 import { EditableTitle } from "./EditableTitle";
-import { type Chat } from "@core/chorus/api/ChatAPI";
+import { type Chat } from "@core/camp/api/UnifiedChatAPI";
 import { useSettings } from "./hooks/useSettings";
 import { toast } from "sonner";
 import {
@@ -56,8 +56,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from "./ui/dialog";
-import * as ChatAPI from "@core/chorus/api/ChatAPI";
-import * as ProjectAPI from "@core/chorus/api/ProjectAPI";
+import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
+import * as ProjectAPI from "@core/camp/api/UnifiedProjectAPI";
 import RetroSpinner from "./ui/retro-spinner";
 import FeedbackButton from "./FeedbackButton";
 import { SpeakerLoudIcon } from "@radix-ui/react-icons";
@@ -74,9 +74,11 @@ import {
 import Droppable from "./Droppable";
 import Draggable from "./Draggable";
 import { dialogActions, useDialogStore } from "@core/infra/DialogStore";
-import { projectQueries } from "@core/chorus/api/ProjectAPI";
-import { chatQueries } from "@core/chorus/api/ChatAPI";
-import { useToggleProjectIsCollapsed } from "@core/chorus/api/ProjectAPI";
+import {
+    projectQueries,
+    useToggleProjectIsCollapsed,
+} from "@core/camp/api/UnifiedProjectAPI";
+import { chatQueries } from "@core/camp/api/UnifiedChatAPI";
 
 function isToday(date: Date) {
     const today = new Date();

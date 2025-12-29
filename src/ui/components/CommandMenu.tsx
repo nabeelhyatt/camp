@@ -32,11 +32,11 @@ import {
 import { SETTINGS_DIALOG_ID } from "./Settings";
 import { useQuery } from "@tanstack/react-query";
 import { dialogActions } from "@core/infra/DialogStore";
-import { Chat } from "@core/chorus/api/ChatAPI";
-import * as ChatAPI from "@core/chorus/api/ChatAPI";
+import { Chat } from "@core/camp/api/UnifiedChatAPI";
+import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
 import * as ModelsAPI from "@core/chorus/api/ModelsAPI";
 import * as SearchAPI from "@core/chorus/api/SearchAPI";
-import * as ProjectAPI from "@core/chorus/api/ProjectAPI";
+import * as ProjectAPI from "@core/camp/api/UnifiedProjectAPI";
 
 export const COMMAND_MENU_DIALOG_ID = "command-menu";
 

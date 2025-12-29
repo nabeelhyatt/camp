@@ -77,8 +77,8 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { ToolPermissionDialog } from "./components/ToolPermissionDialog";
 import * as AppMetadataAPI from "@core/chorus/api/AppMetadataAPI";
 import * as ToolsetsAPI from "@core/chorus/api/ToolsetsAPI";
-import * as ChatAPI from "@core/chorus/api/ChatAPI";
-import * as ProjectAPI from "@core/chorus/api/ProjectAPI";
+import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
+import * as ProjectAPI from "@core/camp/api/UnifiedProjectAPI";
 
 scan({
     enabled: true,

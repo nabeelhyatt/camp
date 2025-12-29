@@ -33,9 +33,39 @@ import {
     useDeleteChat as useDeleteChatSQLite,
     fetchChats,
     fetchChat,
+    // Re-export hooks that don't yet have Convex equivalents
+    useGetOrCreateNewChat,
+    useGetOrCreateNewQuickChat,
+    useConvertQuickChatToRegularChat,
+    useCreateGroupChat,
+    useCreateNewChat,
+    useUpdateNewChat,
+    useCacheUpdateChat,
+    chatIsLoadingQueries,
+    fetchChatIsLoading,
+    // Re-export the Chat type
+    type Chat,
 } from "@core/chorus/api/ChatAPI";
 import { useSetChatProject as useSetChatProjectSQLite } from "@core/chorus/api/ProjectAPI";
 import { useQuery } from "@tanstack/react-query";
+
+// Re-export hooks that don't yet have Convex equivalents (for backwards compatibility)
+export {
+    useGetOrCreateNewChat,
+    useGetOrCreateNewQuickChat,
+    useConvertQuickChatToRegularChat,
+    useCreateGroupChat,
+    useCreateNewChat,
+    useUpdateNewChat,
+    useCacheUpdateChat,
+    chatIsLoadingQueries,
+    fetchChatIsLoading,
+    type Chat,
+};
+
+// Re-export useChat as alias to useChatQuery (for backwards compatibility)
+// UI code can continue using useChat or switch to useChatQuery
+export { useChatSQLite as useChat };
 
 // Re-export query keys for cache compatibility
 export { chatKeys, chatQueries };
@@ -147,20 +177,26 @@ export function useCreateChat() {
         return convexMutation;
     }
 
-    // Wrap SQLite mutation to match interface
+    // Wrap SQLite mutation to match Convex interface
+    const mutateAsync = async (options?: {
+        projectId?: string;
+        title?: string;
+        isAmbient?: boolean;
+        navigateToChat?: boolean;
+    }) => {
+        const chatId = await sqliteMutation.mutateAsync({
+            projectId: options?.projectId ?? "default",
+        });
+        return chatId;
+    };
+
     return {
-        mutateAsync: async (options?: {
-            projectId?: string;
-            title?: string;
-            isAmbient?: boolean;
-            navigateToChat?: boolean;
-        }) => {
-            const chatId = await sqliteMutation.mutateAsync({
-                projectId: options?.projectId ?? "default",
-            });
-            return chatId;
-        },
+        mutateAsync,
+        mutate: (options?: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(options),
         isLoading: sqliteMutation.isPending,
+        isPending: sqliteMutation.isPending,
+        isIdle: !sqliteMutation.isPending,
     };
 }
 
@@ -187,16 +223,22 @@ export function useDeleteChat() {
         return convexMutation;
     }
 
-    // Wrap SQLite mutation to match interface
+    // Wrap SQLite mutation to match Convex interface
+    const mutateAsync = async (args: {
+        chatId: string;
+        confirmCascade?: boolean;
+    }) => {
+        await sqliteMutation.mutateAsync({ chatId: args.chatId });
+        return { success: true, forksDeleted: 0 };
+    };
+
     return {
-        mutateAsync: async (args: {
-            chatId: string;
-            confirmCascade?: boolean;
-        }) => {
-            await sqliteMutation.mutateAsync({ chatId: args.chatId });
-            return { success: true, forksDeleted: 0 };
-        },
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
         isLoading: sqliteMutation.isPending,
+        isPending: sqliteMutation.isPending,
+        isIdle: !sqliteMutation.isPending,
     };
 }
 

@@ -2,7 +2,7 @@ import { toast } from "sonner";
 import { fetch } from "@tauri-apps/plugin-http";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useState } from "react";
-import * as ChatAPI from "@core/chorus/api/ChatAPI";
+import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
 import { config } from "@core/config";
 
 export function useShareChat(chatId: string) {

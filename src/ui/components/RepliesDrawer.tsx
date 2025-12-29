@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { XIcon } from "lucide-react";
 import ReplyChat from "./ReplyChat";
-import * as ChatAPI from "@core/chorus/api/ChatAPI";
+import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
 import { useSidebar } from "@ui/hooks/useSidebar";
 
 interface RepliesDrawerProps {

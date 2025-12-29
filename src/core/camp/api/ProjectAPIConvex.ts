@@ -149,27 +149,32 @@ export function useCreateProjectConvex() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
 
+    const mutateAsync = async () => {
+        if (!clerkId || !workspaceId) {
+            throw new Error("Not authenticated or no active workspace");
+        }
+
+        const projectId = await createProject({
+            clerkId,
+            workspaceId,
+            name: "", // Empty name, user renames inline
+        });
+
+        // Invalidate the project list cache
+        void queryClient.invalidateQueries({ queryKey: projectKeys.all() });
+
+        // Navigate to the new project (matches SQLite behavior)
+        navigate(`/projects/${projectId}`);
+
+        return projectId as unknown as string;
+    };
+
     return {
-        mutateAsync: async () => {
-            if (!clerkId || !workspaceId) {
-                throw new Error("Not authenticated or no active workspace");
-            }
-
-            const projectId = await createProject({
-                clerkId,
-                workspaceId,
-                name: "", // Empty name, user renames inline
-            });
-
-            // Invalidate the project list cache
-            void queryClient.invalidateQueries({ queryKey: projectKeys.all() });
-
-            // Navigate to the new project (matches SQLite behavior)
-            navigate(`/projects/${projectId}`);
-
-            return projectId as unknown as string;
-        },
+        mutateAsync,
+        mutate: () => void mutateAsync(),
         isLoading: false,
+        isPending: false,
+        isIdle: true,
     };
 }
 
@@ -181,22 +186,31 @@ export function useRenameProjectConvex() {
     const updateProject = useMutation(api.projects.update);
     const queryClient = useQueryClient();
 
+    const mutateAsync = async (args: {
+        projectId: string;
+        newName: string;
+    }) => {
+        if (!clerkId) {
+            throw new Error("Not authenticated");
+        }
+
+        await updateProject({
+            clerkId,
+            projectId: stringToConvexIdStrict<"projects">(args.projectId),
+            name: args.newName,
+        });
+
+        // Invalidate caches
+        void queryClient.invalidateQueries({ queryKey: projectKeys.all() });
+    };
+
     return {
-        mutateAsync: async (args: { projectId: string; newName: string }) => {
-            if (!clerkId) {
-                throw new Error("Not authenticated");
-            }
-
-            await updateProject({
-                clerkId,
-                projectId: stringToConvexIdStrict<"projects">(args.projectId),
-                name: args.newName,
-            });
-
-            // Invalidate caches
-            void queryClient.invalidateQueries({ queryKey: projectKeys.all() });
-        },
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
         isLoading: false,
+        isPending: false,
+        isIdle: true,
     };
 }
 
@@ -208,24 +222,30 @@ export function useUpdateProjectDescriptionConvex() {
     const updateProject = useMutation(api.projects.update);
     const queryClient = useQueryClient();
 
+    const mutateAsync = async (args: {
+        projectId: string;
+        description: string;
+    }) => {
+        if (!clerkId) {
+            throw new Error("Not authenticated");
+        }
+
+        await updateProject({
+            clerkId,
+            projectId: stringToConvexIdStrict<"projects">(args.projectId),
+            description: args.description,
+        });
+
+        void queryClient.invalidateQueries({ queryKey: projectKeys.all() });
+    };
+
     return {
-        mutateAsync: async (args: {
-            projectId: string;
-            description: string;
-        }) => {
-            if (!clerkId) {
-                throw new Error("Not authenticated");
-            }
-
-            await updateProject({
-                clerkId,
-                projectId: stringToConvexIdStrict<"projects">(args.projectId),
-                description: args.description,
-            });
-
-            void queryClient.invalidateQueries({ queryKey: projectKeys.all() });
-        },
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
         isLoading: false,
+        isPending: false,
+        isIdle: true,
     };
 }
 
@@ -237,21 +257,27 @@ export function useDeleteProjectConvex() {
     const removeProject = useMutation(api.projects.remove);
     const queryClient = useQueryClient();
 
+    const mutateAsync = async (args: { projectId: string }) => {
+        if (!clerkId) {
+            throw new Error("Not authenticated");
+        }
+
+        await removeProject({
+            clerkId,
+            projectId: stringToConvexIdStrict<"projects">(args.projectId),
+        });
+
+        // Invalidate caches
+        void queryClient.invalidateQueries({ queryKey: projectKeys.all() });
+    };
+
     return {
-        mutateAsync: async (args: { projectId: string }) => {
-            if (!clerkId) {
-                throw new Error("Not authenticated");
-            }
-
-            await removeProject({
-                clerkId,
-                projectId: stringToConvexIdStrict<"projects">(args.projectId),
-            });
-
-            // Invalidate caches
-            void queryClient.invalidateQueries({ queryKey: projectKeys.all() });
-        },
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
         isLoading: false,
+        isPending: false,
+        isIdle: true,
     };
 }
 
@@ -296,22 +322,28 @@ function setCollapsedProjects(collapsed: Set<string>): void {
 export function useToggleProjectIsCollapsedConvex() {
     const queryClient = useQueryClient();
 
+    const mutateAsync = ({ projectId }: { projectId: string }) => {
+        const collapsed = getCollapsedProjects();
+
+        if (collapsed.has(projectId)) {
+            collapsed.delete(projectId);
+        } else {
+            collapsed.add(projectId);
+        }
+
+        setCollapsedProjects(collapsed);
+
+        // Invalidate to trigger re-render with new collapse state
+        void queryClient.invalidateQueries({ queryKey: projectKeys.all() });
+    };
+
     return {
-        mutateAsync: ({ projectId }: { projectId: string }) => {
-            const collapsed = getCollapsedProjects();
-
-            if (collapsed.has(projectId)) {
-                collapsed.delete(projectId);
-            } else {
-                collapsed.add(projectId);
-            }
-
-            setCollapsedProjects(collapsed);
-
-            // Invalidate to trigger re-render with new collapse state
-            void queryClient.invalidateQueries({ queryKey: projectKeys.all() });
-        },
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
         isLoading: false,
+        isPending: false,
+        isIdle: true,
     };
 }
 
