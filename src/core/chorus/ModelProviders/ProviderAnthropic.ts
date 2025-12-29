@@ -159,7 +159,8 @@ export class ProviderAnthropic implements IProvider {
                 `Request had ${attachmentCount} attachments, model: ${anthropicModelName}`,
             );
             // Provide more context in the error message
-            const errorMsg = error.message || "Unknown error";
+            const errorMsg =
+                error instanceof Error ? error.message : "Unknown error";
             onError(errorMsg);
         });
 
