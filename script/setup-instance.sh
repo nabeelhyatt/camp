@@ -64,18 +64,30 @@ echo "Installing dependencies..."
 npx --yes corepack pnpm install
 
 # ============================================
-# Step 3: Initialize Convex (if not already set up)
+# Step 3: Create .env.local for Convex CLI
 # ============================================
-# Check if we have Convex configured (either in .env or .env.local)
-# Pattern matches with or without quotes: VITE_CONVEX_URL=https:// or VITE_CONVEX_URL="https://"
-if ! grep -qE '^[[:space:]]*VITE_CONVEX_URL=["\047]?https://' "$REPO_DIR/.env" 2>/dev/null && \
-   ! grep -qE '^[[:space:]]*VITE_CONVEX_URL=["\047]?https://' "$REPO_DIR/.env.local" 2>/dev/null; then
-    echo ""
-    echo "⚠️  Convex not configured. You need to run:"
-    echo "   npx convex login   # (if not already logged in)"
-    echo "   npx convex dev     # (to create/connect deployment)"
-    echo ""
-    echo "   This will create .env.local with VITE_CONVEX_URL"
+# The Convex CLI needs CONVEX_DEPLOYMENT to run non-interactively
+# Extract the deployment name from VITE_CONVEX_URL (e.g., "dutiful-gecko-899" from "https://dutiful-gecko-899.convex.cloud")
+if [ ! -f "$REPO_DIR/.env.local" ]; then
+    # Try to extract CONVEX_URL from .env (use -m1 to get only first match)
+    CONVEX_URL=$(grep -m1 -E '^[[:space:]]*VITE_CONVEX_URL=' "$REPO_DIR/.env" 2>/dev/null | sed 's/.*=//' | tr -d '"' | tr -d "'" | tr -d '[:space:]')
+
+    if [ -n "$CONVEX_URL" ] && [[ "$CONVEX_URL" == https://*.convex.cloud* ]]; then
+        # Extract deployment name: "https://dutiful-gecko-899.convex.cloud" -> "dev:dutiful-gecko-899"
+        DEPLOYMENT_NAME=$(echo "$CONVEX_URL" | sed 's|https://||' | sed 's|\.convex\.cloud.*||')
+        echo "Creating .env.local with Convex deployment: $DEPLOYMENT_NAME"
+        echo "CONVEX_DEPLOYMENT=dev:$DEPLOYMENT_NAME" > "$REPO_DIR/.env.local"
+        echo "✓ .env.local created for non-interactive Convex"
+    else
+        echo ""
+        echo "⚠️  Convex not configured. You need to run:"
+        echo "   npx convex login   # (if not already logged in)"
+        echo "   npx convex dev     # (to create/connect deployment)"
+        echo ""
+        echo "   This will create .env.local with CONVEX_DEPLOYMENT"
+    fi
+else
+    echo "✓ .env.local already exists"
 fi
 
 # ============================================

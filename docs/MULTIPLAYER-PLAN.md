@@ -779,6 +779,33 @@ _Covered above - core multiplayer functionality_
 -   Prompt template management system
 -   Cross-reference detection
 
+#### Team Context Repository (Critical Foundation)
+
+**Vision:** Camp should function like NotebookLM, Perplexity Projects, or Cursor's codebase awareness - a large, persistent repository of team context (PDFs, documents, images, files) that can be referenced across all team conversations.
+
+**Why This Matters:**
+
+-   Teams accumulate knowledge in documents, specs, research papers, images
+-   Currently, each chat starts fresh - context must be re-uploaded
+-   With a shared context repository, any team member can start a chat that "knows" the team's accumulated knowledge
+-   This is the core multiplayer differentiator: shared context, not just shared chats
+
+**Implementation Blocker - GitHub Issue #7:**
+Currently, large file attachments (PDFs, images) are embedded as base64 in API requests, causing timeouts with rich context. Anthropic's Files API allows:
+
+-   Upload files once, reference by `file_id` in subsequent requests
+-   Team-wide file storage with Convex
+-   Much larger context windows without request size limits
+
+See: https://github.com/nabeelhyatt/camp/issues/7
+
+**Phased Approach:**
+
+1. **Q1 (Phase 1):** Implement Anthropic Files API for individual chats (fixes timeout bug)
+2. **Q2:** Add team file storage in Convex with workspace-scoped access
+3. **Q3:** Build "Team Context" UI - browse/search/manage team files
+4. **Q3:** Enable "include team context" toggle on new chats
+
 **Deferred Improvements (from Phase 1 review):**
 
 -   **Personal email domains list**: Currently hardcoded in `convex/auth.ts`. Consider using a library like `is-disposable-email` or making configurable via Convex table for easier maintenance.

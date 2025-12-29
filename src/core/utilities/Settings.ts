@@ -1,9 +1,11 @@
 import { getStore } from "@core/infra/Store";
 import { emit } from "@tauri-apps/api/event";
 
-// Default API key from environment variable (set at build time)
+// Default API keys from environment variables (set at build time)
 const DEFAULT_OPENROUTER_KEY =
     (import.meta.env.VITE_DEFAULT_OPENROUTER_KEY as string) || "";
+const DEFAULT_FIRECRAWL_KEY =
+    (import.meta.env.VITE_DEFAULT_FIRECRAWL_KEY as string) || "";
 
 export interface Settings {
     defaultEditor: string;
@@ -50,6 +52,9 @@ export class SettingsManager {
             if (DEFAULT_OPENROUTER_KEY) {
                 defaultApiKeys.openrouter = DEFAULT_OPENROUTER_KEY;
             }
+            if (DEFAULT_FIRECRAWL_KEY) {
+                defaultApiKeys.firecrawl = DEFAULT_FIRECRAWL_KEY;
+            }
 
             const defaultSettings = {
                 defaultEditor: "default",
@@ -77,6 +82,9 @@ export class SettingsManager {
             const fallbackApiKeys: Settings["apiKeys"] = {};
             if (DEFAULT_OPENROUTER_KEY) {
                 fallbackApiKeys.openrouter = DEFAULT_OPENROUTER_KEY;
+            }
+            if (DEFAULT_FIRECRAWL_KEY) {
+                fallbackApiKeys.firecrawl = DEFAULT_FIRECRAWL_KEY;
             }
             return {
                 defaultEditor: "default",

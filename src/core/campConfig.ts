@@ -42,6 +42,11 @@ if (!CLERK_PUBLISHABLE_KEY) {
 const DEFAULT_OPENROUTER_KEY: string | undefined = import.meta.env
     .VITE_DEFAULT_OPENROUTER_KEY as string | undefined;
 
+// Default Firecrawl API key for URL scraping (optional)
+// This provides a fallback so users can auto-scrape URLs before setting up their own keys
+const DEFAULT_FIRECRAWL_KEY: string | undefined = import.meta.env
+    .VITE_DEFAULT_FIRECRAWL_KEY as string | undefined;
+
 export const campConfig = {
     isDev,
     backend: CAMP_BACKEND,
@@ -57,4 +62,5 @@ export const campConfig = {
 
     // Default API keys (optional)
     defaultOpenRouterKey: DEFAULT_OPENROUTER_KEY,
+    defaultFirecrawlKey: DEFAULT_FIRECRAWL_KEY,
 } as const;

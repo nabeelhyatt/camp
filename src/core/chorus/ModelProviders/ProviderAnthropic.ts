@@ -139,17 +139,29 @@ export class ProviderAnthropic implements IProvider {
             baseURL: customBaseUrl,
             dangerouslyAllowBrowser: true,
             defaultHeaders: headers,
+            // Set explicit timeout for large attachments (PDFs, images, etc.)
+            // Matches SDK default of 10 minutes (600000ms)
+            timeout: 10 * 60 * 1000, // 10 minutes
         });
 
         const stream = client.messages.stream(createParams);
 
         stream.on("error", (error) => {
+            console.error("Error streaming Anthropic response", error);
+            // Log the size of attachments for debugging
+            const attachmentCount = llmConversation.reduce((count, msg) => {
+                if (msg.role === "user" && msg.attachments) {
+                    return count + msg.attachments.length;
+                }
+                return count;
+            }, 0);
             console.error(
-                "Error streaming Anthropic response",
-                error,
-                createParams,
+                `Request had ${attachmentCount} attachments, model: ${anthropicModelName}`,
             );
-            onError(error.message);
+            // Provide more context in the error message
+            const errorMsg =
+                error instanceof Error ? error.message : "Unknown error";
+            onError(errorMsg);
         });
 
         stream.on("text", (text: string) => {
@@ -160,31 +172,40 @@ export class ProviderAnthropic implements IProvider {
         // (we're building up most of final message ourselves using onChunk, and then
         // at the last moment merging in the tool calls)
 
-        const finalMessage = (await stream.finalMessage()) as Anthropic.Message;
+        try {
+            const finalMessage =
+                (await stream.finalMessage()) as Anthropic.Message;
 
-        console.log(
-            "Raw tool calls from Anthropic",
-            finalMessage.content.filter((item) => item.type === "tool_use"),
-        );
+            console.log(
+                "Raw tool calls from Anthropic",
+                finalMessage.content.filter((item) => item.type === "tool_use"),
+            );
 
-        const toolCalls: UserToolCall[] = finalMessage.content
-            .filter((item) => item.type === "tool_use")
-            .map((tool) => {
-                const calledTool = tools?.find(
-                    (t) => getUserToolNamespacedName(t) === tool.name,
-                );
-                return {
-                    id: tool.id,
-                    namespacedToolName: tool.name,
-                    args: tool.input,
-                    toolMetadata: {
-                        description: calledTool?.description,
-                        inputSchema: calledTool?.inputSchema,
-                    },
-                };
-            });
+            const toolCalls: UserToolCall[] = finalMessage.content
+                .filter((item) => item.type === "tool_use")
+                .map((tool) => {
+                    const calledTool = tools?.find(
+                        (t) => getUserToolNamespacedName(t) === tool.name,
+                    );
+                    return {
+                        id: tool.id,
+                        namespacedToolName: tool.name,
+                        args: tool.input,
+                        toolMetadata: {
+                            description: calledTool?.description,
+                            inputSchema: calledTool?.inputSchema,
+                        },
+                    };
+                });
 
-        await onComplete(undefined, toolCalls);
+            await onComplete(undefined, toolCalls);
+        } catch (error) {
+            // Error already handled by stream.on("error"), but finalMessage() may also throw
+            console.error("Error getting final message from Anthropic", error);
+            const errorMsg =
+                error instanceof Error ? error.message : "Unknown error";
+            onError(errorMsg);
+        }
     }
 }
 
