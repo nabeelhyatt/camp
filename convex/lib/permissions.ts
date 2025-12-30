@@ -1,4 +1,6 @@
 import { QueryCtx, MutationCtx } from "../_generated/server";
+import { internalQuery } from "../_generated/server";
+import { v } from "convex/values";
 import { Id, Doc } from "../_generated/dataModel";
 
 /**
@@ -33,6 +35,28 @@ export async function getUserByClerkIdOrThrow(
 
     return user;
 }
+
+/**
+ * Internal query to get user by Clerk ID (for HTTP actions)
+ * Returns null if not found instead of throwing
+ */
+export const getUserByClerkId = internalQuery({
+    args: {
+        clerkId: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+            .first();
+
+        if (!user || user.deletedAt) {
+            return null;
+        }
+
+        return user;
+    },
+});
 
 /**
  * Get user by Convex ID, throwing if not found

@@ -4,14 +4,22 @@
  * Switches between SQLite and Convex implementations based on the
  * campConfig.useConvexData feature flag.
  *
- * Phase 1 scope: Read-only message display via Convex.
- * Message mutations (streaming) continue via SQLite.
+ * Phase 1: Read-only message display via Convex
+ * Phase 2: Message mutations for creation and streaming
  */
 
 import { campConfig } from "@core/campConfig";
 import {
     useMessageSetsQueryConvex,
     useMessageQueryConvex,
+    useCreateMessageSetConvex,
+    useCreateUserMessageConvex,
+    useCreateAssistantMessageConvex,
+    useAppendMessagePartConvex,
+    useUpdateStreamingContentConvex,
+    useCompleteMessageConvex,
+    useErrorMessageConvex,
+    useDeleteMessageConvex,
     ConvexMessageSet,
     ConvexMessage,
     ConvexMessagePart,
@@ -69,24 +77,185 @@ export function useMessageQuery(messageId: string | undefined) {
 }
 
 // ============================================================
-// Note: Message Mutations
+// Mutation Hooks
 // ============================================================
 
 /**
- * Message mutations (createSet, createUserMessage, appendMessagePart,
- * completeMessage, errorMessage, remove) are complex due to:
- * 1. Streaming response handling
- * 2. Tool call execution
- * 3. Multi-model parallel responses
+ * Create a new message set (starts a new prompt/response cycle)
  *
- * These continue to use the SQLite-based MessageAPI.ts for Phase 1.
- * The existing mutation hooks from MessageAPI.ts should be used directly:
- *
- * - useCreateNewMessage
- * - useUpdateMessageText
- * - useUpdateMessagePart
- * - useDeleteMessageSet
- * - etc.
- *
- * See MessageAPI.ts for the full list of mutation hooks.
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
+export function useCreateMessageSet() {
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useCreateMessageSetConvex();
+    }
+
+    // SQLite fallback - not implemented in unified API yet
+    // The existing MessageAPI.ts should be used directly for SQLite
+    const errorFn = () => {
+        throw new Error(
+            "useCreateMessageSet requires Convex. Use MessageAPI.ts for SQLite.",
+        );
+    };
+    return {
+        mutateAsync: errorFn,
+        mutate: errorFn,
+        isPending: false,
+        isIdle: true,
+    };
+}
+
+/**
+ * Create a user message in a message set
+ */
+export function useCreateUserMessage() {
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useCreateUserMessageConvex();
+    }
+
+    const errorFn = () => {
+        throw new Error(
+            "useCreateUserMessage requires Convex. Use MessageAPI.ts for SQLite.",
+        );
+    };
+    return {
+        mutateAsync: errorFn,
+        mutate: errorFn,
+        isPending: false,
+        isIdle: true,
+    };
+}
+
+/**
+ * Create an assistant message (AI response)
+ */
+export function useCreateAssistantMessage() {
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useCreateAssistantMessageConvex();
+    }
+
+    const errorFn = () => {
+        throw new Error(
+            "useCreateAssistantMessage requires Convex. Use MessageAPI.ts for SQLite.",
+        );
+    };
+    return {
+        mutateAsync: errorFn,
+        mutate: errorFn,
+        isPending: false,
+        isIdle: true,
+    };
+}
+
+/**
+ * Append a message part (text, code, tool_call, etc.)
+ */
+export function useAppendMessagePart() {
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useAppendMessagePartConvex();
+    }
+
+    const errorFn = () => {
+        throw new Error(
+            "useAppendMessagePart requires Convex. Use MessageAPI.ts for SQLite.",
+        );
+    };
+    return {
+        mutateAsync: errorFn,
+        mutate: errorFn,
+        isPending: false,
+        isIdle: true,
+    };
+}
+
+/**
+ * Update streaming message content
+ */
+export function useUpdateStreamingContent() {
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useUpdateStreamingContentConvex();
+    }
+
+    const errorFn = () => {
+        throw new Error(
+            "useUpdateStreamingContent requires Convex. Use MessageAPI.ts for SQLite.",
+        );
+    };
+    return {
+        mutateAsync: errorFn,
+        mutate: errorFn,
+        isPending: false,
+        isIdle: true,
+    };
+}
+
+/**
+ * Mark a message as complete
+ */
+export function useCompleteMessage() {
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useCompleteMessageConvex();
+    }
+
+    const errorFn = () => {
+        throw new Error(
+            "useCompleteMessage requires Convex. Use MessageAPI.ts for SQLite.",
+        );
+    };
+    return {
+        mutateAsync: errorFn,
+        mutate: errorFn,
+        isPending: false,
+        isIdle: true,
+    };
+}
+
+/**
+ * Mark a message as errored
+ */
+export function useErrorMessage() {
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useErrorMessageConvex();
+    }
+
+    const errorFn = () => {
+        throw new Error(
+            "useErrorMessage requires Convex. Use MessageAPI.ts for SQLite.",
+        );
+    };
+    return {
+        mutateAsync: errorFn,
+        mutate: errorFn,
+        isPending: false,
+        isIdle: true,
+    };
+}
+
+/**
+ * Delete a message
+ */
+export function useDeleteMessage() {
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useDeleteMessageConvex();
+    }
+
+    const errorFn = () => {
+        throw new Error(
+            "useDeleteMessage requires Convex. Use MessageAPI.ts for SQLite.",
+        );
+    };
+    return {
+        mutateAsync: errorFn,
+        mutate: errorFn,
+        isPending: false,
+        isIdle: true,
+    };
+}
