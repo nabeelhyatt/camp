@@ -8,13 +8,17 @@
  * @module
  */
 
+import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
 import type * as chats from "../chats.js";
+import type * as http from "../http.js";
 import type * as lib_audit from "../lib/audit.js";
 import type * as lib_featureFlags from "../lib/featureFlags.js";
 import type * as lib_permissions from "../lib/permissions.js";
 import type * as messages from "../messages.js";
 import type * as projects from "../projects.js";
+import type * as streaming from "../streaming.js";
+import type * as streaming_internal from "../streaming_internal.js";
 
 import type {
   ApiFromModules,
@@ -23,13 +27,17 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  apiKeys: typeof apiKeys;
   auth: typeof auth;
   chats: typeof chats;
+  http: typeof http;
   "lib/audit": typeof lib_audit;
   "lib/featureFlags": typeof lib_featureFlags;
   "lib/permissions": typeof lib_permissions;
   messages: typeof messages;
   projects: typeof projects;
+  streaming: typeof streaming;
+  streaming_internal: typeof streaming_internal;
 }>;
 
 /**

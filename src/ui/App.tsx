@@ -54,7 +54,6 @@ import {
 import { openUrl, openPath } from "@tauri-apps/plugin-opener";
 import { useDatabase } from "./hooks/useDatabase";
 import { stopAllStreamingMessages } from "@core/chorus/api/MessageAPI";
-import { X } from "lucide-react";
 import { getVersion } from "@tauri-apps/api/app";
 import { platform, arch, version } from "@tauri-apps/plugin-os";
 import { confirm } from "@tauri-apps/plugin-dialog";
@@ -71,7 +70,6 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useShortcut } from "./hooks/useShortcut";
 import { Button } from "./components/ui/button";
 import { DatabaseProvider } from "./providers/DatabaseProvider";
-import { Alert, AlertTitle, AlertDescription } from "./components/ui/alert";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { ToolPermissionDialog } from "./components/ToolPermissionDialog";
 import * as AppMetadataAPI from "@core/chorus/api/AppMetadataAPI";
@@ -141,49 +139,6 @@ function AppContent() {
         import.meta.env.VITE_DEFAULT_OPENROUTER_KEY,
     );
     const hasDismissedOnboarding = hasDismissedOnboardingDB || hasDefaultApiKey;
-    const dismissedAlertVersion = AppMetadataAPI.useDismissedAlertVersion();
-    const setDismissedAlertVersion =
-        AppMetadataAPI.useSetDismissedAlertVersion();
-    const [currentAppVersion, setCurrentAppVersion] = useState<string | null>(
-        null,
-    );
-
-    // Load app version once on mount
-    useEffect(() => {
-        void getVersion().then(setCurrentAppVersion);
-    }, []);
-
-    // Get all chats to determine if user is new
-    const { data: chats } = ChatAPI.useChatsQuery();
-
-    // We want to auto-dismiss educational tooltip when someone opens
-    // the app for the first time. As a hack for something similar,
-    // we equate "opens the app for the first time" with "has no non-empty chats"
-    useEffect(() => {
-        if (
-            hasDismissedOnboarding &&
-            chats !== undefined &&
-            chats.filter((chat) => !chat.isNewChat).length === 0 &&
-            currentAppVersion !== null &&
-            dismissedAlertVersion !== currentAppVersion
-        ) {
-            // New user with no chats - auto-dismiss the educational tooltip
-            console.log("auto-dismissing educational tooltip for new user");
-            setDismissedAlertVersion.mutate({ version: currentAppVersion });
-        }
-    }, [
-        hasDismissedOnboarding,
-        chats,
-        currentAppVersion,
-        dismissedAlertVersion,
-        setDismissedAlertVersion,
-    ]);
-
-    // Calculate if educational tooltip should be shown
-    const showEducationalTooltip =
-        hasDismissedOnboarding &&
-        currentAppVersion !== null &&
-        dismissedAlertVersion !== currentAppVersion;
 
     const [reviewsDialogOpen, setReviewsDialogOpen] = useState(false);
     const [_waitlistDialogOpen, _setWaitlistDialogOpen] = useState(false);
@@ -812,51 +767,8 @@ function AppContent() {
         };
     }, []);
 
-    const dismissEducationalTooltip = () => {
-        if (currentAppVersion) {
-            setDismissedAlertVersion.mutate({ version: currentAppVersion });
-        }
-    };
-
     return (
         <>
-            {showEducationalTooltip && !isQuickChatWindow && (
-                <div className="fixed bottom-4 right-4 z-50 max-w-sm">
-                    <Alert className="relative shadow-lg">
-                        <button
-                            onClick={() => void dismissEducationalTooltip()}
-                            className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
-                            aria-label="Dismiss alert"
-                        >
-                            <X className="h-4 w-4" />
-                        </button>
-
-                        <AlertTitle className="flex items-center gap-2">
-                            Open Source
-                        </AlertTitle>
-                        <AlertDescription>
-                            Camp is built on the open-source Chorus project! It
-                            runs on your own API keys. Add them in Settings →
-                            API Keys.
-                            <br />
-                            <br />
-                            <div className="gap-4 mt-2">
-                                <button
-                                    className="text-sm text-muted-foreground hover:text-foreground"
-                                    onClick={() =>
-                                        void openUrl(
-                                            "https://github.com/nabeelhyatt/camp",
-                                        )
-                                    }
-                                >
-                                    Learn more
-                                </button>
-                            </div>
-                        </AlertDescription>
-                    </Alert>
-                </div>
-            )}
-
             <AlertDialog open={_waitlistDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>

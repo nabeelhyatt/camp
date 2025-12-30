@@ -432,6 +432,141 @@ export const errorMessage = mutation({
 });
 
 /**
+ * Update content of an existing message part (for streaming)
+ * This is called frequently during streaming, optimized for that use case
+ *
+ * Uses streamingSessionId to prevent race conditions with parallel streams
+ */
+export const updatePartContent = mutation({
+    args: {
+        clerkId: v.string(),
+        messageId: v.id("messages"),
+        partIndex: v.number(), // 0 = first part (for new messages during streaming)
+        content: v.string(),
+        streamingSessionId: v.string(), // Must match to prevent stale updates
+    },
+    handler: async (ctx, args) => {
+        const user = await getUserByClerkIdOrThrow(ctx, args.clerkId);
+
+        // Get message
+        const message = await ctx.db.get(args.messageId);
+        if (!message || message.deletedAt) {
+            return { updated: false, reason: "message_not_found" };
+        }
+
+        // Verify streaming session matches to prevent race conditions
+        if (message.streamingSessionId !== args.streamingSessionId) {
+            return { updated: false, reason: "session_mismatch" };
+        }
+
+        // Verify chat access
+        await assertCanAccessChat(ctx, message.chatId, user._id);
+
+        // Get parts sorted by order
+        const parts = await ctx.db
+            .query("messageParts")
+            .withIndex("by_message", (q) => q.eq("messageId", args.messageId))
+            .filter((q) => q.eq(q.field("deletedAt"), undefined))
+            .collect();
+
+        const sortedParts = parts.sort((a, b) => a.order - b.order);
+        const targetPart = sortedParts[args.partIndex];
+
+        const now = Date.now();
+
+        if (targetPart) {
+            // Update existing part
+            await ctx.db.patch(targetPart._id, {
+                content: args.content,
+            });
+        } else {
+            // Create new part at this index (shouldn't happen often)
+            await ctx.db.insert("messageParts", {
+                messageId: args.messageId,
+                type: "text",
+                content: args.content,
+                order: args.partIndex,
+                createdAt: now,
+            });
+        }
+
+        // Update message's updatedAt
+        await ctx.db.patch(args.messageId, {
+            updatedAt: now,
+        });
+
+        return { updated: true };
+    },
+});
+
+/**
+ * Create or update the first text part of a streaming message
+ * Convenience method that combines create + update for streaming
+ */
+export const upsertStreamingContent = mutation({
+    args: {
+        clerkId: v.string(),
+        messageId: v.id("messages"),
+        content: v.string(),
+        streamingSessionId: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const user = await getUserByClerkIdOrThrow(ctx, args.clerkId);
+
+        // Get message
+        const message = await ctx.db.get(args.messageId);
+        if (!message || message.deletedAt) {
+            return { updated: false, reason: "message_not_found" };
+        }
+
+        // Verify streaming session matches
+        if (message.streamingSessionId !== args.streamingSessionId) {
+            return { updated: false, reason: "session_mismatch" };
+        }
+
+        // Verify chat access
+        await assertCanAccessChat(ctx, message.chatId, user._id);
+
+        const now = Date.now();
+
+        // Check if a text part already exists
+        const existingPart = await ctx.db
+            .query("messageParts")
+            .withIndex("by_message", (q) => q.eq("messageId", args.messageId))
+            .filter((q) =>
+                q.and(
+                    q.eq(q.field("type"), "text"),
+                    q.eq(q.field("deletedAt"), undefined),
+                ),
+            )
+            .first();
+
+        if (existingPart) {
+            // Update existing part
+            await ctx.db.patch(existingPart._id, {
+                content: args.content,
+            });
+        } else {
+            // Create new text part
+            await ctx.db.insert("messageParts", {
+                messageId: args.messageId,
+                type: "text",
+                content: args.content,
+                order: 0,
+                createdAt: now,
+            });
+        }
+
+        // Update message's updatedAt
+        await ctx.db.patch(args.messageId, {
+            updatedAt: now,
+        });
+
+        return { updated: true };
+    },
+});
+
+/**
  * Delete a message (soft delete)
  */
 export const remove = mutation({
