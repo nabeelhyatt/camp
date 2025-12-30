@@ -13,11 +13,12 @@ export function useShareChat(chatId: string) {
     const [copiedUrl, setCopiedUrl] = useState(false);
 
     const doShareChat = async (html: string) => {
-        if (!chatQuery.isSuccess) {
+        if (!chatQuery.isSuccess || !chatQuery.data) {
             console.warn("Can't share chat", chatQuery.status);
             return;
         }
         setIsGeneratingShareLink(true);
+        const chatTitle = chatQuery.data.title;
         try {
             // Create a full HTML document with necessary styles
             const fullHtml = `
@@ -25,7 +26,7 @@ export function useShareChat(chatId: string) {
                 <html>
                 <head>
                     <meta charset="UTF-8">
-                    <title>Camp - ${chatQuery.data.title}</title>
+                    <title>Camp - ${chatTitle}</title>
                     <style>
                         ${Array.from(document.styleSheets)
                             .map((sheet) => {

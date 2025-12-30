@@ -17,6 +17,8 @@ import {
     useChatQueryConvex,
     useUngroupedChatsQueryConvex,
     usePrivateForksQueryConvex,
+    useGetOrCreateNewChatConvex,
+    useGetOrCreateNewQuickChatConvex,
     useCreateChatConvex,
     useRenameChatConvex,
     useDeleteChatConvex,
@@ -34,8 +36,8 @@ import {
     fetchChats,
     fetchChat,
     // Re-export hooks that don't yet have Convex equivalents
-    useGetOrCreateNewChat,
-    useGetOrCreateNewQuickChat,
+    useGetOrCreateNewChat as useGetOrCreateNewChatSQLite,
+    useGetOrCreateNewQuickChat as useGetOrCreateNewQuickChatSQLite,
     useConvertQuickChatToRegularChat,
     useCreateGroupChat,
     useCreateNewChat,
@@ -51,8 +53,6 @@ import { useQuery } from "@tanstack/react-query";
 
 // Re-export hooks that don't yet have Convex equivalents (for backwards compatibility)
 export {
-    useGetOrCreateNewChat,
-    useGetOrCreateNewQuickChat,
     useConvertQuickChatToRegularChat,
     useCreateGroupChat,
     useCreateNewChat,
@@ -65,7 +65,7 @@ export {
 
 // Re-export useChat as alias to useChatQuery (for backwards compatibility)
 // UI code can continue using useChat or switch to useChatQuery
-export { useChatSQLite as useChat };
+export { useChatQuery as useChat };
 
 // Re-export query keys for cache compatibility
 export { chatKeys, chatQueries };
@@ -76,19 +76,19 @@ export { chatKeys, chatQueries };
 
 /**
  * List all chats (optionally filtered by project)
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
+ * This is safe because the conditional always evaluates the same way per build,
+ * maintaining React's hook call order requirements.
  */
 export function useChatsQuery(options?: { projectId?: string }) {
-    // Always call both hooks (React hooks rule)
-    const sqliteResult = useQuery({
-        ...chatQueries.list(),
-        enabled: !campConfig.useConvexData,
-    });
-
-    const convexResult = useChatsQueryConvex(options);
-
     if (campConfig.useConvexData) {
-        return convexResult;
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useChatsQueryConvex(options);
     }
+
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const sqliteResult = useQuery(chatQueries.list());
 
     // For SQLite, filter by projectId if provided
     if (options?.projectId && sqliteResult.data) {
@@ -110,39 +110,27 @@ export function useChatsQuery(options?: { projectId?: string }) {
  * we return undefined since SQLite chats are ignored in Convex mode.
  */
 export function useChatQuery(chatId: string | undefined) {
-    // Always call both hooks (React hooks rule)
-    // Note: SQLite hook requires a string, so we pass empty string when undefined
-    const sqliteResult = useChatSQLite(chatId ?? "");
-    const convexResult = useChatQueryConvex(chatId);
-
-    // If Convex mode but this is a SQLite ID, return empty result (ignore SQLite chats)
-    if (campConfig.useConvexData && convexResult.isSQLiteChat) {
-        return {
-            data: undefined,
-            isLoading: false,
-            isError: false,
-            error: null,
-        };
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useChatQueryConvex(chatId);
     }
-
-    return campConfig.useConvexData ? convexResult : sqliteResult;
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useChatSQLite(chatId ?? "");
 }
 
 /**
  * Get ungrouped chats (not in any project)
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
 export function useUngroupedChatsQuery() {
-    // Always call both hooks (React hooks rule)
-    const sqliteResult = useQuery({
-        ...chatQueries.list(),
-        enabled: !campConfig.useConvexData,
-    });
-
-    const convexResult = useUngroupedChatsQueryConvex();
-
     if (campConfig.useConvexData) {
-        return convexResult;
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useUngroupedChatsQueryConvex();
     }
+
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const sqliteResult = useQuery(chatQueries.list());
 
     // For SQLite, filter chats without projectId
     return {
@@ -156,13 +144,13 @@ export function useUngroupedChatsQuery() {
 /**
  * Get user's private forks
  * Note: This is a Convex-only feature for Phase 1
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
 export function usePrivateForksQuery() {
-    // Always call the Convex hook (React hooks rule)
-    const convexResult = usePrivateForksQueryConvex();
-
     if (campConfig.useConvexData) {
-        return convexResult;
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return usePrivateForksQueryConvex();
     }
 
     // SQLite doesn't have private forks - return empty
@@ -179,16 +167,53 @@ export function usePrivateForksQuery() {
 // ============================================================
 
 /**
+ * Get or create a new chat in a project
+ * This is the main "New Chat" flow used by sidebar buttons and keyboard shortcuts
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
+ * This is safe because the conditional always evaluates the same way per build,
+ * maintaining React's hook call order requirements.
+ */
+export function useGetOrCreateNewChat() {
+    // campConfig.useConvexData is a build-time constant, so this branch is safe
+    // Only call the hook for the active data layer to avoid side effects
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useGetOrCreateNewChatConvex();
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useGetOrCreateNewChatSQLite();
+}
+
+/**
+ * Get or create a new quick/ambient chat
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
+ * This is safe because the conditional always evaluates the same way per build,
+ * maintaining React's hook call order requirements.
+ */
+export function useGetOrCreateNewQuickChat() {
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useGetOrCreateNewQuickChatConvex();
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useGetOrCreateNewQuickChatSQLite();
+}
+
+/**
  * Create a new chat
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
 export function useCreateChat() {
-    // Always call both hooks (React hooks rule)
-    const convexMutation = useCreateChatConvex();
-    const sqliteMutation = useCreateNewChatSQLite();
-
     if (campConfig.useConvexData) {
-        return convexMutation;
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useCreateChatConvex();
     }
+
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const sqliteMutation = useCreateNewChatSQLite();
 
     // Wrap SQLite mutation to match Convex interface
     const mutateAsync = async (options?: {
@@ -215,26 +240,31 @@ export function useCreateChat() {
 
 /**
  * Rename a chat
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
 export function useRenameChat() {
-    // Always call both hooks (React hooks rule)
-    const convexMutation = useRenameChatConvex();
-    const sqliteMutation = useRenameChatSQLite();
-
-    return campConfig.useConvexData ? convexMutation : sqliteMutation;
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useRenameChatConvex();
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useRenameChatSQLite();
 }
 
 /**
  * Delete a chat
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
 export function useDeleteChat() {
-    // Always call both hooks (React hooks rule)
-    const convexMutation = useDeleteChatConvex();
-    const sqliteMutation = useDeleteChatSQLite();
-
     if (campConfig.useConvexData) {
-        return convexMutation;
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useDeleteChatConvex();
     }
+
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const sqliteMutation = useDeleteChatSQLite();
 
     // Wrap SQLite mutation to match Convex interface
     const mutateAsync = async (args: {
@@ -257,25 +287,28 @@ export function useDeleteChat() {
 
 /**
  * Move a chat to a different project
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
 export function useSetChatProject() {
-    // Always call both hooks (React hooks rule)
-    const convexMutation = useSetChatProjectConvex();
-    const sqliteMutation = useSetChatProjectSQLite();
-
-    return campConfig.useConvexData ? convexMutation : sqliteMutation;
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useSetChatProjectConvex();
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useSetChatProjectSQLite();
 }
 
 /**
  * Create a private fork from a team chat
  * Note: This is a Convex-only feature for Phase 1
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
 export function useCreatePrivateFork() {
-    // Always call the Convex hook (React hooks rule)
-    const convexMutation = useCreatePrivateForkConvex();
-
     if (campConfig.useConvexData) {
-        return convexMutation;
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useCreatePrivateForkConvex();
     }
 
     // SQLite doesn't support private forks
@@ -292,13 +325,13 @@ export function useCreatePrivateFork() {
 /**
  * Publish a summary from a private fork to the parent chat
  * Note: This is a Convex-only feature for Phase 1
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
 export function usePublishSummary() {
-    // Always call the Convex hook (React hooks rule)
-    const convexMutation = usePublishSummaryConvex();
-
     if (campConfig.useConvexData) {
-        return convexMutation;
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return usePublishSummaryConvex();
     }
 
     // SQLite doesn't support this feature

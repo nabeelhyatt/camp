@@ -6,6 +6,7 @@
  * the SQLite-based ChatAPI for seamless switching.
  */
 
+import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -99,12 +100,16 @@ export function useChatQueryConvex(chatId: string | undefined) {
     );
 
     const data = result ? convexChatToChat(result) : undefined;
+    const isLoading = result === undefined && !!chatId && !isSqliteChat;
 
     return {
         data,
-        isLoading: result === undefined && !!chatId && !isSqliteChat,
+        isLoading,
         isError: false,
         error: null,
+        // TanStack Query compatibility properties
+        isSuccess: !isLoading && data !== undefined,
+        status: isLoading ? "pending" : data !== undefined ? "success" : "idle",
         // Flag to indicate this is a SQLite chat that needs local lookup
         isSQLiteChat: isSqliteChat,
     };
@@ -184,6 +189,139 @@ export function usePrivateForksQueryConvex() {
 // ============================================================
 // Mutations
 // ============================================================
+
+/**
+ * Get or create a new chat in a project (Convex version)
+ * Unlike SQLite version, we don't track "is_new_chat" state - just create a fresh chat
+ * This is the Convex equivalent of useGetOrCreateNewChat from SQLite
+ *
+ * IMPORTANT: Must properly track isPending/isIdle state to prevent infinite loops
+ * when components check isIdle before calling mutate (e.g., Home.tsx)
+ */
+export function useGetOrCreateNewChatConvex() {
+    const { clerkId, workspaceId } = useWorkspaceContext();
+    const createChat = useMutation(api.chats.create);
+    const queryClient = useQueryClient();
+    const navigate = useNavigate();
+
+    // Track mutation state using refs to avoid re-render cascades
+    // Use state only for the values that need to trigger re-renders
+    const [status, setStatus] = useState<"idle" | "pending" | "done">("idle");
+    const isPendingRef = useRef(false);
+
+    const mutateAsync = useCallback(
+        async ({ projectId }: { projectId: string }) => {
+            // Prevent duplicate calls while pending (check ref, not state)
+            if (isPendingRef.current) {
+                return;
+            }
+
+            if (!clerkId || !workspaceId) {
+                throw new Error("Not authenticated or no active workspace");
+            }
+
+            isPendingRef.current = true;
+            setStatus("pending");
+
+            try {
+                // Handle sentinel project IDs from SQLite ("default" = no project)
+                const convexProjectId =
+                    projectId && !isSentinelProjectId(projectId)
+                        ? stringToConvexId<"projects">(projectId)
+                        : undefined;
+
+                const chatId = await createChat({
+                    clerkId,
+                    workspaceId,
+                    projectId: convexProjectId,
+                    isAmbient: false,
+                });
+
+                void queryClient.invalidateQueries({
+                    queryKey: chatKeys.all(),
+                });
+                navigate(`/chat/${chatId}`);
+
+                return chatId as unknown as string;
+            } finally {
+                isPendingRef.current = false;
+                setStatus("done");
+            }
+        },
+        // Note: Do NOT include status in deps - we use ref to check pending state
+        [clerkId, workspaceId, createChat, queryClient, navigate],
+    );
+
+    const mutate = useCallback(
+        ({ projectId }: { projectId: string }) => {
+            void mutateAsync({ projectId });
+        },
+        [mutateAsync],
+    );
+
+    return {
+        mutateAsync,
+        mutate,
+        isLoading: status === "pending",
+        isPending: status === "pending",
+        // isIdle means never called yet - only true when status is still "idle"
+        isIdle: status === "idle",
+    };
+}
+
+/**
+ * Get or create a new quick/ambient chat (Convex version)
+ *
+ * This is the Convex equivalent of useGetOrCreateNewQuickChat from SQLite.
+ * We always create a fresh ambient chat for now.
+ */
+export function useGetOrCreateNewQuickChatConvex() {
+    const { clerkId, workspaceId } = useWorkspaceContext();
+    const createChat = useMutation(api.chats.create);
+    const queryClient = useQueryClient();
+    const navigate = useNavigate();
+
+    const [status, setStatus] = useState<"idle" | "pending" | "done">("idle");
+
+    const mutateAsync = useCallback(async () => {
+        if (status === "pending") {
+            return;
+        }
+
+        if (!clerkId || !workspaceId) {
+            throw new Error("Not authenticated or no active workspace");
+        }
+
+        setStatus("pending");
+
+        try {
+            const chatId = await createChat({
+                clerkId,
+                workspaceId,
+                isAmbient: true,
+            });
+
+            void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
+            navigate(`/chat/${chatId}`);
+
+            return String(chatId);
+        } finally {
+            setStatus("done");
+        }
+    }, [clerkId, workspaceId, createChat, queryClient, navigate, status]);
+
+    const mutate = useCallback(() => {
+        void mutateAsync();
+    }, [mutateAsync]);
+
+    return {
+        mutateAsync,
+        mutate,
+        isLoading: status === "pending",
+        isPending: status === "pending",
+        isIdle: status === "idle",
+    };
+}
 
 /**
  * Hook to create a new chat

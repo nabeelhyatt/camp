@@ -20,6 +20,7 @@ import {
     useRenameProjectConvex,
     useDeleteProjectConvex,
     useToggleProjectIsCollapsedConvex,
+    useAutoSyncProjectContextTextConvex,
     projectKeys,
     projectQueries,
 } from "./ProjectAPIConvex";
@@ -32,7 +33,7 @@ import {
     fetchProjects,
     fetchProject,
     // Re-export hooks that don't yet have Convex equivalents
-    useAutoSyncProjectContextText,
+    useAutoSyncProjectContextText as useAutoSyncProjectContextTextSQLite,
     useGetProjectContextLLMMessage,
     useSetMagicProjectsEnabled,
     useMarkProjectContextSummaryAsStale,
@@ -51,7 +52,6 @@ import { useQuery } from "@tanstack/react-query";
 
 // Re-export hooks that don't yet have Convex equivalents (for backwards compatibility)
 export {
-    useAutoSyncProjectContextText,
     useGetProjectContextLLMMessage,
     useSetMagicProjectsEnabled,
     useMarkProjectContextSummaryAsStale,
@@ -74,48 +74,55 @@ export { projectKeys, projectQueries };
 
 /**
  * List all projects in the current workspace
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
+ * This is safe because the conditional always evaluates the same way per build,
+ * maintaining React's hook call order requirements.
  */
 export function useProjectsQuery() {
-    // Always call both hooks (React hooks rule)
-    const sqliteResult = useQuery({
-        ...projectQueries.list(),
-        enabled: !campConfig.useConvexData,
-    });
-
-    const convexResult = useProjectsQueryConvex();
-
-    // Return based on feature flag (checked at render time, constant during session)
-    return campConfig.useConvexData ? convexResult : sqliteResult;
+    // campConfig.useConvexData is a build-time constant, so this branch is safe
+    // Only call the hook for the active data layer to avoid side effects
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useProjectsQueryConvex();
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useQuery(projectQueries.list());
 }
 
 /**
  * Get a single project by ID
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
+ * This is safe because the conditional always evaluates the same way per build,
+ * maintaining React's hook call order requirements.
  */
 export function useProjectQuery(projectId: string | undefined) {
-    // Always call both hooks (React hooks rule)
-    const sqliteResult = useQuery({
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useProjectQueryConvex(projectId);
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useQuery({
         ...projectQueries.detail(projectId),
-        enabled: !campConfig.useConvexData && projectId !== undefined,
+        enabled: projectId !== undefined,
     });
-
-    const convexResult = useProjectQueryConvex(projectId);
-
-    return campConfig.useConvexData ? convexResult : sqliteResult;
 }
 
 /**
  * List projects with chat counts
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
+ * This is safe because the conditional always evaluates the same way per build,
+ * maintaining React's hook call order requirements.
  */
 export function useProjectsWithChatCountsQuery() {
-    // Always call both hooks (React hooks rule)
-    const sqliteResult = useQuery({
-        ...projectQueries.list(),
-        enabled: !campConfig.useConvexData,
-    });
-
-    const convexResult = useProjectsWithChatCountsQueryConvex();
-
-    return campConfig.useConvexData ? convexResult : sqliteResult;
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useProjectsWithChatCountsQueryConvex();
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useQuery(projectQueries.list());
 }
 
 // ============================================================
@@ -124,57 +131,91 @@ export function useProjectsWithChatCountsQuery() {
 
 /**
  * Create a new project
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
 export function useCreateProject() {
-    // Always call both hooks (React hooks rule)
-    const convexMutation = useCreateProjectConvex();
-    const sqliteMutation = useCreateProjectSQLite();
-
-    return campConfig.useConvexData ? convexMutation : sqliteMutation;
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useCreateProjectConvex();
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useCreateProjectSQLite();
 }
 
 /**
  * Rename a project
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
 export function useRenameProject() {
-    // Always call both hooks (React hooks rule)
-    const convexMutation = useRenameProjectConvex();
-    const sqliteMutation = useRenameProjectSQLite();
-
-    return campConfig.useConvexData ? convexMutation : sqliteMutation;
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useRenameProjectConvex();
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useRenameProjectSQLite();
 }
 
 /**
  * Delete a project
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
 export function useDeleteProject() {
-    // Always call both hooks (React hooks rule)
-    const convexMutation = useDeleteProjectConvex();
-    const sqliteMutation = useDeleteProjectSQLite();
-
-    return campConfig.useConvexData ? convexMutation : sqliteMutation;
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useDeleteProjectConvex();
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useDeleteProjectSQLite();
 }
 
 /**
  * Toggle project collapsed state
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
 export function useToggleProjectIsCollapsed() {
-    // Always call both hooks (React hooks rule)
-    const convexMutation = useToggleProjectIsCollapsedConvex();
-    const sqliteMutation = useToggleProjectIsCollapsedSQLite();
-
-    return campConfig.useConvexData ? convexMutation : sqliteMutation;
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useToggleProjectIsCollapsedConvex();
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useToggleProjectIsCollapsedSQLite();
 }
 
 /**
  * Set a chat's project (move chat to a different project)
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
 export function useSetChatProject() {
-    // Always call both hooks (React hooks rule)
-    const convexMutation = useSetChatProjectConvex();
-    const sqliteMutation = useSetChatProjectSQLite();
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useSetChatProjectConvex();
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useSetChatProjectSQLite();
+}
 
-    return campConfig.useConvexData ? convexMutation : sqliteMutation;
+/**
+ * Auto-sync project context text (debounced save)
+ * Returns { draft, setDraft } for local editing with auto-save
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
+ * This is safe because the conditional always evaluates the same way per build,
+ * maintaining React's hook call order requirements.
+ */
+export function useAutoSyncProjectContextText(projectId: string | undefined) {
+    // campConfig.useConvexData is a build-time constant, so this branch is safe
+    // Only call the hook for the active data layer to avoid side effects
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useAutoSyncProjectContextTextConvex(projectId);
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useAutoSyncProjectContextTextSQLite(projectId ?? "");
 }
 
 // ============================================================

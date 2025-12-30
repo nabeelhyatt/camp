@@ -6,6 +6,7 @@
  * the SQLite-based ProjectAPI for seamless switching.
  */
 
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -278,6 +279,67 @@ export function useDeleteProjectConvex() {
         isLoading: false,
         isPending: false,
         isIdle: true,
+    };
+}
+
+/**
+ * Auto-sync project context text to Convex (debounced)
+ * Mirrors the SQLite useAutoSyncProjectContextText behavior from use-react-query-auto-sync
+ *
+ * Returns { draft, setDraft } where:
+ * - draft: the current text value (initialized from server, updated locally)
+ * - setDraft: function to update the local draft (triggers debounced save)
+ */
+export function useAutoSyncProjectContextTextConvex(
+    projectId: string | undefined,
+) {
+    const { clerkId } = useWorkspaceContext();
+    const projectResult = useProjectQueryConvex(projectId);
+    const updateProject = useMutation(api.projects.update);
+
+    const [localDraft, setLocalDraft] = useState<string>("");
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [lastSaved, setLastSaved] = useState<string>("");
+
+    // Initialize from server data when it arrives
+    useEffect(() => {
+        if (projectResult.data && !isInitialized) {
+            setLocalDraft(projectResult.data.contextText ?? "");
+            setLastSaved(projectResult.data.contextText ?? "");
+            setIsInitialized(true);
+        }
+    }, [projectResult.data, isInitialized]);
+
+    // Reset when project changes
+    useEffect(() => {
+        setIsInitialized(false);
+        setLocalDraft("");
+        setLastSaved("");
+    }, [projectId]);
+
+    // Save to Convex whenever the local draft changes
+    useEffect(() => {
+        if (!isInitialized || !projectId || !clerkId) return;
+        if (localDraft === lastSaved) return;
+
+        void updateProject({
+            clerkId,
+            projectId: stringToConvexIdStrict<"projects">(projectId),
+            contextText: localDraft,
+        });
+        setLastSaved(localDraft);
+    }, [
+        localDraft,
+        projectId,
+        clerkId,
+        isInitialized,
+        updateProject,
+        lastSaved,
+    ]);
+
+    return {
+        draft: localDraft,
+        setDraft: setLocalDraft,
     };
 }
 

@@ -153,7 +153,6 @@ function getCollapsedProjects(): Set<string> {
  *
  * Notes:
  * - isCollapsed: Stored in localStorage (UI state, not synced)
- * - contextText: Not in Convex schema yet, defaults to undefined
  * - magicProjectsEnabled: Not in Convex schema, defaults to false
  * - isImported: Not applicable for Convex, defaults to false
  */
@@ -168,7 +167,7 @@ export function convexProjectToProject(doc: Doc<"projects">): Project {
         createdAt: new Date(doc.createdAt).toISOString(),
         // isCollapsed is stored in localStorage for persistence
         isCollapsed: collapsed.has(projectId),
-        contextText: undefined, // TODO: Add to Convex schema or handle separately
+        contextText: doc.contextText ?? "", // Project context for AI conversations
         magicProjectsEnabled: false, // TODO: Add to Convex schema if needed
         isImported: false, // Not applicable for Convex-created projects
     };
