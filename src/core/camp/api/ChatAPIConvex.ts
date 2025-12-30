@@ -171,7 +171,7 @@ export function usePrivateForksQueryConvex() {
               ...convexChatToChat(fork),
               parentChat: fork.parentChat
                   ? {
-                        id: fork.parentChat.id as unknown as string,
+                        id: String(fork.parentChat.id),
                         title: fork.parentChat.title,
                     }
                   : undefined,
@@ -242,7 +242,7 @@ export function useGetOrCreateNewChatConvex() {
                 });
                 navigate(`/chat/${chatId}`);
 
-                return chatId as unknown as string;
+                return String(chatId);
             } finally {
                 isPendingRef.current = false;
                 setStatus("done");
@@ -362,12 +362,13 @@ export function useCreateChatConvex() {
         void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
 
         // Navigate if requested (default true for non-ambient)
-        const shouldNavigate = options?.navigateToChat ?? !options?.isAmbient;
+        // Use the computed isAmbient to keep navigation consistent with creation
+        const shouldNavigate = options?.navigateToChat ?? !isAmbient;
         if (shouldNavigate) {
             navigate(`/chat/${chatId}`);
         }
 
-        return chatId as unknown as string;
+        return String(chatId);
     };
 
     return {
@@ -525,7 +526,7 @@ export function useCreatePrivateForkConvex() {
             navigate(`/chat/${chatId}`);
         }
 
-        return chatId as unknown as string;
+        return String(chatId);
     };
 
     return {

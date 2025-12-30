@@ -167,7 +167,7 @@ export function useCreateProjectConvex() {
         // Navigate to the new project (matches SQLite behavior)
         navigate(`/projects/${projectId}`);
 
-        return projectId as unknown as string;
+        return String(projectId);
     };
 
     return {
@@ -283,12 +283,13 @@ export function useDeleteProjectConvex() {
 }
 
 /**
- * Auto-sync project context text to Convex (debounced)
+ * Auto-sync project context text to Convex
  * Mirrors the SQLite useAutoSyncProjectContextText behavior from use-react-query-auto-sync
+ * Note: Currently saves immediately on change. Future: add debouncing if needed.
  *
  * Returns { draft, setDraft } where:
  * - draft: the current text value (initialized from server, updated locally)
- * - setDraft: function to update the local draft (triggers debounced save)
+ * - setDraft: function to update the local draft (triggers save)
  */
 export function useAutoSyncProjectContextTextConvex(
     projectId: string | undefined,

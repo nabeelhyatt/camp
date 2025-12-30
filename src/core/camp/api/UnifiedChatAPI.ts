@@ -312,13 +312,17 @@ export function useCreatePrivateFork() {
     }
 
     // SQLite doesn't support private forks
+    const errorFn = () => {
+        throw new Error(
+            "Private forks require Convex. Enable useConvexData in campConfig.",
+        );
+    };
     return {
-        mutateAsync: () => {
-            throw new Error(
-                "Private forks require Convex. Enable useConvexData in campConfig.",
-            );
-        },
+        mutateAsync: errorFn,
+        mutate: errorFn,
         isLoading: false,
+        isPending: false,
+        isIdle: true,
     };
 }
 
@@ -335,13 +339,17 @@ export function usePublishSummary() {
     }
 
     // SQLite doesn't support this feature
+    const errorFn = () => {
+        throw new Error(
+            "Summary publishing requires Convex. Enable useConvexData in campConfig.",
+        );
+    };
     return {
-        mutateAsync: () => {
-            throw new Error(
-                "Summary publishing requires Convex. Enable useConvexData in campConfig.",
-            );
-        },
+        mutateAsync: errorFn,
+        mutate: errorFn,
         isLoading: false,
+        isPending: false,
+        isIdle: true,
     };
 }
 
