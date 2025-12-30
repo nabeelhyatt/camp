@@ -9,7 +9,7 @@ import {
 } from "./ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { cn, projectDisplayName } from "@ui/lib/utils";
-import { Project } from "@core/chorus/api/ProjectAPI";
+import { Project } from "@core/camp/api/UnifiedProjectAPI";
 
 interface MoveToProjectDropdownProps {
     chatId: string;

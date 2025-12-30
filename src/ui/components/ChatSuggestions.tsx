@@ -4,7 +4,7 @@ import { llmConversation } from "@core/chorus/ChatState";
 import { llmMessageToString } from "@core/chorus/Models";
 import { simpleLLM } from "@core/chorus/simpleLLM";
 import { Button } from "./ui/button";
-import * as ChatAPI from "@core/chorus/api/ChatAPI";
+import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
 import * as MessageAPI from "@core/chorus/api/MessageAPI";
 
 interface ChatSuggestionsProps {

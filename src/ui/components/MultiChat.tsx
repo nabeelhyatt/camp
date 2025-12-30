@@ -93,7 +93,6 @@ import { SidebarTrigger } from "@ui/components/ui/sidebar";
 import { useSidebar } from "@ui/hooks/useSidebar";
 import { useShortcut } from "@ui/hooks/useShortcut";
 import { projectDisplayName, sendTauriNotification } from "@ui/lib/utils";
-import { useQuery } from "@tanstack/react-query";
 import { ManageModelsBox } from "./ManageModelsBox";
 import RepliesDrawer from "./RepliesDrawer";
 import useElementScrollDetection from "@ui/hooks/useScrollDetection";
@@ -111,8 +110,8 @@ import {
 import { readFile } from "@tauri-apps/plugin-fs";
 import { filterReplyMessageSets } from "@ui/lib/replyUtils";
 import * as MessageAPI from "@core/chorus/api/MessageAPI";
-import * as ChatAPI from "@core/chorus/api/ChatAPI";
-import * as ProjectAPI from "@core/chorus/api/ProjectAPI";
+import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
+import * as ProjectAPI from "@core/camp/api/UnifiedProjectAPI";
 import * as ModelsAPI from "@core/chorus/api/ModelsAPI";
 import * as AttachmentsAPI from "@core/chorus/api/AttachmentsAPI";
 import * as DraftAPI from "@core/chorus/api/DraftAPI";
@@ -358,19 +357,29 @@ function ContextLimitError({ chatId }: { chatId: string }) {
 
 function ProjectSwitcher() {
     const { chatId } = useParams();
-    const chat = useQuery(ChatAPI.chatQueries.detail(chatId));
-    const currentProjectQuery = useQuery(
-        ProjectAPI.projectQueries.detail(chat.data?.projectId),
+    const chatQuery = ChatAPI.useChatQuery(chatId);
+    const currentProjectQuery = ProjectAPI.useProjectQuery(
+        chatQuery.data?.projectId,
     );
     const navigate = useNavigate();
     const renameChat = ChatAPI.useRenameChat();
 
-    const projectsQuery = useQuery(ProjectAPI.projectQueries.list());
-    if (!projectsQuery.isSuccess || !currentProjectQuery.isSuccess) {
+    const projectsQuery = ProjectAPI.useProjectsQuery();
+    if (
+        projectsQuery.isLoading ||
+        currentProjectQuery.isLoading ||
+        chatQuery.isLoading
+    ) {
         return null;
     }
 
     const currentProject = currentProjectQuery.data;
+    const chat = chatQuery.data;
+
+    // If no project data, don't render
+    if (!currentProject) {
+        return null;
+    }
 
     return (
         <div className="flex items-center ml-1 text-sidebar-muted-foreground">
@@ -407,7 +416,7 @@ function ProjectSwitcher() {
                     </TooltipContent>
                 </Tooltip>
             )}
-            {chat.data && (
+            {chat && (
                 <div className="flex items-center px-1">
                     {currentProject.id !== "default" && (
                         <span className="text-sm mr-1 font-light">
@@ -415,10 +424,10 @@ function ProjectSwitcher() {
                         </span>
                     )}
                     <EditableTitle
-                        title={chat.data.title || ""}
+                        title={chat.title || ""}
                         onUpdate={async (newTitle) => {
                             await renameChat.mutateAsync({
-                                chatId: chat.data.id,
+                                chatId: chat.id,
                                 newTitle,
                             });
                         }}
@@ -1707,13 +1716,13 @@ export const SHARE_CHAT_DIALOG_ID = "share-chat-dialog";
 
 export default function MultiChat() {
     const { chatId } = useParams();
-    const chatQuery = ChatAPI.useChat(chatId!);
+    const chatQuery = ChatAPI.useChat(chatId);
     const { open: isSidebarOpen } = useSidebar();
 
     const navigate = useNavigate();
     const location = useLocation();
     const appMetadata = useWaitForAppMetadata();
-    const messageSetsQuery = MessageAPI.useMessageSets(chatId!);
+    const messageSetsQuery = MessageAPI.useMessageSets(chatId);
     const [searchParams] = useSearchParams();
 
     // Extract replyId from query parameters
@@ -1737,7 +1746,7 @@ export default function MultiChat() {
     const { isQuickChatWindow } = useAppContext();
 
     const createQuickChat = ChatAPI.useGetOrCreateNewQuickChat();
-    const projectsQuery = useQuery(ProjectAPI.projectQueries.list());
+    const projectsQuery = ProjectAPI.useProjectsQuery();
     const setChatProject = ProjectAPI.useSetChatProject();
     const createProject = ProjectAPI.useCreateProject();
 
@@ -2638,7 +2647,7 @@ function MainScrollableContentView({
     const { chatId } = useParams();
     const { isQuickChatWindow } = useAppContext();
 
-    const messageSetsQuery = MessageAPI.useMessageSets(chatId!);
+    const messageSetsQuery = MessageAPI.useMessageSets(chatId);
 
     const manageScrollBottomButton = useCallback(() => {
         const container = chatContainerRef.current;

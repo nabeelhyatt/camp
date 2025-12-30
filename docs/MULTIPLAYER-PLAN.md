@@ -1035,3 +1035,113 @@ messages: defineTable({
     filterFields: ["chatId", "workspaceId"],
 });
 ```
+
+---
+
+## SQLite → Convex Migration Strategy
+
+**This is a ONE-WAY MIGRATION. SQLite will be fully removed, not maintained alongside Convex.**
+
+### Migration Philosophy
+
+When `useConvexData=true`:
+
+-   **SQLite data is IGNORED, not mixed** - We don't show SQLite chats/projects alongside Convex ones
+-   **Clean separation** - Users see only Convex data, avoiding confusion about what syncs
+-   **SQLite IDs are rejected** - Navigating to a SQLite chat ID returns empty, not the local data
+
+This approach means:
+
+1. We don't need to maintain dual data sources long-term
+2. We don't need to build SQLite↔Convex sync logic
+3. Users start fresh with Convex (no migration of existing local data)
+4. SQLite code can be deleted once all features are migrated
+
+### Migration Phases
+
+| Phase     | What Gets Migrated                        | SQLite Code Status                |
+| --------- | ----------------------------------------- | --------------------------------- |
+| Phase 1   | Project/chat queries, basic mutations     | Still used for chat creation      |
+| Phase 1.5 | `useGetOrCreateNewChat` and creation flow | Chat creation moves to Convex     |
+| Phase 2   | Message streaming and mutations           | Messages move to Convex           |
+| Phase 3   | Project context, attachments              | Project features move to Convex   |
+| Final     | -                                         | **SQLite layer removed entirely** |
+
+---
+
+## Phase 1 Incomplete Features (SQLite-Only)
+
+**⚠️ IMPORTANT: The following hooks are NOT YET implemented for Convex and will continue to use SQLite even when `useConvexData=true`. These features will NOT work in multiplayer mode until migrated.**
+
+### Chat Hooks Still Using SQLite
+
+These are re-exported from `@core/chorus/api/ChatAPI.ts` without Convex implementations:
+
+| Hook                               | What It Does                                          | Impact When Convex Enabled            |
+| ---------------------------------- | ----------------------------------------------------- | ------------------------------------- |
+| `useGetOrCreateNewChat`            | Finds existing "new chat" or creates one in a project | Creates in SQLite, won't sync to team |
+| `useGetOrCreateNewQuickChat`       | Finds/creates quick/ambient chats                     | Creates in SQLite, won't sync         |
+| `useConvertQuickChatToRegularChat` | Converts ambient chat to regular                      | Updates SQLite only                   |
+| `useCreateGroupChat`               | Creates GC prototype chats                            | Creates in SQLite only                |
+| `useCreateNewChat`                 | Low-level chat creation                               | Creates in SQLite only                |
+| `useUpdateNewChat`                 | Updates "new chat" timestamp                          | Updates SQLite only                   |
+| `useCacheUpdateChat`               | Optimistic cache updates                              | Works but underlying data wrong       |
+| `chatIsLoadingQueries`             | Tracks chat loading state                             | Works (local state)                   |
+
+### Project Context Hooks Still Using SQLite
+
+These features from `@core/chorus/api/ProjectAPI.ts` are not migrated:
+
+| Hook                                   | What It Does                | Impact When Convex Enabled |
+| -------------------------------------- | --------------------------- | -------------------------- |
+| `useAutoSyncProjectContextText`        | Auto-saves project context  | Saves to SQLite only       |
+| `useGetProjectContextLLMMessage`       | Gets context for LLM        | Reads from SQLite          |
+| `useSetMagicProjectsEnabled`           | Toggles magic project mode  | Updates SQLite only        |
+| `useMarkProjectContextSummaryAsStale`  | Marks summary stale         | Updates SQLite only        |
+| `useRegenerateProjectContextSummaries` | Regenerates summaries       | Uses SQLite                |
+| `useDeleteAttachmentFromProject`       | Removes project attachment  | SQLite only                |
+| `useFinalizeAttachmentForProject`      | Finalizes attachment        | SQLite only                |
+| `projectContextQueries`                | Query factories for context | SQLite queries             |
+
+### Message Hooks Still Using SQLite
+
+From `@core/chorus/api/MessageAPI.ts`:
+
+| Hook                  | What It Does                  | Impact When Convex Enabled                    |
+| --------------------- | ----------------------------- | --------------------------------------------- |
+| All message mutations | Create/update/stream messages | **Critical: All message sending uses SQLite** |
+| `useBranchChat`       | Create branch/reply threads   | Creates in SQLite                             |
+
+### What DOES Work with Convex
+
+The following ARE implemented and use Convex when enabled:
+
+**Chat Hooks (via Unified API):**
+
+-   `useChatsQuery()` - List chats ✅
+-   `useChatQuery()` - Get single chat ✅
+-   `useUngroupedChatsQuery()` - Ungrouped chats ✅
+-   `usePrivateForksQuery()` - Private forks list ✅
+-   `useCreateChat()` - Create new chat ✅
+-   `useRenameChat()` - Rename chat ✅
+-   `useDeleteChat()` - Delete chat ✅
+-   `useSetChatProject()` - Move chat to project ✅
+-   `useCreatePrivateFork()` - Create private fork ✅
+-   `usePublishSummary()` - Publish fork summary ✅
+
+**Project Hooks (via Unified API):**
+
+-   `useProjectsQuery()` - List projects ✅
+-   `useProjectQuery()` - Get single project ✅
+-   `useProjectsWithChatCountsQuery()` - Projects with counts ✅
+-   `useCreateProject()` - Create project ✅
+-   `useRenameProject()` - Rename project ✅
+-   `useDeleteProject()` - Delete project ✅
+-   `useToggleProjectIsCollapsed()` - Toggle collapse state ✅
+
+### Migration Priority
+
+1. **Critical (Phase 1.5):** `useGetOrCreateNewChat` - This is the main "New Chat" flow
+2. **Critical (Phase 2):** Message mutations - Required for sending messages via Convex
+3. **High (Phase 2):** Quick chat hooks - For ambient chat support
+4. **Medium (Phase 3):** Project context hooks - For full project feature parity

@@ -137,6 +137,7 @@ export const create = mutation({
         workspaceId: v.id("workspaces"),
         name: v.string(),
         description: v.optional(v.string()),
+        contextText: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         const user = await getUserByClerkIdOrThrow(ctx, args.clerkId);
@@ -144,10 +145,8 @@ export const create = mutation({
         // Verify workspace access
         await assertCanAccessWorkspace(ctx, args.workspaceId, user._id);
 
+        // Allow empty name - UI creates with empty name for inline rename
         const name = args.name.trim();
-        if (!name) {
-            throw new Error("Project name cannot be empty");
-        }
 
         const now = Date.now();
 
@@ -155,6 +154,7 @@ export const create = mutation({
             workspaceId: args.workspaceId,
             name,
             description: args.description?.trim(),
+            contextText: args.contextText,
             createdBy: user._id,
             createdAt: now,
             updatedAt: now,
@@ -183,6 +183,7 @@ export const update = mutation({
         projectId: v.id("projects"),
         name: v.optional(v.string()),
         description: v.optional(v.string()),
+        contextText: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         const user = await getUserByClerkIdOrThrow(ctx, args.clerkId);
@@ -204,6 +205,10 @@ export const update = mutation({
 
         if (args.description !== undefined) {
             updates.description = args.description.trim() || undefined;
+        }
+
+        if (args.contextText !== undefined) {
+            updates.contextText = args.contextText;
         }
 
         await ctx.db.patch(args.projectId, updates);

@@ -102,6 +102,7 @@ export default defineSchema({
         workspaceId: v.id("workspaces"),
         name: v.string(),
         description: v.optional(v.string()),
+        contextText: v.optional(v.string()), // Project context for AI conversations
         createdBy: v.id("users"),
         createdAt: v.number(),
         updatedAt: v.number(),

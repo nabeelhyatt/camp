@@ -42,3 +42,21 @@ Vite will run on a random even-numbered port between 1422 and 1522, inclusive. H
 # Upstream Sync
 
 Camp is a fork of [Chorus](https://github.com/meltylabs/chorus). See [UPSTREAM-SYNC.md](UPSTREAM-SYNC.md) for our policy on cherry-picking upstream fixes.
+
+# Data Layer Migration (SQLite → Convex)
+
+Camp is migrating from local SQLite storage to Convex for cloud sync and multiplayer features.
+
+**Current State:** When `useConvexData=true` in `campConfig.ts`:
+
+-   Only Convex data is shown (SQLite chats/projects are ignored, not mixed)
+-   Some features still use SQLite under the hood (see `docs/MULTIPLAYER-PLAN.md` for details)
+
+**Migration Strategy:** SQLite will be fully removed over time, not maintained alongside Convex. This is a one-way migration:
+
+1. Phase 1: Core queries/mutations use Convex (projects, chats listing)
+2. Phase 1.5: Chat creation flows migrated to Convex
+3. Phase 2: Message streaming migrated to Convex
+4. Final: SQLite layer removed entirely
+
+See [MULTIPLAYER-PLAN.md](docs/MULTIPLAYER-PLAN.md) for the complete roadmap.

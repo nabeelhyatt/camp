@@ -47,6 +47,11 @@ const DEFAULT_OPENROUTER_KEY: string | undefined = import.meta.env
 const DEFAULT_FIRECRAWL_KEY: string | undefined = import.meta.env
     .VITE_DEFAULT_FIRECRAWL_KEY as string | undefined;
 
+// Data layer selection - use Convex for multiplayer sync
+// Set VITE_USE_CONVEX_DATA=false to fall back to SQLite (for debugging)
+const USE_CONVEX_DATA: boolean =
+    import.meta.env.VITE_USE_CONVEX_DATA !== "false";
+
 export const campConfig = {
     isDev,
     backend: CAMP_BACKEND,
@@ -63,4 +68,7 @@ export const campConfig = {
     // Default API keys (optional)
     defaultOpenRouterKey: DEFAULT_OPENROUTER_KEY,
     defaultFirecrawlKey: DEFAULT_FIRECRAWL_KEY,
+
+    // Data layer - Convex for multiplayer, SQLite for fallback
+    useConvexData: USE_CONVEX_DATA,
 } as const;

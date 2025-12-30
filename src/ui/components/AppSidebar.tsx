@@ -40,7 +40,7 @@ import React, {
 import { invoke } from "@tauri-apps/api/core";
 import { Button } from "./ui/button";
 import { EditableTitle } from "./EditableTitle";
-import { type Chat } from "@core/chorus/api/ChatAPI";
+import { type Chat } from "@core/camp/api/UnifiedChatAPI";
 import { useSettings } from "./hooks/useSettings";
 import { toast } from "sonner";
 import {
@@ -56,14 +56,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from "./ui/dialog";
-import * as ChatAPI from "@core/chorus/api/ChatAPI";
-import * as ProjectAPI from "@core/chorus/api/ProjectAPI";
+import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
+import * as ProjectAPI from "@core/camp/api/UnifiedProjectAPI";
 import RetroSpinner from "./ui/retro-spinner";
 import FeedbackButton from "./FeedbackButton";
 import { SpeakerLoudIcon } from "@radix-ui/react-icons";
 import { emit } from "@tauri-apps/api/event";
 import { projectDisplayName } from "@ui/lib/utils";
-import { useQuery } from "@tanstack/react-query";
 import {
     DndContext,
     DragEndEvent,
@@ -74,9 +73,9 @@ import {
 import Droppable from "./Droppable";
 import Draggable from "./Draggable";
 import { dialogActions, useDialogStore } from "@core/infra/DialogStore";
-import { projectQueries } from "@core/chorus/api/ProjectAPI";
-import { chatQueries } from "@core/chorus/api/ChatAPI";
-import { useToggleProjectIsCollapsed } from "@core/chorus/api/ProjectAPI";
+import { useToggleProjectIsCollapsed } from "@core/camp/api/UnifiedProjectAPI";
+// Still need useQuery for SQLite-only features (parent chat lookup, chat loading)
+import { useQuery } from "@tanstack/react-query";
 
 function isToday(date: Date) {
     const today = new Date();
@@ -216,15 +215,15 @@ function Project({ projectId }: { projectId: string }) {
     const navigate = useNavigate();
     const getOrCreateNewChat = ChatAPI.useGetOrCreateNewChat();
     const toggleProjectIsCollapsed = useToggleProjectIsCollapsed();
-    const projectsQuery = useQuery(projectQueries.list());
-    const chatsQuery = useQuery(chatQueries.list());
+    const projectsQuery = ProjectAPI.useProjectsQuery();
+    const chatsQuery = ChatAPI.useChatsQuery({ projectId });
     const location = useLocation();
     const currentChatId = location.pathname.split("/").pop()!; // well this is super hacky
     const projectIsActive = location.pathname.includes(projectId);
     const [showAllChats, setShowAllChats] = useState(false);
 
-    const allProjectChats =
-        chatsQuery.data?.filter((chat) => chat.projectId === projectId) ?? [];
+    // Chats are already filtered by projectId from the unified hook
+    const allProjectChats = chatsQuery.data ?? [];
     const chats = filterChatsForDisplay(allProjectChats, currentChatId);
 
     const chatToDisplay = useMemo(
@@ -235,14 +234,16 @@ function Project({ projectId }: { projectId: string }) {
         [chats, showAllChats],
     );
 
-    if (projectsQuery.isPending) return <RetroSpinner />;
+    if (projectsQuery.isLoading) return <RetroSpinner />;
     if (projectsQuery.isError) return null;
-    if (chatsQuery.isPending) return <RetroSpinner />;
+    if (chatsQuery.isLoading) return <RetroSpinner />;
     if (chatsQuery.isError) return null;
 
     const projects = projectsQuery.data;
-    const project = projects.find((p) => p.id === projectId)!;
-    const isCollapsed = project?.isCollapsed || false;
+    if (!projects) return null;
+    const project = projects.find((p) => p.id === projectId);
+    if (!project) return null;
+    const isCollapsed = project.isCollapsed || false;
 
     const handleToggleCollapse = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -378,8 +379,8 @@ const NUM_DEFAULT_CHATS_TO_SHOW_BY_DEFAULT = 25;
 const NUM_PROJECT_CHATS_TO_SHOW_BY_DEFAULT = 10;
 
 export function AppSidebarInner() {
-    const projectsQuery = useQuery(ProjectAPI.projectQueries.list());
-    const chatsQuery = useQuery(ChatAPI.chatQueries.list());
+    const projectsQuery = ProjectAPI.useProjectsQuery();
+    const chatsQuery = ChatAPI.useChatsQuery();
     const createProject = ProjectAPI.useCreateProject();
     const location = useLocation();
     const currentChatId = location.pathname.split("/").pop()!; // well this is super hacky
@@ -446,7 +447,7 @@ export function AppSidebarInner() {
         [projectsQuery.data],
     );
 
-    if (projectsQuery.isPending || chatsQuery.isPending) {
+    if (projectsQuery.isLoading || chatsQuery.isLoading) {
         return <RetroSpinner />;
     }
 
@@ -487,8 +488,8 @@ export function AppSidebarInner() {
     }
 
     const hasNonQuickChats =
-        chatsQuery.data?.filter((chat) => chat.projectId !== "quick-chat")
-            .length > 0;
+        (chatsQuery.data?.filter((chat) => chat.projectId !== "quick-chat")
+            .length ?? 0) > 0;
 
     return (
         <SidebarContent className="relative h-full pt-5">

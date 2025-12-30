@@ -1,6 +1,6 @@
 import { useAppContext } from "@ui/hooks/useAppContext";
 import RetroSpinner from "./ui/retro-spinner";
-import * as ChatAPI from "@core/chorus/api/ChatAPI";
+import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
 import { useEffect } from "react";
 
 export default function Home() {

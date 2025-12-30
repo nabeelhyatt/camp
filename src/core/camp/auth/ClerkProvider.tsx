@@ -6,6 +6,7 @@ import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexReactClient } from "convex/react";
 import { campConfig } from "@core/campConfig";
 import { ReactNode, useMemo } from "react";
+import { ConvexWorkspaceProvider } from "@core/camp/api/ConvexWorkspaceProvider";
 
 /**
  * Combined Clerk + Convex provider for Camp
@@ -55,7 +56,7 @@ export function CampAuthProvider({ children }: CampAuthProviderProps) {
             }}
         >
             <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
-                {children}
+                <ConvexWorkspaceProvider>{children}</ConvexWorkspaceProvider>
             </ConvexProviderWithClerk>
         </ClerkReactProvider>
     );

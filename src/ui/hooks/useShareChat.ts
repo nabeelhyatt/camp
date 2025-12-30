@@ -2,7 +2,7 @@ import { toast } from "sonner";
 import { fetch } from "@tauri-apps/plugin-http";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useState } from "react";
-import * as ChatAPI from "@core/chorus/api/ChatAPI";
+import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
 import { config } from "@core/config";
 
 export function useShareChat(chatId: string) {
@@ -13,11 +13,12 @@ export function useShareChat(chatId: string) {
     const [copiedUrl, setCopiedUrl] = useState(false);
 
     const doShareChat = async (html: string) => {
-        if (!chatQuery.isSuccess) {
+        if (!chatQuery.isSuccess || !chatQuery.data) {
             console.warn("Can't share chat", chatQuery.status);
             return;
         }
         setIsGeneratingShareLink(true);
+        const chatTitle = chatQuery.data.title;
         try {
             // Create a full HTML document with necessary styles
             const fullHtml = `
@@ -25,7 +26,7 @@ export function useShareChat(chatId: string) {
                 <html>
                 <head>
                     <meta charset="UTF-8">
-                    <title>Camp - ${chatQuery.data.title}</title>
+                    <title>Camp - ${chatTitle}</title>
                     <style>
                         ${Array.from(document.styleSheets)
                             .map((sheet) => {

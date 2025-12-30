@@ -43,6 +43,7 @@ import {
     projectDisplayName,
 } from "@ui/lib/utils";
 import { EditableTitle } from "./EditableTitle";
+// We still need useQuery for projectContextQueries which is SQLite-only (not in Convex yet)
 import { useQuery } from "@tanstack/react-query";
 import { useSidebar } from "@ui/hooks/useSidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -51,8 +52,8 @@ import { dialogActions, useDialogStore } from "@core/infra/DialogStore";
 import { useSettings } from "./hooks/useSettings";
 import { Link } from "react-router-dom";
 import { SidebarTrigger } from "./ui/sidebar";
-import * as ProjectAPI from "@core/chorus/api/ProjectAPI";
-import * as ChatAPI from "@core/chorus/api/ChatAPI";
+import * as ProjectAPI from "@core/camp/api/UnifiedProjectAPI";
+import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
 import WebSearchInput from "./WebSearchInput";
 import WebsiteURLDialog, { WEBSITE_URL_DIALOG_ID } from "./WebsiteURLDialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
@@ -79,14 +80,12 @@ export default function ProjectView() {
     const getOrCreateNewChat = ChatAPI.useGetOrCreateNewChat();
     const setMagicProjectsEnabled = ProjectAPI.useSetMagicProjectsEnabled();
 
-    // Queries
-    const projectsQuery = useQuery(ProjectAPI.projectQueries.list());
+    // Queries - use unified hooks that switch between Convex and SQLite
+    const projectsQuery = ProjectAPI.useProjectsQuery();
     const project = projectsQuery.data?.find((p) => p.id === projectId);
-    const chats = useQuery(ChatAPI.chatQueries.list());
+    const chatsQuery = ChatAPI.useChatsQuery({ projectId });
     const chatsInProject =
-        chats.data
-            ?.filter((chat) => chat.projectId === projectId)
-            .filter((chat) => !chat.isNewChat) ?? [];
+        chatsQuery.data?.filter((chat) => !chat.isNewChat) ?? [];
 
     const { open } = useSidebar();
 
@@ -126,7 +125,7 @@ export default function ProjectView() {
         return <div>Project ID not found</div>;
     }
 
-    if (projectsQuery.isPending) {
+    if (projectsQuery.isLoading) {
         return <RetroSpinner />;
     }
 
