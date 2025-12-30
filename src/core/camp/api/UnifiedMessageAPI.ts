@@ -20,10 +20,13 @@ import {
     useCompleteMessageConvex,
     useErrorMessageConvex,
     useDeleteMessageConvex,
+    useCreateMessageSetPairConvex,
+    useCreateMessageConvex,
     ConvexMessageSet,
     ConvexMessage,
     ConvexMessagePart,
 } from "./MessageAPIConvex";
+import * as MessageAPI from "@core/chorus/api/MessageAPI";
 
 // Re-export types for convenience
 export type { ConvexMessageSet, ConvexMessage, ConvexMessagePart };
@@ -258,4 +261,110 @@ export function useDeleteMessage() {
         isPending: false,
         isIdle: true,
     };
+}
+
+// ============================================================
+// Higher-Level Mutation Hooks (for ChatInput.tsx)
+// ============================================================
+
+/**
+ * Create a message set pair (user + AI message sets)
+ * This is used by ChatInput.tsx to create both message sets at once
+ */
+export function useCreateMessageSetPair() {
+    const convexHook = useCreateMessageSetPairConvex();
+
+    const sqliteHook = MessageAPI.useCreateMessageSetPair();
+
+    if (campConfig.useConvexData) {
+        return convexHook;
+    }
+
+    return sqliteHook;
+}
+
+/**
+ * Create a message (user or AI)
+ * This is used by ChatInput.tsx to create messages
+ */
+export function useCreateMessage() {
+    const convexHook = useCreateMessageConvex();
+
+    const sqliteHook = MessageAPI.useCreateMessage();
+
+    if (campConfig.useConvexData) {
+        return convexHook;
+    }
+
+    return sqliteHook;
+}
+
+/**
+ * Force refresh message sets
+ * For Convex, this is a no-op since Convex is reactive.
+ * For SQLite, it invalidates the query cache.
+ */
+export function useForceRefreshMessageSets() {
+    const sqliteHook = MessageAPI.useForceRefreshMessageSets();
+
+    if (campConfig.useConvexData) {
+        // Convex is reactive, so no need to force refresh
+        // Return a no-op function with the same signature
+        return (_chatId: string) => {
+            // No-op for Convex - data is automatically synced
+            return Promise.resolve([]);
+        };
+    }
+
+    return sqliteHook;
+}
+
+/**
+ * Generate chat title
+ * This is used after sending a message to auto-generate a title
+ */
+export function useGenerateChatTitle() {
+    // For now, both paths use the SQLite version since title generation
+    // doesn't depend on which data layer is used for messages
+
+    return MessageAPI.useGenerateChatTitle();
+}
+
+/**
+ * Populate a block with AI responses
+ * This is the main hook that triggers AI streaming
+ *
+ * NOTE: For Phase 1, we still use the SQLite version even when useConvexData=true.
+ * The usePopulateBlockConvex implementation is complex and will be done in a follow-up.
+ * This means AI responses will be stored in SQLite initially.
+ */
+export function usePopulateBlock(chatId: string, isQuickChatWindow: boolean) {
+    const sqliteHook = MessageAPI.usePopulateBlock(chatId, isQuickChatWindow);
+
+    // TODO: Implement usePopulateBlockConvex for full Convex streaming
+    // For now, always use SQLite for AI response streaming
+    // This is a temporary limitation - user messages go to Convex,
+    // but AI responses still go through the SQLite streaming pipeline
+
+    if (campConfig.useConvexData) {
+        // TEMPORARY: Log that we're using SQLite for streaming even with Convex enabled
+        console.warn(
+            "[UnifiedMessageAPI] usePopulateBlock: Using SQLite streaming pipeline. " +
+                "AI responses will be stored in SQLite, not Convex. " +
+                "Full Convex streaming will be implemented in a follow-up.",
+        );
+    }
+
+    return sqliteHook;
+}
+
+/**
+ * Convert draft attachments to message attachments
+ * This is used after creating a message to associate attachments
+ */
+export function useConvertDraftAttachmentsToMessageAttachments() {
+    // For now, both paths use the SQLite version since attachments
+    // aren't migrated to Convex yet
+
+    return MessageAPI.useConvertDraftAttachmentsToMessageAttachments();
 }

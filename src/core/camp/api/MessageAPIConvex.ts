@@ -514,3 +514,150 @@ export function useDeleteMessageConvex() {
         isIdle: !isPending,
     };
 }
+
+// ============================================================
+// Higher-Level Mutations (for ChatInput.tsx compatibility)
+// ============================================================
+
+/**
+ * Create a message set pair (user + AI message sets)
+ * This mirrors the SQLite useCreateMessageSetPair interface
+ */
+export function useCreateMessageSetPairConvex() {
+    const { clerkId } = useWorkspaceContext();
+    const createSet = useMutation(api.messages.createSet);
+    const [isPending, setIsPending] = useState(false);
+
+    const mutateAsync = useCallback(
+        async (args: {
+            chatId: string;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            userMessageSetParent: any; // MessageSet type from SQLite - not used in Convex
+            selectedBlockType: string;
+        }) => {
+            if (!clerkId) throw new Error("Not authenticated");
+            setIsPending(true);
+            try {
+                const chatIdConvex = stringToConvexIdStrict<"chats">(
+                    args.chatId,
+                );
+
+                // Create user message set
+                const userMessageSetId = await createSet({
+                    clerkId,
+                    chatId: chatIdConvex,
+                });
+
+                // Create AI message set
+                const aiMessageSetId = await createSet({
+                    clerkId,
+                    chatId: chatIdConvex,
+                });
+
+                return {
+                    userMessageSetId: convexIdToString(userMessageSetId),
+                    aiMessageSetId: convexIdToString(aiMessageSetId),
+                };
+            } finally {
+                setIsPending(false);
+            }
+        },
+        [clerkId, createSet],
+    );
+
+    return {
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
+        isPending,
+        isIdle: !isPending,
+    };
+}
+
+/**
+ * Create a message with return value matching SQLite's useCreateMessage
+ * Returns { messageId, streamingToken } or undefined
+ */
+export function useCreateMessageConvex() {
+    const createUserMessage = useCreateUserMessageConvex();
+    const createAssistantMessage = useCreateAssistantMessageConvex();
+    const [isPending, setIsPending] = useState(false);
+
+    const mutateAsync = useCallback(
+        async (args: {
+            message: {
+                chatId: string;
+                messageSetId: string;
+                text?: string;
+                model?: string;
+                selected?: boolean;
+                blockType: string;
+                level?: number;
+            };
+            options?: {
+                mode: "always" | "first" | "unique_model";
+            };
+        }) => {
+            setIsPending(true);
+            try {
+                const { message } = args;
+
+                // Determine if this is a user or assistant message based on blockType
+                const isUserMessage = message.blockType === "user";
+
+                // Helper to generate UUID (with fallback for older environments)
+                const generateUUID = (): string => {
+                    if (
+                        typeof crypto !== "undefined" &&
+                        crypto.randomUUID !== undefined
+                    ) {
+                        return crypto.randomUUID();
+                    }
+                    // Fallback for older environments
+                    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+                        /[xy]/g,
+                        (c) => {
+                            const r = (Math.random() * 16) | 0;
+                            const v = c === "x" ? r : (r & 0x3) | 0x8;
+                            return v.toString(16);
+                        },
+                    );
+                };
+
+                if (isUserMessage) {
+                    // Create user message
+                    const messageId = await createUserMessage.mutateAsync({
+                        messageSetId: message.messageSetId,
+                        content: message.text || "",
+                    });
+
+                    // Generate a streaming token for compatibility
+                    const streamingToken = generateUUID();
+
+                    return { messageId, streamingToken };
+                } else {
+                    // Create assistant message
+                    const streamingToken = generateUUID();
+                    const messageId = await createAssistantMessage.mutateAsync({
+                        messageSetId: message.messageSetId,
+                        model: message.model || "unknown",
+                        streamingSessionId: streamingToken,
+                    });
+
+                    return { messageId, streamingToken };
+                }
+            } finally {
+                setIsPending(false);
+            }
+        },
+        [createUserMessage, createAssistantMessage],
+    );
+
+    return {
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
+        isPending,
+        isIdle: !isPending,
+    };
+}
