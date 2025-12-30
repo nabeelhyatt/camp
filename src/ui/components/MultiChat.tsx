@@ -1716,13 +1716,13 @@ export const SHARE_CHAT_DIALOG_ID = "share-chat-dialog";
 
 export default function MultiChat() {
     const { chatId } = useParams();
-    const chatQuery = ChatAPI.useChat(chatId!);
+    const chatQuery = ChatAPI.useChat(chatId);
     const { open: isSidebarOpen } = useSidebar();
 
     const navigate = useNavigate();
     const location = useLocation();
     const appMetadata = useWaitForAppMetadata();
-    const messageSetsQuery = MessageAPI.useMessageSets(chatId!);
+    const messageSetsQuery = MessageAPI.useMessageSets(chatId);
     const [searchParams] = useSearchParams();
 
     // Extract replyId from query parameters
@@ -2647,7 +2647,7 @@ function MainScrollableContentView({
     const { chatId } = useParams();
     const { isQuickChatWindow } = useAppContext();
 
-    const messageSetsQuery = MessageAPI.useMessageSets(chatId!);
+    const messageSetsQuery = MessageAPI.useMessageSets(chatId);
 
     const manageScrollBottomButton = useCallback(() => {
         const container = chatContainerRef.current;
