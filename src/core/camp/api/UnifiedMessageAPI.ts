@@ -118,7 +118,8 @@ export function useMessageSets(
                 : convexResult.isError
                   ? ("error" as const)
                   : ("success" as const),
-            // These are used by some components
+            // These are used by some components - Convex is reactive so refetch is a no-op
+            // that returns current data (no manual refresh needed, subscriptions auto-update)
             refetch: () => Promise.resolve({ data: finalData }),
             isFetching: false,
             isRefetching: false,
@@ -408,9 +409,19 @@ export function useForceRefreshMessageSets() {
  * This is used after sending a message to auto-generate a title
  */
 export function useGenerateChatTitle() {
-    // For now, both paths use the SQLite version since title generation
-    // doesn't depend on which data layer is used for messages
+    if (campConfig.useConvexData) {
+        // Convex chat titles are not yet implemented - no-op to avoid SQLite lookups
+        return {
+            mutateAsync: (_args: { chatId: string }) =>
+                Promise.resolve({ skipped: true }),
+            mutate: (_args: { chatId: string }) => {},
+            isPending: false,
+            isIdle: true,
+            isLoading: false,
+        };
+    }
 
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     return MessageAPI.useGenerateChatTitle();
 }
 
