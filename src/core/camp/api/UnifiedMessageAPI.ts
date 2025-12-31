@@ -113,67 +113,72 @@ function convertConvexMessage(msg: ConvexMessage): Message {
 function convertConvexToMessageSetDetails(
     convexSets: ConvexMessageSet[],
 ): MessageSetDetail[] {
-    return convexSets.map((set, index) => {
-        // Convert all messages
-        const messages = set.messages.map(convertConvexMessage);
+    // Filter out any null/undefined sets that might have slipped through
+    return convexSets
+        .filter((set) => set != null)
+        .map((set, index) => {
+            // Convert all messages
+            const messages = set.messages.map(convertConvexMessage);
 
-        // Separate by block type
-        const userBlockMessages = messages.filter(
-            (m) => m.blockType === "user",
-        );
-        const toolsBlockMessages = messages.filter(
-            (m) => m.blockType === "tools",
-        );
+            // Separate by block type
+            const userBlockMessages = messages.filter(
+                (m) => m.blockType === "user",
+            );
+            const toolsBlockMessages = messages.filter(
+                (m) => m.blockType === "tools",
+            );
 
-        // Build blocks (compare and brainstorm are deprecated, but structure needs them)
-        const userBlock: UserBlock = {
-            type: "user",
-            message: userBlockMessages[0],
-        };
+            // Build blocks (compare and brainstorm are deprecated, but structure needs them)
+            const userBlock: UserBlock = {
+                type: "user",
+                message: userBlockMessages[0],
+            };
 
-        const chatBlock: ChatBlock = {
-            type: "chat",
-            message: undefined, // Deprecated
-            reviews: [],
-        };
+            const chatBlock: ChatBlock = {
+                type: "chat",
+                message: undefined, // Deprecated
+                reviews: [],
+            };
 
-        const compareBlock: CompareBlock = {
-            type: "compare",
-            messages: [],
-            synthesis: undefined,
-        };
+            const compareBlock: CompareBlock = {
+                type: "compare",
+                messages: [],
+                synthesis: undefined,
+            };
 
-        const brainstormBlock: BrainstormBlock = {
-            type: "brainstorm",
-            ideaMessages: [],
-        };
+            const brainstormBlock: BrainstormBlock = {
+                type: "brainstorm",
+                ideaMessages: [],
+            };
 
-        const toolsBlock: ToolsBlock = {
-            type: "tools",
-            chatMessages: toolsBlockMessages,
-        };
+            const toolsBlock: ToolsBlock = {
+                type: "tools",
+                chatMessages: toolsBlockMessages,
+            };
 
-        // Determine set type from messages
-        const hasUserMessage = userBlockMessages.length > 0;
-        const type = hasUserMessage ? "user" : "ai";
+            // Determine set type from messages
+            const hasUserMessage = userBlockMessages.length > 0;
+            const type = hasUserMessage ? "user" : "ai";
 
-        // Default selected block type
-        const selectedBlockType: BlockType = hasUserMessage ? "user" : "tools";
+            // Default selected block type
+            const selectedBlockType: BlockType = hasUserMessage
+                ? "user"
+                : "tools";
 
-        return {
-            id: set.id,
-            chatId: set.chatId,
-            type,
-            level: index,
-            selectedBlockType,
-            createdAt: set.createdAt,
-            userBlock,
-            chatBlock,
-            compareBlock,
-            brainstormBlock,
-            toolsBlock,
-        };
-    });
+            return {
+                id: set.id,
+                chatId: set.chatId,
+                type,
+                level: index,
+                selectedBlockType,
+                createdAt: set.createdAt,
+                userBlock,
+                chatBlock,
+                compareBlock,
+                brainstormBlock,
+                toolsBlock,
+            };
+        });
 }
 
 // ============================================================
@@ -222,9 +227,19 @@ export function useMessageSets(
 
     if (campConfig.useConvexData) {
         // Transform Convex data to MessageSetDetail format
+        console.log(
+            "[useMessageSets] Convex result:",
+            convexResult.data?.length,
+            "sets",
+        );
         const transformedData = convexResult.data
             ? convertConvexToMessageSetDetails(convexResult.data)
             : undefined;
+        console.log(
+            "[useMessageSets] Transformed:",
+            transformedData?.length,
+            "sets",
+        );
 
         // Apply select function if provided
         const finalData =
