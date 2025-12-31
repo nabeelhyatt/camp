@@ -21,7 +21,7 @@ import { llmConversation } from "@core/chorus/ChatState";
 import type { LLMMessage, ModelConfig } from "@core/chorus/Models";
 import type { BlockType } from "@core/chorus/ChatState";
 import { modelConfigQueries } from "@core/chorus/api/ModelsAPI";
-import { useGetProjectContextLLMMessage } from "@core/chorus/api/ProjectAPI";
+import { useGetProjectContextLLMMessage } from "./UnifiedProjectAPI";
 import {
     convertConvexToMessageSetDetails,
     ConvexMessageSet,
@@ -819,7 +819,7 @@ export function usePopulateBlockConvex(
                     streamingSessionId,
                 });
 
-                // Build conversation from SQLite (includes project context)
+                // Build conversation from Convex (includes project context)
                 const conversation = await buildConversation();
 
                 // Stream from Convex HTTP endpoint

@@ -1,6 +1,6 @@
 import { useRef, useEffect, useMemo, useState } from "react";
 import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
-import * as MessageAPI from "@core/chorus/api/MessageAPI";
+import * as MessageAPI from "@core/camp/api/UnifiedMessageAPI";
 import { ChatInput } from "./ChatInput";
 import { MouseTrackingEyeRef } from "./MouseTrackingEye";
 import { Skeleton } from "./ui/skeleton";
