@@ -11,7 +11,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@convex/_generated/api";
 import { useWorkspaceContext } from "./useWorkspaceHooks";
 import { stringToConvexIdStrict, convexIdToString } from "./convexTypes";
-import type { AuthorSnapshot } from "./convexTypes";
 import { campConfig } from "@core/campConfig";
 import { useCallback, useState, useRef } from "react";
 import {
@@ -22,54 +21,16 @@ import { llmConversation } from "@core/chorus/ChatState";
 import type { LLMMessage, ModelConfig } from "@core/chorus/Models";
 import type { BlockType } from "@core/chorus/ChatState";
 import { modelConfigQueries } from "@core/chorus/api/ModelsAPI";
-import { chatQueries } from "@core/chorus/api/ChatAPI";
 import { useGetProjectContextLLMMessage } from "@core/chorus/api/ProjectAPI";
-import { fetchMessageSets } from "@core/chorus/api/MessageAPI";
+import {
+    convertConvexToMessageSetDetails,
+    ConvexMessageSet,
+    ConvexMessage,
+    ConvexMessagePart,
+} from "./convexTypes";
 
-// ============================================================
-// Types
-// ============================================================
-
-/**
- * Message part from Convex
- */
-export interface ConvexMessagePart {
-    id: string;
-    type: "text" | "code" | "tool_call" | "tool_result" | "image" | "file";
-    content: string;
-    language?: string;
-    toolName?: string;
-    toolCallId?: string;
-    order: number;
-}
-
-/**
- * Message from Convex
- */
-export interface ConvexMessage {
-    id: string;
-    messageSetId: string;
-    chatId: string;
-    role: "user" | "assistant";
-    model?: string;
-    status: "pending" | "streaming" | "complete" | "error";
-    errorMessage?: string;
-    createdAt: string;
-    updatedAt: string;
-    parts: ConvexMessagePart[];
-}
-
-/**
- * Message set from Convex with author info
- */
-export interface ConvexMessageSet {
-    id: string;
-    chatId: string;
-    createdAt: string;
-    authorSnapshot?: AuthorSnapshot;
-    showAttribution: boolean;
-    messages: ConvexMessage[];
-}
+// Re-export types for backwards compatibility
+export type { ConvexMessageSet, ConvexMessage, ConvexMessagePart };
 
 // ============================================================
 // Queries
@@ -698,6 +659,22 @@ export function usePopulateBlockConvex(
     const errorMessageMutation = useErrorMessageConvex();
     const getProjectContext = useGetProjectContextLLMMessage();
 
+    // Get chat data from Convex (for projectId lookup)
+    const chatResult = useQuery(
+        api.chats.get,
+        clerkId && chatId
+            ? { clerkId, chatId: stringToConvexIdStrict<"chats">(chatId) }
+            : "skip",
+    );
+
+    // Get message sets from Convex for building conversation
+    const messageSetsResult = useQuery(
+        api.messages.listSetsWithMessages,
+        clerkId && chatId
+            ? { clerkId, chatId: stringToConvexIdStrict<"chats">(chatId) }
+            : "skip",
+    );
+
     // Track active streaming for cancellation
     const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -722,34 +699,72 @@ export function usePopulateBlockConvex(
     }, [isQuickChatWindow, queryClient]);
 
     /**
-     * Build conversation from SQLite message sets
-     * NOTE: For MVP, we still read conversation history from SQLite
-     * because we need project context and message history.
-     * Future: read from Convex when full migration is complete.
+     * Build conversation from Convex message sets
+     * Uses reactively-loaded Convex data instead of SQLite queries
      */
     const buildConversation = useCallback(async (): Promise<LLMMessage[]> => {
-        // Get project context
-        const chat = await queryClient.ensureQueryData(
-            chatQueries.detail(chatId),
-        );
-        const projectContext = await getProjectContext(chat.projectId, chatId);
+        // Get project context from Convex chat data
+        // For MVP, skip project context if chat data not loaded yet
+        let projectContext: LLMMessage[] = [];
+        if (chatResult?.projectId) {
+            const projectIdStr = convexIdToString(chatResult.projectId);
+            projectContext = await getProjectContext(projectIdStr, chatId);
+        }
 
-        // Get message sets from SQLite
-        // Using inline query key that matches MessageAPI.ts messageKeys.messageSets pattern
-        const messageSets = await queryClient.ensureQueryData({
-            queryKey: ["chats", chatId, "messageSets", "list"] as const,
-            queryFn: () => fetchMessageSets(chatId),
-        });
+        // Convert Convex message sets to MessageSetDetail format
+        if (!messageSetsResult) {
+            console.log(
+                "[usePopulateBlockConvex] No message sets loaded yet, using empty conversation",
+            );
+            return projectContext;
+        }
+
+        // Transform to the format expected by llmConversation
+        const convexMessageSets: ConvexMessageSet[] = messageSetsResult.map(
+            (set) => ({
+                id: convexIdToString(set._id),
+                chatId: convexIdToString(set.chatId),
+                createdAt: new Date(set.createdAt).toISOString(),
+                showAttribution: set.showAttribution ?? false,
+                messages: set.messages.map((msg) => ({
+                    id: convexIdToString(msg._id),
+                    messageSetId: convexIdToString(msg.messageSetId),
+                    chatId: convexIdToString(msg.chatId),
+                    role: msg.role,
+                    model: msg.model,
+                    status: msg.status,
+                    errorMessage: msg.errorMessage,
+                    createdAt: new Date(msg.createdAt).toISOString(),
+                    updatedAt: new Date(msg.updatedAt).toISOString(),
+                    parts: msg.parts.map((p) => ({
+                        id: convexIdToString(p._id),
+                        type: p.type,
+                        content: p.content,
+                        language: p.language,
+                        toolName: p.toolName,
+                        toolCallId: p.toolCallId,
+                        order: p.order,
+                    })),
+                })),
+            }),
+        );
+
+        const messageSetDetails =
+            convertConvexToMessageSetDetails(convexMessageSets);
 
         // Convert to LLM conversation format (exclude last set as it's the one we're populating)
-        const previousMessageSets = messageSets.slice(0, -1);
+        const previousMessageSets = messageSetDetails.slice(0, -1);
         const conversation: LLMMessage[] = [
             ...projectContext,
             ...llmConversation(previousMessageSets),
         ];
 
+        console.log(
+            `[usePopulateBlockConvex] Built conversation with ${conversation.length} messages from ${previousMessageSets.length} message sets`,
+        );
+
         return conversation;
-    }, [chatId, queryClient, getProjectContext]);
+    }, [chatId, chatResult, messageSetsResult, getProjectContext]);
 
     const mutateAsync = useCallback(
         async (args: {
