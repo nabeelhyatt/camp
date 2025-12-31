@@ -17,11 +17,17 @@ import {
     streamFromConvex,
     createStreamingSessionId,
 } from "./ConvexStreamingClient";
-import { llmConversation } from "@core/chorus/ChatState";
+import {
+    llmConversation,
+    mergeProjectContextIntoConversation,
+} from "@core/chorus/ChatState";
 import type { LLMMessage, ModelConfig } from "@core/chorus/Models";
 import type { BlockType } from "@core/chorus/ChatState";
 import { modelConfigQueries } from "@core/chorus/api/ModelsAPI";
-import { useGetProjectContextLLMMessage } from "./UnifiedProjectAPI";
+import {
+    useGetProjectContextData,
+    type ProjectContextData,
+} from "./UnifiedProjectAPI";
 import {
     convertConvexToMessageSetDetails,
     ConvexMessageSet,
@@ -657,7 +663,7 @@ export function usePopulateBlockConvex(
     const createAssistantMessage = useCreateAssistantMessageConvex();
     // Note: completeMessage is called by the streaming HTTP action, not here
     const errorMessageMutation = useErrorMessageConvex();
-    const getProjectContext = useGetProjectContextLLMMessage();
+    const getProjectContextData = useGetProjectContextData();
 
     // Get chat data from Convex (for projectId lookup)
     const chatResult = useQuery(
@@ -703,12 +709,14 @@ export function usePopulateBlockConvex(
      * Uses reactively-loaded Convex data instead of SQLite queries
      */
     const buildConversation = useCallback(async (): Promise<LLMMessage[]> => {
-        // Get project context from Convex chat data
-        // For MVP, skip project context if chat data not loaded yet
-        let projectContext: LLMMessage[] = [];
+        // Get project context data from Convex chat data
+        let projectContextData: ProjectContextData | undefined;
         if (chatResult?.projectId) {
             const projectIdStr = convexIdToString(chatResult.projectId);
-            projectContext = await getProjectContext(projectIdStr, chatId);
+            projectContextData = await getProjectContextData(
+                projectIdStr,
+                chatId,
+            );
         }
 
         // Convert Convex message sets to MessageSetDetail format
@@ -716,7 +724,17 @@ export function usePopulateBlockConvex(
             console.log(
                 "[usePopulateBlockConvex] No message sets loaded yet, using empty conversation",
             );
-            return projectContext;
+            // If we have project context but no messages, create a minimal conversation
+            if (projectContextData) {
+                return [
+                    {
+                        role: "user",
+                        content: projectContextData.contextText,
+                        attachments: projectContextData.attachments,
+                    },
+                ];
+            }
+            return [];
         }
 
         // Transform to the format expected by llmConversation
@@ -754,17 +772,23 @@ export function usePopulateBlockConvex(
 
         // Convert to LLM conversation format (exclude last set as it's the one we're populating)
         const previousMessageSets = messageSetDetails.slice(0, -1);
-        const conversation: LLMMessage[] = [
-            ...projectContext,
-            ...llmConversation(previousMessageSets),
-        ];
+        const rawConversation = llmConversation(previousMessageSets);
+
+        // Merge project context into the first user message
+        const conversation: LLMMessage[] = projectContextData
+            ? mergeProjectContextIntoConversation(
+                  rawConversation,
+                  projectContextData.contextText,
+                  projectContextData.attachments,
+              )
+            : rawConversation;
 
         console.log(
             `[usePopulateBlockConvex] Built conversation with ${conversation.length} messages from ${previousMessageSets.length} message sets`,
         );
 
         return conversation;
-    }, [chatId, chatResult, messageSetsResult, getProjectContext]);
+    }, [chatId, chatResult, messageSetsResult, getProjectContextData]);
 
     const mutateAsync = useCallback(
         async (args: {

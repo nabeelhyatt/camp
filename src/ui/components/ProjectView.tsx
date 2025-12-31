@@ -98,9 +98,10 @@ export default function ProjectView() {
         navigate(-1);
     }, [navigate]);
 
-    // effects
+    // Initialize newName when project loads or projectId changes
+    // Only update if the input is not focused (user is not actively editing)
     useEffect(() => {
-        if (project) {
+        if (project && document.activeElement !== inputRef.current) {
             setNewName(project.name || "");
         }
     }, [project, projectId]);

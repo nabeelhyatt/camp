@@ -429,8 +429,86 @@ export function isProjectCollapsed(projectId: string): boolean {
 // ============================================================
 
 import type { LLMMessage } from "@core/chorus/Models";
+import type { Attachment } from "@core/chorus/api/AttachmentsAPI";
 
 /**
+ * Data returned by useGetProjectContextData for injecting into conversations.
+ */
+export interface ProjectContextData {
+    /** The formatted project context text (wrapped in XML tags) */
+    contextText: string;
+    /** Attachments from the project context */
+    attachments: Attachment[];
+}
+
+/**
+ * Convex version of useGetProjectContextData
+ *
+ * Returns project context data that should be merged into the first user message.
+ * This replaces the old approach of prepending fake user/assistant messages.
+ */
+export function useGetProjectContextDataConvex(): (
+    projectId: string,
+    chatId: string,
+) => Promise<ProjectContextData | undefined> {
+    const { clerkId } = useWorkspaceContext();
+    const convex = useConvex();
+
+    return useCallback(
+        async (
+            projectId: string,
+            _chatId: string,
+        ): Promise<ProjectContextData | undefined> => {
+            // Skip sentinel project IDs (like "default" or "quick-chat")
+            if (isSentinelProjectId(projectId)) {
+                return undefined;
+            }
+
+            if (!clerkId) {
+                console.warn(
+                    "[useGetProjectContextDataConvex] No clerkId, skipping project context",
+                );
+                return undefined;
+            }
+
+            try {
+                // Fetch project data from Convex
+                const project = await convex.query(api.projects.get, {
+                    clerkId,
+                    projectId: stringToConvexIdStrict<"projects">(projectId),
+                });
+
+                if (!project || !project.contextText) {
+                    console.log(
+                        `[useGetProjectContextDataConvex] No context text for project ${projectId}`,
+                    );
+                    return undefined;
+                }
+
+                console.log(
+                    `[useGetProjectContextDataConvex] Loaded project context (${project.contextText.length} chars)`,
+                );
+
+                return {
+                    contextText: `<project_context>\n${project.contextText}\n</project_context>`,
+                    attachments: [], // TODO: Add attachment support for Convex when needed
+                };
+            } catch (error) {
+                console.error(
+                    "[useGetProjectContextDataConvex] Error fetching project:",
+                    error,
+                );
+                return undefined;
+            }
+        },
+        [clerkId, convex],
+    );
+}
+
+/**
+ * @deprecated Use useGetProjectContextDataConvex instead and merge context into the first user message.
+ * This old function returns messages which causes models to prioritize context over the user question.
+ *
  * Convex version of useGetProjectContextLLMMessage
  *
  * Returns a function that builds LLM context messages from project data.
@@ -475,6 +553,7 @@ export function useGetProjectContextLLMMessageConvex(): (
                 const contextMessage: LLMMessage = {
                     role: "user",
                     content: `<project_context>\n${project.contextText}\n</project_context>`,
+                    attachments: [],
                 };
 
                 console.log(

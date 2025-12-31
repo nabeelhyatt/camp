@@ -13,6 +13,7 @@ import {
     CompareBlock,
     ChatBlock,
     UserBlock,
+    mergeProjectContextIntoConversation,
 } from "@core/chorus/ChatState";
 import * as Reviews from "../reviews";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -40,7 +41,7 @@ import {
 } from "./AppMetadataAPI";
 import {
     projectQueries,
-    useGetProjectContextLLMMessage,
+    useGetProjectContextData,
     useMarkProjectContextSummaryAsStale,
 } from "./ProjectAPI";
 import { useGetToolsets } from "./ToolsetsAPI";
@@ -1200,7 +1201,7 @@ export function useStreamMessagePart() {
  */
 export function useStreamMessageLegacy() {
     const queryClient = useQueryClient();
-    const getProjectContext = useGetProjectContextLLMMessage();
+    const getProjectContextData = useGetProjectContextData();
 
     // overall strategy: mutation is long-running, handles the entire stream
     // it makes optimistic cache updates along the way
@@ -1244,8 +1245,19 @@ export function useStreamMessageLegacy() {
                 universalSystemPrompt: appMetadata["universal_system_prompt"],
             });
 
-            const projectContext = await getProjectContext(project.id, chatId);
-            const llmConversation = [...projectContext, ...conversationRaw];
+            // Get project context and merge it into the first user message
+            // This ensures the model treats it as background context, not a separate question
+            const projectContextData = await getProjectContextData(
+                project.id,
+                chatId,
+            );
+            const llmConversation = projectContextData
+                ? mergeProjectContextIntoConversation(
+                      conversationRaw,
+                      projectContextData.contextText,
+                      projectContextData.attachments,
+                  )
+                : conversationRaw;
 
             // streamPromise will be resolved when streaming completes
             let resolveStreamPromise: () => void;
@@ -2296,7 +2308,7 @@ function useStreamToolsMessage() {
     const forceRefreshMessageSets = useForceRefreshMessageSets();
     const stopMessageStreaming = useStopMessageStreaming();
     const getToolsets = useGetToolsets();
-    const getProjectContext = useGetProjectContextLLMMessage();
+    const getProjectContextData = useGetProjectContextData();
 
     return useMutation({
         mutationKey: ["streamToolsMessage"] as const,
@@ -2316,7 +2328,10 @@ function useStreamToolsMessage() {
             const projectId = (
                 await queryClient.ensureQueryData(chatQueries.detail(chatId))
             ).projectId;
-            const projectContext = await getProjectContext(projectId, chatId);
+            const projectContextData = await getProjectContextData(
+                projectId,
+                chatId,
+            );
 
             // this loop adds all MessageParts
             const MAX_AI_TURNS = 40;
@@ -2356,10 +2371,17 @@ function useStreamToolsMessage() {
                     augmentedLastMessageSet,
                 ];
 
-                const conversation: LLMMessage[] = [
-                    ...projectContext,
-                    ...llmConversation(previousMessageSetsPlusThisMessage),
-                ];
+                // Build the conversation and merge project context into the first user message
+                const rawConversation = llmConversation(
+                    previousMessageSetsPlusThisMessage,
+                );
+                const conversation: LLMMessage[] = projectContextData
+                    ? mergeProjectContextIntoConversation(
+                          rawConversation,
+                          projectContextData.contextText,
+                          projectContextData.attachments,
+                      )
+                    : rawConversation;
 
                 console.log(`[level ${level}] streaming ai message`);
                 await createMessagePart.mutateAsync({

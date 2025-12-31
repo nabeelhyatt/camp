@@ -299,12 +299,16 @@ Each time you use a tool, the user has to wait for it, so only use tools as need
 
 export const PROJECTS_SYSTEM_PROMPT = `<projects_instructions>
 The user has started this chat in the context of a project, a group of related chats.
-The first user message will include the project_context, which may contain:
+The user's messages may include project_context XML tags at the beginning, which contain background
+information that should inform your responses but is NOT a question to answer. The project_context may contain:
 
 1. user_context - Explicit instructions the user has given you about this project. Any attached files
    were also provided explicitly by the user. Pay special attention to these.
 2. chat_summaries - Summaries of other chats in the project. These may or may not be relevant to the
    task at hand. Only reference this information if it's relevant.
+
+IMPORTANT: Always prioritize answering the user's actual question (the text after the project_context tags).
+The project_context provides background information and instructions, not questions to be answered.
 </projects_instructions>
 `;
 
@@ -317,13 +321,12 @@ export const PROJECTS_CONTEXT_PROMPT = (
 ${userContext}
 </user_context>
 ${
-    chatSummaries
+    chatSummaries && chatSummaries.length > 0
         ? `<chat_summaries>
 ${chatSummaries.map((s) => `<chat_summary>\n${s}\n</chat_summary>`).join("\n")}
 </chat_summaries>`
         : ""
 }
-</chat_summaries>
 </project_context>
 `;
 

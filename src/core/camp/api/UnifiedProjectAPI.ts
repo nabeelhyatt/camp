@@ -22,6 +22,7 @@ import {
     useToggleProjectIsCollapsedConvex,
     useAutoSyncProjectContextTextConvex,
     useGetProjectContextLLMMessageConvex,
+    useGetProjectContextDataConvex,
     projectKeys,
     projectQueries,
 } from "./ProjectAPIConvex";
@@ -36,6 +37,7 @@ import {
     // Re-export hooks that don't yet have Convex equivalents
     useAutoSyncProjectContextText as useAutoSyncProjectContextTextSQLite,
     useGetProjectContextLLMMessage as useGetProjectContextLLMMessageSQLite,
+    useGetProjectContextData as useGetProjectContextDataSQLite,
     useSetMagicProjectsEnabled,
     useMarkProjectContextSummaryAsStale as useMarkProjectContextSummaryAsStaleSQLite,
     useRegenerateProjectContextSummaries as useRegenerateProjectContextSummariesSQLite,
@@ -48,6 +50,7 @@ import {
     // Re-export types
     type Project,
     type Projects,
+    type ProjectContextData,
 } from "@core/chorus/api/ProjectAPI";
 import { useQuery } from "@tanstack/react-query";
 
@@ -61,6 +64,7 @@ export {
     fetchProjectContextAttachments,
     type Project,
     type Projects,
+    type ProjectContextData,
 };
 
 /**
@@ -106,6 +110,7 @@ export function useRegenerateProjectContextSummaries() {
 }
 
 /**
+ * @deprecated Use useGetProjectContextData instead and merge context into the first user message.
  * Get project context for LLM conversations
  *
  * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
@@ -117,6 +122,24 @@ export function useGetProjectContextLLMMessage() {
     }
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return useGetProjectContextLLMMessageSQLite();
+}
+
+/**
+ * Get project context data for merging into user messages
+ *
+ * This returns the raw context text and attachments which should be merged
+ * into the first user message of a conversation. This approach ensures the
+ * model treats the context as background information, not a question to answer.
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
+ */
+export function useGetProjectContextData() {
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useGetProjectContextDataConvex();
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useGetProjectContextDataSQLite();
 }
 
 // Re-export query keys for cache compatibility

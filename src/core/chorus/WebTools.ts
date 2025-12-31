@@ -65,25 +65,38 @@ export class WebTools {
         apiKeys: ApiKeys,
     ): Promise<SearchResult> {
         try {
-            if (!apiKeys.perplexity) {
+            // Use Perplexity API directly if key is available, otherwise fall back to OpenRouter
+            const useOpenRouter = !apiKeys.perplexity && !!apiKeys.openrouter;
+
+            if (!apiKeys.perplexity && !apiKeys.openrouter) {
                 return {
                     content:
-                        "<web_search_system_message>Please add your Perplexity API key in Settings to use web search.</web_search_system_message>",
-                    error: "Perplexity API key not configured",
+                        "<web_search_system_message>Please add your Perplexity or OpenRouter API key in Settings to use web search.</web_search_system_message>",
+                    error: "No API key configured for web search",
                 };
             }
 
             const client = new OpenAI({
-                baseURL: "https://api.perplexity.ai",
-                apiKey: apiKeys.perplexity,
-                defaultHeaders: {
-                    "Content-Type": "application/json",
-                },
+                baseURL: useOpenRouter
+                    ? "https://openrouter.ai/api/v1"
+                    : "https://api.perplexity.ai",
+                apiKey: useOpenRouter ? apiKeys.openrouter : apiKeys.perplexity,
+                defaultHeaders: useOpenRouter
+                    ? {
+                          "HTTP-Referer": "https://chorus.sh",
+                          "X-Title": "Chorus",
+                      }
+                    : {
+                          "Content-Type": "application/json",
+                      },
                 dangerouslyAllowBrowser: true,
             });
 
+            // Use perplexity/sonar for OpenRouter, just sonar for direct Perplexity API
+            const modelName = useOpenRouter ? "perplexity/sonar" : "sonar";
+
             const completion = await client.chat.completions.create({
-                model: "sonar",
+                model: modelName,
                 messages: [
                     {
                         role: "system",

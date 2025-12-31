@@ -68,10 +68,11 @@ export default function WebSearchInput({
         try {
             const apiKeys = await getApiKeys();
 
-            if (!apiKeys.perplexity) {
-                toast.error("Perplexity API key required", {
+            // Allow either Perplexity or OpenRouter key (OpenRouter can proxy to Perplexity models)
+            if (!apiKeys.perplexity && !apiKeys.openrouter) {
+                toast.error("API key required for web search", {
                     description:
-                        "Please add your Perplexity API key in Settings to use web search.",
+                        "Please add your Perplexity or OpenRouter API key in Settings to use web search.",
                 });
                 setShowResults(false);
                 return;
