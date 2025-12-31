@@ -164,6 +164,66 @@ export function useAutoSyncProjectContextText(projectId: string) {
     });
 }
 
+/**
+ * Data returned by useGetProjectContextData for injecting into conversations.
+ * The text content should be prepended to the first user message, and
+ * attachments should be merged with that message's attachments.
+ */
+export interface ProjectContextData {
+    /** The formatted project context text (wrapped in XML tags) */
+    contextText: string;
+    /** Attachments from the project context */
+    attachments: Attachment[];
+}
+
+/**
+ * Returns project context data that should be merged into the first user message.
+ * This replaces the old approach of prepending fake user/assistant messages,
+ * which caused models to prioritize the context over the actual user question.
+ */
+export function useGetProjectContextData(): (
+    projectId: string,
+    chatId: string,
+) => Promise<ProjectContextData | undefined> {
+    const queryClient = useQueryClient();
+    return async (projectId: string, chatId: string) => {
+        if (projectId === "default" || projectId === "quick-chat")
+            return undefined;
+
+        const [project, chats, text, attachments] = await Promise.all([
+            queryClient.ensureQueryData(projectQueries.detail(projectId)),
+            queryClient.ensureQueryData(chatQueries.list()),
+            queryClient.ensureQueryData(projectContextQueries.text(projectId)),
+            queryClient.ensureQueryData(
+                projectContextQueries.attachments(projectId),
+            ),
+        ]);
+
+        // exclude this project's summary
+        const projectChats = chats.filter((c) => c.projectId === projectId);
+        const filteredSummaryTexts = projectChats
+            .filter((chat) => chat.id !== chatId)
+            .map((chat) => chat.projectContextSummary)
+            .filter((chat) => chat !== undefined)
+            .filter((chat) => chat !== "");
+
+        const contextText = Prompts.PROJECTS_CONTEXT_PROMPT(
+            text,
+            project.magicProjectsEnabled ? filteredSummaryTexts : [],
+        );
+
+        return {
+            contextText,
+            attachments: attachments ?? [],
+        };
+    };
+}
+
+/**
+ * @deprecated Use useGetProjectContextData instead and merge context into the first user message.
+ * This old function returns fake user/assistant messages which causes models to
+ * prioritize the context over the actual user question.
+ */
 export function useGetProjectContextLLMMessage(): (
     projectId: string,
     chatId: string,

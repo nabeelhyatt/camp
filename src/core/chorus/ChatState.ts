@@ -456,6 +456,64 @@ export function llmConversation(messageSets: MessageSetDetail[]): LLMMessage[] {
     return conversation;
 }
 
+/**
+ * Merges project context into the first user message of a conversation.
+ * This is the preferred way to inject project context, as it ensures the model
+ * treats the context as background information rather than a separate question.
+ *
+ * @param conversation - The LLM conversation messages
+ * @param contextText - The project context text to prepend
+ * @param contextAttachments - Attachments from the project context to merge
+ * @returns A new conversation array with context merged into the first user message
+ */
+export function mergeProjectContextIntoConversation(
+    conversation: LLMMessage[],
+    contextText: string,
+    contextAttachments: Attachment[],
+): LLMMessage[] {
+    if (!contextText && contextAttachments.length === 0) {
+        return conversation;
+    }
+
+    // Find the first user message
+    const firstUserIndex = conversation.findIndex((msg) => msg.role === "user");
+
+    if (firstUserIndex === -1) {
+        // No user message found - this shouldn't happen in normal flow
+        // but handle gracefully by prepending a context-only message
+        const contextOnlyMessage: LLMMessage = {
+            role: "user",
+            content: contextText,
+            attachments:
+                contextAttachments.length > 0 ? contextAttachments : [],
+        };
+        return [contextOnlyMessage, ...conversation];
+    }
+
+    // Create a new array with the first user message modified
+    return conversation.map((msg, index): LLMMessage => {
+        if (index === firstUserIndex && msg.role === "user") {
+            // Prepend context to the first user message
+            const newContent = contextText
+                ? `${contextText}\n\n${msg.content}`
+                : msg.content;
+
+            // Merge attachments (context attachments first, then message attachments)
+            const mergedAttachments = [
+                ...contextAttachments,
+                ...msg.attachments,
+            ];
+
+            return {
+                role: "user",
+                content: newContent,
+                attachments: mergedAttachments,
+            };
+        }
+        return msg;
+    });
+}
+
 export function llmConversationForSynthesis(
     messageSets: MessageSetDetail[],
 ): LLMMessage[] {
