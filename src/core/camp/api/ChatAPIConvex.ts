@@ -7,7 +7,7 @@
  */
 
 import { useState, useRef, useCallback } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useConvex } from "convex/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "@convex/_generated/api";
@@ -546,6 +546,159 @@ export function useCreatePrivateForkConvex() {
         isLoading: false,
         isPending: false,
         isIdle: true,
+    };
+}
+
+/**
+ * Hook to generate a title for a chat based on its first message
+ * Uses client-side simpleLLM for now (reuses existing infrastructure)
+ */
+export function useGenerateChatTitleConvex() {
+    const { clerkId } = useWorkspaceContext();
+    const updateChat = useMutation(api.chats.update);
+    const convex = useConvex();
+    const queryClient = useQueryClient();
+
+    const [isPending, setIsPending] = useState(false);
+
+    const mutateAsync = useCallback(
+        async (args: { chatId: string }) => {
+            if (!clerkId) {
+                console.warn(
+                    "[useGenerateChatTitleConvex] No clerkId, skipping",
+                );
+                return { skipped: true };
+            }
+
+            setIsPending(true);
+
+            try {
+                const chatId = stringToConvexIdStrict<"chats">(args.chatId);
+
+                // Check if chat already has a title
+                const chat = await convex.query(api.chats.get, {
+                    clerkId,
+                    chatId,
+                });
+
+                if (
+                    chat?.title &&
+                    chat.title !== "New Chat" &&
+                    chat.title !== "Untitled Chat"
+                ) {
+                    console.log(
+                        "[useGenerateChatTitleConvex] Chat already has title, skipping",
+                    );
+                    return { skipped: true };
+                }
+
+                // Get messages to find user message for title generation
+                const messageSets = await convex.query(
+                    api.messages.listSetsWithMessages,
+                    { clerkId, chatId },
+                );
+
+                if (!messageSets || messageSets.length === 0) {
+                    console.log(
+                        "[useGenerateChatTitleConvex] No message sets, skipping",
+                    );
+                    return { skipped: true };
+                }
+
+                // Find the first user message text
+                let userMessageText: string | undefined;
+
+                for (const set of messageSets) {
+                    for (const msg of set.messages) {
+                        if (msg.role === "user") {
+                            // Combine text parts
+                            const textParts = msg.parts
+                                .filter((p) => p.type === "text")
+                                .sort((a, b) => a.order - b.order)
+                                .map((p) => p.content)
+                                .join("");
+
+                            if (textParts) {
+                                userMessageText = textParts;
+                                break;
+                            }
+                        }
+                    }
+                    if (userMessageText) break;
+                }
+
+                if (!userMessageText) {
+                    console.log(
+                        "[useGenerateChatTitleConvex] No user message found, skipping",
+                    );
+                    return { skipped: true };
+                }
+
+                // Dynamic import simpleLLM to avoid loading when not needed
+                const { simpleLLM } = await import("@core/chorus/simpleLLM");
+
+                const fullResponse = await simpleLLM(
+                    `Based on this first message, write a 1-5 word title for the conversation. Try to put the most important words first. Format your response as <title>YOUR TITLE HERE</title>.
+If there's no information in the message, just return "Untitled Chat".
+<message>
+${userMessageText}
+</message>`,
+                    {
+                        model: "claude-3-5-sonnet-latest",
+                        maxTokens: 100,
+                    },
+                );
+
+                // Extract title from XML tags
+                const match = fullResponse.match(/<title>(.*?)<\/title>/s);
+                if (!match || !match[1]) {
+                    console.warn(
+                        "[useGenerateChatTitleConvex] No title found in response:",
+                        fullResponse,
+                    );
+                    return { skipped: true };
+                }
+
+                const cleanTitle = match[1]
+                    .trim()
+                    .slice(0, 40)
+                    .replace(/["']/g, "");
+
+                if (cleanTitle) {
+                    console.log(
+                        "[useGenerateChatTitleConvex] Setting chat title to:",
+                        cleanTitle,
+                    );
+
+                    await updateChat({
+                        clerkId,
+                        chatId,
+                        title: cleanTitle,
+                    });
+
+                    // Invalidate cache
+                    void queryClient.invalidateQueries({
+                        queryKey: chatKeys.all(),
+                    });
+                }
+
+                return { title: cleanTitle };
+            } catch (error) {
+                console.error("[useGenerateChatTitleConvex] Error:", error);
+                return { skipped: true };
+            } finally {
+                setIsPending(false);
+            }
+        },
+        [clerkId, convex, updateChat, queryClient],
+    );
+
+    return {
+        mutateAsync,
+        mutate: (args: { chatId: string }) => void mutateAsync(args),
+        isPending,
+        isIdle: !isPending,
+        isLoading: isPending,
     };
 }
 

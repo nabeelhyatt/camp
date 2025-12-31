@@ -475,6 +475,7 @@ export function useGetProjectContextLLMMessageConvex(): (
                 const contextMessage: LLMMessage = {
                     role: "user",
                     content: `<project_context>\n${project.contextText}\n</project_context>`,
+                    attachments: [],
                 };
 
                 console.log(

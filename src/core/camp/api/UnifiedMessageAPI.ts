@@ -23,6 +23,7 @@ import {
     useCreateMessageSetPairConvex,
     useCreateMessageConvex,
     usePopulateBlockConvex,
+    useStopMessageConvex,
 } from "./MessageAPIConvex";
 import {
     convertConvexToMessageSetDetails,
@@ -30,6 +31,7 @@ import {
     ConvexMessage,
     ConvexMessagePart,
 } from "./convexTypes";
+import { useGenerateChatTitleConvex } from "./ChatAPIConvex";
 import * as MessageAPI from "@core/chorus/api/MessageAPI";
 import type { MessageSetDetail } from "@core/chorus/ChatState";
 
@@ -409,20 +411,17 @@ export function useForceRefreshMessageSets() {
  * This is used after sending a message to auto-generate a title
  */
 export function useGenerateChatTitle() {
+    // Must call both hooks unconditionally (React rules of hooks)
+
+    const convexHook = useGenerateChatTitleConvex();
+
+    const sqliteHook = MessageAPI.useGenerateChatTitle();
+
     if (campConfig.useConvexData) {
-        // Convex chat titles are not yet implemented - no-op to avoid SQLite lookups
-        return {
-            mutateAsync: (_args: { chatId: string }) =>
-                Promise.resolve({ skipped: true }),
-            mutate: (_args: { chatId: string }) => {},
-            isPending: false,
-            isIdle: true,
-            isLoading: false,
-        };
+        return convexHook;
     }
 
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return MessageAPI.useGenerateChatTitle();
+    return sqliteHook;
 }
 
 /**
@@ -459,4 +458,22 @@ export function useConvertDraftAttachmentsToMessageAttachments() {
     // aren't migrated to Convex yet
 
     return MessageAPI.useConvertDraftAttachmentsToMessageAttachments();
+}
+
+/**
+ * Stop a streaming message
+ *
+ * For Convex: Aborts the HTTP request and marks the message as stopped.
+ * For SQLite: Updates the message state in the local database.
+ */
+export function useStopMessage() {
+    // Always call both hooks to satisfy React rules
+    const sqliteHook = MessageAPI.useStopMessage();
+    const convexHook = useStopMessageConvex();
+
+    if (campConfig.useConvexData) {
+        return convexHook;
+    }
+
+    return sqliteHook;
 }

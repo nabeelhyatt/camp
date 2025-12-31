@@ -173,6 +173,7 @@ export default defineSchema({
             v.literal("pending"),
             v.literal("streaming"),
             v.literal("complete"),
+            v.literal("stopped"),
             v.literal("error"),
         ),
         errorMessage: v.optional(v.string()),
