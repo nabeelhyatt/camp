@@ -16,6 +16,7 @@ import {
     convexProjectToProject,
     convexProjectsToProjects,
     stringToConvexIdStrict,
+    isSentinelProjectId,
 } from "./convexTypes";
 import { projectKeys, projectQueries } from "@core/chorus/api/ProjectAPI";
 import { campConfig } from "@core/campConfig";
@@ -77,9 +78,13 @@ export function useProjectQueryConvex(projectId: string | undefined) {
     // Skip Convex queries when not using Convex data layer
     const shouldSkip = !campConfig.useConvexData;
 
+    // Skip if projectId is a sentinel (like "default" or "quick-chat")
+    // These are virtual project IDs that don't exist in Convex
+    const isSentinel = projectId && isSentinelProjectId(projectId);
+
     const result = useQuery(
         api.projects.get,
-        !shouldSkip && clerkId && projectId
+        !shouldSkip && clerkId && projectId && !isSentinel
             ? {
                   clerkId,
                   projectId: stringToConvexIdStrict<"projects">(projectId),
@@ -322,6 +327,8 @@ export function useAutoSyncProjectContextTextConvex(
     useEffect(() => {
         if (!isInitialized || !projectId || !clerkId) return;
         if (localDraft === lastSaved) return;
+        // Don't try to save sentinel project IDs - they don't exist in Convex
+        if (isSentinelProjectId(projectId)) return;
 
         void updateProject({
             clerkId,
