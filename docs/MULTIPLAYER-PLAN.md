@@ -1193,10 +1193,14 @@ These features from `@core/chorus/api/ProjectAPI.ts` are not migrated:
 
 From `@core/chorus/api/MessageAPI.ts`:
 
-| Hook                  | What It Does                  | Impact When Convex Enabled                    |
-| --------------------- | ----------------------------- | --------------------------------------------- |
-| All message mutations | Create/update/stream messages | **Critical: All message sending uses SQLite** |
-| `useBranchChat`       | Create branch/reply threads   | Creates in SQLite                             |
+| Hook                | What It Does                | Impact When Convex Enabled                       |
+| ------------------- | --------------------------- | ------------------------------------------------ |
+| `useSummarizeChat`  | Summarizes chat history     | Uses `chatQueries.detail`, fails with Convex IDs |
+| `useEditMessage`    | Edit existing message       | Creates in SQLite only                           |
+| `useBranchChat`     | Create branch/reply threads | Creates in SQLite only                           |
+| `useRestartMessage` | Restart message generation  | SQLite only                                      |
+| `useSelectMessage`  | Select a message variant    | SQLite only                                      |
+| `useStopMessage`    | Stop streaming message      | SQLite only                                      |
 
 ### What DOES Work with Convex
 
