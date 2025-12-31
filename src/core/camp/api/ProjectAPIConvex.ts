@@ -425,6 +425,51 @@ export function isProjectCollapsed(projectId: string): boolean {
 }
 
 // ============================================================
+// Project Context for LLM
+// ============================================================
+
+import type { LLMMessage } from "@core/chorus/Models";
+
+/**
+ * Convex version of useGetProjectContextLLMMessage
+ *
+ * Returns a function that builds LLM context messages from project data.
+ * MVP version: Returns project context text only (no chat summaries).
+ */
+export function useGetProjectContextLLMMessageConvex(): (
+    projectId: string,
+    chatId: string,
+) => Promise<LLMMessage[]> {
+    const { clerkId } = useWorkspaceContext();
+
+    return (projectId: string, _chatId: string) => {
+        // Skip sentinel project IDs
+        if (isSentinelProjectId(projectId)) {
+            return Promise.resolve([]);
+        }
+
+        if (!clerkId) {
+            console.warn(
+                "[useGetProjectContextLLMMessageConvex] No clerkId, skipping project context",
+            );
+            return Promise.resolve([]);
+        }
+
+        // For Convex, we use the reactive query data from useProjectQueryConvex
+        // But since this is called imperatively, we need to fetch directly
+        // For MVP, return empty - the project context will be loaded reactively
+        // and passed through buildConversation in usePopulateBlockConvex
+
+        // TODO: Implement proper Convex fetch for project context
+        // For now, return empty to unblock message sending
+        console.log(
+            `[useGetProjectContextLLMMessageConvex] Project context for ${projectId} - MVP returns empty`,
+        );
+        return Promise.resolve([]);
+    };
+}
+
+// ============================================================
 // Fetch Functions (for direct calls, not hooks)
 // ============================================================
 

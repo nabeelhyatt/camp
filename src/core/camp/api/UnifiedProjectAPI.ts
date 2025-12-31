@@ -21,6 +21,7 @@ import {
     useDeleteProjectConvex,
     useToggleProjectIsCollapsedConvex,
     useAutoSyncProjectContextTextConvex,
+    useGetProjectContextLLMMessageConvex,
     projectKeys,
     projectQueries,
 } from "./ProjectAPIConvex";
@@ -34,7 +35,7 @@ import {
     fetchProject,
     // Re-export hooks that don't yet have Convex equivalents
     useAutoSyncProjectContextText as useAutoSyncProjectContextTextSQLite,
-    useGetProjectContextLLMMessage,
+    useGetProjectContextLLMMessage as useGetProjectContextLLMMessageSQLite,
     useSetMagicProjectsEnabled,
     useMarkProjectContextSummaryAsStale,
     useRegenerateProjectContextSummaries,
@@ -52,7 +53,6 @@ import { useQuery } from "@tanstack/react-query";
 
 // Re-export hooks that don't yet have Convex equivalents (for backwards compatibility)
 export {
-    useGetProjectContextLLMMessage,
     useSetMagicProjectsEnabled,
     useMarkProjectContextSummaryAsStale,
     useRegenerateProjectContextSummaries,
@@ -64,6 +64,20 @@ export {
     type Project,
     type Projects,
 };
+
+/**
+ * Get project context for LLM conversations
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
+ */
+export function useGetProjectContextLLMMessage() {
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useGetProjectContextLLMMessageConvex();
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useGetProjectContextLLMMessageSQLite();
+}
 
 // Re-export query keys for cache compatibility
 export { projectKeys, projectQueries };
