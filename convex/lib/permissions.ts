@@ -59,6 +59,46 @@ export const getUserByClerkId = internalQuery({
 });
 
 /**
+ * Internal query to check chat access (for HTTP actions)
+ * Returns { allowed: true, chat } or { allowed: false, reason }
+ */
+export const checkChatAccess = internalQuery({
+    args: {
+        chatId: v.id("chats"),
+        userId: v.id("users"),
+    },
+    handler: async (ctx, args) => {
+        const chat = await ctx.db.get(args.chatId);
+
+        if (!chat || chat.deletedAt) {
+            return { allowed: false, reason: "chat_not_found" };
+        }
+
+        // Private chats: only creator can access
+        if (chat.visibility === "private") {
+            if (chat.createdBy !== args.userId) {
+                return { allowed: false, reason: "private_chat" };
+            }
+            return { allowed: true, chat };
+        }
+
+        // Team chats: check workspace membership
+        const membership = await ctx.db
+            .query("workspaceMembers")
+            .withIndex("by_workspace_and_user", (q) =>
+                q.eq("workspaceId", chat.workspaceId).eq("userId", args.userId),
+            )
+            .first();
+
+        if (!membership || membership.deletedAt) {
+            return { allowed: false, reason: "not_workspace_member" };
+        }
+
+        return { allowed: true, chat };
+    },
+});
+
+/**
  * Get user by Convex ID, throwing if not found
  */
 export async function getUserOrThrow(

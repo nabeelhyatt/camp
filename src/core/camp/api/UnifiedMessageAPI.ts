@@ -22,6 +22,7 @@ import {
     useDeleteMessageConvex,
     useCreateMessageSetPairConvex,
     useCreateMessageConvex,
+    usePopulateBlockConvex,
     ConvexMessageSet,
     ConvexMessage,
     ConvexMessagePart,
@@ -334,25 +335,22 @@ export function useGenerateChatTitle() {
  * Populate a block with AI responses
  * This is the main hook that triggers AI streaming
  *
- * NOTE: For Phase 1, we still use the SQLite version even when useConvexData=true.
- * The usePopulateBlockConvex implementation is complex and will be done in a follow-up.
- * This means AI responses will be stored in SQLite initially.
+ * When useConvexData=true:
+ * - Creates assistant message in Convex
+ * - Streams via Convex HTTP action
+ * - Writes content to Convex periodically for real-time sync
+ *
+ * MVP limitations:
+ * - Single model only (no compare mode)
+ * - No tool calls (deferred to post-MVP)
  */
 export function usePopulateBlock(chatId: string, isQuickChatWindow: boolean) {
+    // Note: Both hooks must be called unconditionally to satisfy React rules
     const sqliteHook = MessageAPI.usePopulateBlock(chatId, isQuickChatWindow);
-
-    // TODO: Implement usePopulateBlockConvex for full Convex streaming
-    // For now, always use SQLite for AI response streaming
-    // This is a temporary limitation - user messages go to Convex,
-    // but AI responses still go through the SQLite streaming pipeline
+    const convexHook = usePopulateBlockConvex(chatId, isQuickChatWindow);
 
     if (campConfig.useConvexData) {
-        // TEMPORARY: Log that we're using SQLite for streaming even with Convex enabled
-        console.warn(
-            "[UnifiedMessageAPI] usePopulateBlock: Using SQLite streaming pipeline. " +
-                "AI responses will be stored in SQLite, not Convex. " +
-                "Full Convex streaming will be implemented in a follow-up.",
-        );
+        return convexHook;
     }
 
     return sqliteHook;

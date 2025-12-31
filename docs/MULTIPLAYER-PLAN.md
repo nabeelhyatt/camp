@@ -1,5 +1,91 @@
 # Camp Multiplayer Implementation Plan
 
+## Current Status (December 2024)
+
+**TL;DR: User messages flow to Convex, AI responses still go to SQLite. Need to implement `usePopulateBlockConvex` to complete the circuit.**
+
+### What's DONE ✅
+
+**Backend (Convex):**
+
+-   `convex/schema.ts` - Full schema with messages, messageSets, messageParts
+-   `convex/lib/permissions.ts` - Access control with `assertCanAccessChat`
+-   `convex/messages.ts` - CRUD for messages, sets, parts
+-   `convex/chats.ts` - Chat creation, deletion, renaming
+-   `convex/projects.ts` - Project CRUD
+-   `convex/streaming.ts` - HTTP action for SSE streaming (has security bugs - see below)
+-   `convex/http.ts` - Routes for /stream endpoint
+-   `convex/lib/featureFlags.ts` - Runtime feature flags
+-   `convex/lib/audit.ts` - Audit logging helper (not wired up yet)
+
+**Frontend:**
+
+-   `src/core/camp/api/UnifiedMessageAPI.ts` - Branching logic for Convex vs SQLite
+-   `src/core/camp/api/MessageAPIConvex.ts` - Convex mutations for messages
+-   `src/core/camp/api/ConvexStreamingClient.ts` - SSE client (exists but not used)
+-   `src/ui/components/ChatInput.tsx` - Now uses UnifiedMessageAPI
+-   Sidebar 3-tier structure (Team/Shared/Private)
+-   MessageAttribution component (built but not integrated)
+
+### What's BROKEN ❌
+
+1. **AI responses go to SQLite, not Convex**
+
+    - `usePopulateBlock()` in UnifiedMessageAPI returns SQLite hook with warning
+    - User sends message → goes to Convex ✅
+    - AI responds → goes to SQLite ❌
+    - Result: Other users don't see AI responses
+
+2. **Security bugs in `convex/streaming.ts`**
+
+    - No `assertCanAccessChat` call - anyone can stream to any chat
+    - Wrong chat ID parsing: uses `messageId.split("/")[0]` instead of `chatId` param
+
+3. **Dead code: `ConvexStreamingClient.ts`**
+    - Never imported anywhere
+    - Has `streamFromConvex()` ready to use
+
+---
+
+## MVP Scope (Immediate Priority)
+
+**Goal: Messages work in multiplayer** - send, stream, stop.
+
+### MVP Features ✅
+
+-   Basic send message (user message to Convex)
+-   Basic AI streaming (via Convex HTTP action)
+-   Stop streaming
+-   Summaries and project context (needed for coherent AI responses)
+
+### NOT MVP (deferred)
+
+-   Compare mode (multiple AI responses)
+-   Tool blocks / MCP execution in multiplayer
+-   Code reviews
+-   Attachments (shortly after MVP)
+-   Branching/forking (shortly after MVP)
+
+### MVP Implementation Tasks
+
+1. **Fix security bugs in `convex/streaming.ts`**
+
+    - Add `assertCanAccessChat(ctx, chatId, clerkId)` check
+    - Use `chatId` parameter instead of parsing from messageId
+
+2. **Implement `usePopulateBlockConvex`**
+
+    - Create assistant message in Convex
+    - Call `streamFromConvex()` from ConvexStreamingClient
+    - Handle onChunk, onComplete, onError callbacks
+    - NO tool calls for MVP (defer to post-MVP)
+
+3. **Wire into UnifiedMessageAPI**
+    - Replace SQLite fallback with Convex implementation
+    - Remove warning log
+
+---
+
 ## Executive Summary
 
 Transform Camp from a local-first SQLite app to a cloud-synced multiplayer AI workspace. **MVP-first approach**: Build a thin vertical slice to get visible multiplayer working quickly, then expand.
@@ -19,7 +105,7 @@ Transform Camp from a local-first SQLite app to a cloud-synced multiplayer AI wo
 -   Deletion cascades to forks with warning dialog
 -   Forks can chain indefinitely (fork a fork)
 -   Private forks are truly private (no admin visibility)
--   Feature flags stored in Convex DB (config-based, no redeploy needed)
+-   Feature flags: Compile-time (`campConfig.useConvexData`) for now, runtime later
 
 **Key Discovery:** The existing `useBranchChat` mutation (`MessageAPI.ts:634-758`) already implements branching with `parentChatId` and `replyToId`. Private forks = adding `visibility` field to existing infrastructure.
 
