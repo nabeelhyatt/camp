@@ -2777,18 +2777,24 @@ function MainScrollableContentView({
         );
     }
 
-    let lastUserSet;
-    let lastAISet;
-    let otherMessageSets;
+    let lastUserSet: MessageSetDetail | null;
+    let lastAISet: MessageSetDetail | null;
+    let otherMessageSets: MessageSetDetail[];
     if (messageSets.length === 0) {
         lastUserSet = null;
         lastAISet = null;
         otherMessageSets = messageSets;
-    } else if (messageSets[messageSets.length - 1].type === "user") {
+    } else if (messageSets[messageSets.length - 1]?.type === "user") {
         lastUserSet = messageSets[messageSets.length - 1];
         lastAISet = null;
         otherMessageSets = messageSets.slice(0, -1);
+    } else if (messageSets.length === 1) {
+        // Only one AI message set - no user set before it
+        lastUserSet = null;
+        lastAISet = messageSets[0];
+        otherMessageSets = [];
     } else {
+        // messageSets.length >= 2 and last is AI
         lastUserSet = messageSets[messageSets.length - 2];
         lastAISet = messageSets[messageSets.length - 1];
         otherMessageSets = messageSets.slice(0, -2);
