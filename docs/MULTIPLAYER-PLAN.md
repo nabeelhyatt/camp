@@ -232,6 +232,80 @@ Based on core value proposition (private forks are CORE, not "power user"):
 
 ---
 
+## API Key Architecture
+
+### Current Approach (Phase 1)
+
+AI model requests are made directly from the Convex HTTP streaming action (`convex/streaming.ts`) to model providers (OpenRouter, OpenAI, etc.).
+
+**How API keys are resolved:**
+
+1. **Team key (Convex):** Check `apiKeys` table for the workspace's provider key
+2. **Default key (Convex env):** Fall back to `DEFAULT_OPENROUTER_KEY` etc. in Convex environment
+3. **User key (Settings):** Users can still set their own keys in the desktop app
+
+**Setup requirements:**
+
+-   Default keys must be set via `npx convex env set DEFAULT_OPENROUTER_KEY "sk-..."`
+-   The `setup-instance.sh` script auto-syncs `VITE_DEFAULT_*` keys from `.env` to Convex
+-   This is necessary because Convex backend runs on Convex servers (separate from Vite env)
+
+### Future: Camp Backend Proxy (Recommended for Production)
+
+For a production desktop app distributed to users, embedding API keys in Convex env vars has limitations:
+
+-   Each Convex deployment needs keys manually set
+-   No rate limiting or usage tracking
+-   No billing integration
+
+**Recommended architecture:**
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Camp Desktop   │────▶│   Camp Backend   │────▶│  Model Provider │
+│  (Tauri/React)  │     │  (Vercel Edge)   │     │  (OpenRouter)   │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+        │                       │
+        │                       ├── API key stored securely
+        │                       ├── Per-user rate limiting
+        │                       └── Usage tracking/billing
+        │
+        └── Convex (real-time data only)
+```
+
+**Camp Backend responsibilities:**
+
+-   **LLM Proxy:** Route model requests with your API key
+-   **Rate limiting:** Per-user/team quotas
+-   **Usage tracking:** Token counts, costs per user
+-   **Billing:** Stripe integration for paid tiers
+-   **Auth:** Validate Clerk JWT before proxying
+
+**Deployment options:**
+
+| Platform                     | Pros                                       | Cons                              |
+| ---------------------------- | ------------------------------------------ | --------------------------------- |
+| **Vercel Edge Functions**    | Fast SSE streaming, easy deploy, free tier | Cold starts on free tier          |
+| **Cloudflare Workers**       | No cold starts, global edge                | Different runtime (not Node)      |
+| **AWS Lambda + API Gateway** | Full control, scales to zero               | More complex setup                |
+| **Railway/Render**           | Simple, persistent                         | Monthly cost even at zero traffic |
+
+**Recommended: Vercel** for Camp because:
+
+-   Native SSE/streaming support
+-   Easy integration with existing React/Next.js tooling
+-   Free tier sufficient for MVP
+-   Can migrate to self-hosted if needed
+
+**Migration path:**
+
+1. Phase 1 (now): Direct Convex → Provider (current)
+2. Phase 2: Add Camp Backend for default key users
+3. Phase 3: All requests through Camp Backend (usage tracking)
+4. Phase 4: Billing integration
+
+---
+
 ## Phase 1: MVP - Visible Multiplayer (Weeks 1-3)
 
 **Goal:** Team projects visible to everyone + profile icons + full sidebar stub
