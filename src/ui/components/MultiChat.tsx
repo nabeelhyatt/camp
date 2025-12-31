@@ -110,6 +110,7 @@ import {
 import { readFile } from "@tauri-apps/plugin-fs";
 import { filterReplyMessageSets } from "@ui/lib/replyUtils";
 import * as MessageAPI from "@core/chorus/api/MessageAPI";
+import * as UnifiedMessageAPI from "@core/camp/api/UnifiedMessageAPI";
 import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
 import * as ProjectAPI from "@core/camp/api/UnifiedProjectAPI";
 import * as ModelsAPI from "@core/chorus/api/ModelsAPI";
@@ -159,7 +160,7 @@ function ContextLimitError({ chatId }: { chatId: string }) {
     const [isSummarizing, setIsSummarizing] = useState(false);
     const summarizeChat = MessageAPI.useSummarizeChat();
     const chatQuery = ChatAPI.useChat(chatId);
-    const messageSetsQuery = MessageAPI.useMessageSets(chatId);
+    const messageSetsQuery = UnifiedMessageAPI.useMessageSets(chatId);
     const createNewChat = ChatAPI.useCreateNewChat();
     const createAttachment = AttachmentsAPI.useCreateAttachment();
     const finalizeAttachmentForDraft = DraftAPI.useFinalizeAttachmentForDraft();
@@ -1099,7 +1100,7 @@ export function ToolsReplyCountView({
     const chatQuery = ChatAPI.useChat(replyChatId);
     // TODO: we _could_ make this more efficient by just fetching the count - but we do re-use this exact query when rendering replies
     // and query this conservatively (only if replyChatId is not null)
-    const messageSetsQuery = MessageAPI.useMessageSets(replyChatId);
+    const messageSetsQuery = UnifiedMessageAPI.useMessageSets(replyChatId);
 
     const replyCount = useMemo(() => {
         console.log(messageSetsQuery.data, chatQuery.data);
@@ -1722,7 +1723,7 @@ export default function MultiChat() {
     const navigate = useNavigate();
     const location = useLocation();
     const appMetadata = useWaitForAppMetadata();
-    const messageSetsQuery = MessageAPI.useMessageSets(chatId ?? "");
+    const messageSetsQuery = UnifiedMessageAPI.useMessageSets(chatId ?? "");
     const [searchParams] = useSearchParams();
 
     // Extract replyId from query parameters
@@ -2647,7 +2648,7 @@ function MainScrollableContentView({
     const { chatId } = useParams();
     const { isQuickChatWindow } = useAppContext();
 
-    const messageSetsQuery = MessageAPI.useMessageSets(chatId ?? "");
+    const messageSetsQuery = UnifiedMessageAPI.useMessageSets(chatId ?? "");
 
     const manageScrollBottomButton = useCallback(() => {
         const container = chatContainerRef.current;
@@ -2757,7 +2758,7 @@ function MainScrollableContentView({
         return <div>Error: {messageSetsQuery.error.message}</div>;
     }
 
-    const messageSets = messageSetsQuery.data;
+    const messageSets = messageSetsQuery.data ?? [];
 
     function renderMessageSet(
         ms: MessageSetDetail,
