@@ -113,6 +113,8 @@ import * as MessageAPI from "@core/chorus/api/MessageAPI";
 import * as UnifiedMessageAPI from "@core/camp/api/UnifiedMessageAPI";
 import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
 import * as ProjectAPI from "@core/camp/api/UnifiedProjectAPI";
+import { isSQLiteId } from "@core/camp/api/convexTypes";
+import { campConfig } from "@core/campConfig";
 import * as ModelsAPI from "@core/chorus/api/ModelsAPI";
 import * as AttachmentsAPI from "@core/chorus/api/AttachmentsAPI";
 import * as DraftAPI from "@core/chorus/api/DraftAPI";
@@ -1621,7 +1623,13 @@ const MessageSetView = memo(
 
         const messageSet = messageSetQuery.data?.[0];
 
-        if (messageSet?.selectedBlockType === "compare" && isQuickChatWindow) {
+        // Guard against undefined messageSet (can happen when Convex mode is enabled
+        // but the chat/messages don't exist in Convex yet)
+        if (!messageSet) {
+            return <RetroSpinner />;
+        }
+
+        if (messageSet.selectedBlockType === "compare" && isQuickChatWindow) {
             console.error(
                 "Error: shouldn't render compare block in quick chat window",
             );
@@ -1829,6 +1837,13 @@ export default function MultiChat() {
     useEffect(() => {
         if (!chatId) {
             console.error("no chatId, navigating home");
+            navigate("/");
+        } else if (campConfig.useConvexData && isSQLiteId(chatId)) {
+            // In Convex mode, SQLite chat IDs can't be loaded
+            // Navigate home to create a new Convex chat
+            console.warn(
+                `SQLite chat ID ${chatId} cannot be loaded in Convex mode. Navigating home.`,
+            );
             navigate("/");
         } else if (chatQuery.isError) {
             console.warn(
