@@ -1,5 +1,91 @@
 # Camp Multiplayer Implementation Plan
 
+## Current Status (December 2024)
+
+**TL;DR: User messages flow to Convex, AI responses still go to SQLite. Need to implement `usePopulateBlockConvex` to complete the circuit.**
+
+### What's DONE ✅
+
+**Backend (Convex):**
+
+-   `convex/schema.ts` - Full schema with messages, messageSets, messageParts
+-   `convex/lib/permissions.ts` - Access control with `assertCanAccessChat`
+-   `convex/messages.ts` - CRUD for messages, sets, parts
+-   `convex/chats.ts` - Chat creation, deletion, renaming
+-   `convex/projects.ts` - Project CRUD
+-   `convex/streaming.ts` - HTTP action for SSE streaming (has security bugs - see below)
+-   `convex/http.ts` - Routes for /stream endpoint
+-   `convex/lib/featureFlags.ts` - Runtime feature flags
+-   `convex/lib/audit.ts` - Audit logging helper (not wired up yet)
+
+**Frontend:**
+
+-   `src/core/camp/api/UnifiedMessageAPI.ts` - Branching logic for Convex vs SQLite
+-   `src/core/camp/api/MessageAPIConvex.ts` - Convex mutations for messages
+-   `src/core/camp/api/ConvexStreamingClient.ts` - SSE client (exists but not used)
+-   `src/ui/components/ChatInput.tsx` - Now uses UnifiedMessageAPI
+-   Sidebar 3-tier structure (Team/Shared/Private)
+-   MessageAttribution component (built but not integrated)
+
+### What's BROKEN ❌
+
+1. **AI responses go to SQLite, not Convex**
+
+    - `usePopulateBlock()` in UnifiedMessageAPI returns SQLite hook with warning
+    - User sends message → goes to Convex ✅
+    - AI responds → goes to SQLite ❌
+    - Result: Other users don't see AI responses
+
+2. **Security bugs in `convex/streaming.ts`**
+
+    - No `assertCanAccessChat` call - anyone can stream to any chat
+    - Wrong chat ID parsing: uses `messageId.split("/")[0]` instead of `chatId` param
+
+3. **Dead code: `ConvexStreamingClient.ts`**
+    - Never imported anywhere
+    - Has `streamFromConvex()` ready to use
+
+---
+
+## MVP Scope (Immediate Priority)
+
+**Goal: Messages work in multiplayer** - send, stream, stop.
+
+### MVP Features ✅
+
+-   Basic send message (user message to Convex)
+-   Basic AI streaming (via Convex HTTP action)
+-   Stop streaming
+-   Summaries and project context (needed for coherent AI responses)
+
+### NOT MVP (deferred)
+
+-   Compare mode (multiple AI responses)
+-   Tool blocks / MCP execution in multiplayer
+-   Code reviews
+-   Attachments (shortly after MVP)
+-   Branching/forking (shortly after MVP)
+
+### MVP Implementation Tasks
+
+1. **Fix security bugs in `convex/streaming.ts`**
+
+    - Add `assertCanAccessChat(ctx, chatId, clerkId)` check
+    - Use `chatId` parameter instead of parsing from messageId
+
+2. **Implement `usePopulateBlockConvex`**
+
+    - Create assistant message in Convex
+    - Call `streamFromConvex()` from ConvexStreamingClient
+    - Handle onChunk, onComplete, onError callbacks
+    - NO tool calls for MVP (defer to post-MVP)
+
+3. **Wire into UnifiedMessageAPI**
+    - Replace SQLite fallback with Convex implementation
+    - Remove warning log
+
+---
+
 ## Executive Summary
 
 Transform Camp from a local-first SQLite app to a cloud-synced multiplayer AI workspace. **MVP-first approach**: Build a thin vertical slice to get visible multiplayer working quickly, then expand.
@@ -19,7 +105,7 @@ Transform Camp from a local-first SQLite app to a cloud-synced multiplayer AI wo
 -   Deletion cascades to forks with warning dialog
 -   Forks can chain indefinitely (fork a fork)
 -   Private forks are truly private (no admin visibility)
--   Feature flags stored in Convex DB (config-based, no redeploy needed)
+-   Feature flags: Compile-time (`campConfig.useConvexData`) for now, runtime later
 
 **Key Discovery:** The existing `useBranchChat` mutation (`MessageAPI.ts:634-758`) already implements branching with `parentChatId` and `replyToId`. Private forks = adding `visibility` field to existing infrastructure.
 
@@ -143,6 +229,80 @@ Based on core value proposition (private forks are CORE, not "power user"):
 -   `isTyping` field on presence
 -   Convex API functions (queries/mutations)
 -   Sidebar restructure (Team/Shared/Private sections)
+
+---
+
+## API Key Architecture
+
+### Current Approach (Phase 1)
+
+AI model requests are made directly from the Convex HTTP streaming action (`convex/streaming.ts`) to model providers (OpenRouter, OpenAI, etc.).
+
+**How API keys are resolved:**
+
+1. **Team key (Convex):** Check `apiKeys` table for the workspace's provider key
+2. **Default key (Convex env):** Fall back to `DEFAULT_OPENROUTER_KEY` etc. in Convex environment
+3. **User key (Settings):** Users can still set their own keys in the desktop app
+
+**Setup requirements:**
+
+-   Default keys must be set via `npx convex env set DEFAULT_OPENROUTER_KEY "sk-..."`
+-   The `setup-instance.sh` script auto-syncs `VITE_DEFAULT_*` keys from `.env` to Convex
+-   This is necessary because Convex backend runs on Convex servers (separate from Vite env)
+
+### Future: Camp Backend Proxy (Recommended for Production)
+
+For a production desktop app distributed to users, embedding API keys in Convex env vars has limitations:
+
+-   Each Convex deployment needs keys manually set
+-   No rate limiting or usage tracking
+-   No billing integration
+
+**Recommended architecture:**
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Camp Desktop   │────▶│   Camp Backend   │────▶│  Model Provider │
+│  (Tauri/React)  │     │  (Vercel Edge)   │     │  (OpenRouter)   │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+        │                       │
+        │                       ├── API key stored securely
+        │                       ├── Per-user rate limiting
+        │                       └── Usage tracking/billing
+        │
+        └── Convex (real-time data only)
+```
+
+**Camp Backend responsibilities:**
+
+-   **LLM Proxy:** Route model requests with your API key
+-   **Rate limiting:** Per-user/team quotas
+-   **Usage tracking:** Token counts, costs per user
+-   **Billing:** Stripe integration for paid tiers
+-   **Auth:** Validate Clerk JWT before proxying
+
+**Deployment options:**
+
+| Platform                     | Pros                                       | Cons                              |
+| ---------------------------- | ------------------------------------------ | --------------------------------- |
+| **Vercel Edge Functions**    | Fast SSE streaming, easy deploy, free tier | Cold starts on free tier          |
+| **Cloudflare Workers**       | No cold starts, global edge                | Different runtime (not Node)      |
+| **AWS Lambda + API Gateway** | Full control, scales to zero               | More complex setup                |
+| **Railway/Render**           | Simple, persistent                         | Monthly cost even at zero traffic |
+
+**Recommended: Vercel** for Camp because:
+
+-   Native SSE/streaming support
+-   Easy integration with existing React/Next.js tooling
+-   Free tier sufficient for MVP
+-   Can migrate to self-hosted if needed
+
+**Migration path:**
+
+1. Phase 1 (now): Direct Convex → Provider (current)
+2. Phase 2: Add Camp Backend for default key users
+3. Phase 3: All requests through Camp Backend (usage tracking)
+4. Phase 4: Billing integration
 
 ---
 
@@ -1107,10 +1267,14 @@ These features from `@core/chorus/api/ProjectAPI.ts` are not migrated:
 
 From `@core/chorus/api/MessageAPI.ts`:
 
-| Hook                  | What It Does                  | Impact When Convex Enabled                    |
-| --------------------- | ----------------------------- | --------------------------------------------- |
-| All message mutations | Create/update/stream messages | **Critical: All message sending uses SQLite** |
-| `useBranchChat`       | Create branch/reply threads   | Creates in SQLite                             |
+| Hook                | What It Does                | Impact When Convex Enabled                       |
+| ------------------- | --------------------------- | ------------------------------------------------ |
+| `useSummarizeChat`  | Summarizes chat history     | Uses `chatQueries.detail`, fails with Convex IDs |
+| `useEditMessage`    | Edit existing message       | Creates in SQLite only                           |
+| `useBranchChat`     | Create branch/reply threads | Creates in SQLite only                           |
+| `useRestartMessage` | Restart message generation  | SQLite only                                      |
+| `useSelectMessage`  | Select a message variant    | SQLite only                                      |
+| `useStopMessage`    | Stop streaming message      | SQLite only                                      |
 
 ### What DOES Work with Convex
 

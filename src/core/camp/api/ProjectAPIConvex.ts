@@ -6,8 +6,8 @@
  * the SQLite-based ProjectAPI for seamless switching.
  */
 
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useState, useEffect, useCallback } from "react";
+import { useQuery, useMutation, useConvex } from "convex/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "@convex/_generated/api";
@@ -16,6 +16,7 @@ import {
     convexProjectToProject,
     convexProjectsToProjects,
     stringToConvexIdStrict,
+    isSentinelProjectId,
 } from "./convexTypes";
 import { projectKeys, projectQueries } from "@core/chorus/api/ProjectAPI";
 import { campConfig } from "@core/campConfig";
@@ -77,9 +78,13 @@ export function useProjectQueryConvex(projectId: string | undefined) {
     // Skip Convex queries when not using Convex data layer
     const shouldSkip = !campConfig.useConvexData;
 
+    // Skip if projectId is a sentinel (like "default" or "quick-chat")
+    // These are virtual project IDs that don't exist in Convex
+    const isSentinel = projectId && isSentinelProjectId(projectId);
+
     const result = useQuery(
         api.projects.get,
-        !shouldSkip && clerkId && projectId
+        !shouldSkip && clerkId && projectId && !isSentinel
             ? {
                   clerkId,
                   projectId: stringToConvexIdStrict<"projects">(projectId),
@@ -322,6 +327,8 @@ export function useAutoSyncProjectContextTextConvex(
     useEffect(() => {
         if (!isInitialized || !projectId || !clerkId) return;
         if (localDraft === lastSaved) return;
+        // Don't try to save sentinel project IDs - they don't exist in Convex
+        if (isSentinelProjectId(projectId)) return;
 
         void updateProject({
             clerkId,
@@ -415,6 +422,76 @@ export function useToggleProjectIsCollapsedConvex() {
  */
 export function isProjectCollapsed(projectId: string): boolean {
     return getCollapsedProjects().has(projectId);
+}
+
+// ============================================================
+// Project Context for LLM
+// ============================================================
+
+import type { LLMMessage } from "@core/chorus/Models";
+
+/**
+ * Convex version of useGetProjectContextLLMMessage
+ *
+ * Returns a function that builds LLM context messages from project data.
+ * Uses the Convex client to fetch project data imperatively.
+ */
+export function useGetProjectContextLLMMessageConvex(): (
+    projectId: string,
+    chatId: string,
+) => Promise<LLMMessage[]> {
+    const { clerkId } = useWorkspaceContext();
+    const convex = useConvex();
+
+    return useCallback(
+        async (projectId: string, _chatId: string): Promise<LLMMessage[]> => {
+            // Skip sentinel project IDs (like "default" or "quick-chat")
+            if (isSentinelProjectId(projectId)) {
+                return [];
+            }
+
+            if (!clerkId) {
+                console.warn(
+                    "[useGetProjectContextLLMMessageConvex] No clerkId, skipping project context",
+                );
+                return [];
+            }
+
+            try {
+                // Fetch project data from Convex
+                const project = await convex.query(api.projects.get, {
+                    clerkId,
+                    projectId: stringToConvexIdStrict<"projects">(projectId),
+                });
+
+                if (!project || !project.contextText) {
+                    console.log(
+                        `[useGetProjectContextLLMMessageConvex] No context text for project ${projectId}`,
+                    );
+                    return [];
+                }
+
+                // Build the LLM message with project context
+                const contextMessage: LLMMessage = {
+                    role: "user",
+                    content: `<project_context>\n${project.contextText}\n</project_context>`,
+                };
+
+                console.log(
+                    `[useGetProjectContextLLMMessageConvex] Added project context (${project.contextText.length} chars)`,
+                );
+
+                return [contextMessage];
+            } catch (error) {
+                console.error(
+                    "[useGetProjectContextLLMMessageConvex] Error fetching project:",
+                    error,
+                );
+                return [];
+            }
+        },
+        [clerkId, convex],
+    );
 }
 
 // ============================================================

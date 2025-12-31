@@ -322,3 +322,198 @@ export function timestampToISOString(timestamp: number): string {
 export function isoStringToTimestamp(isoString: string): number {
     return new Date(isoString).getTime();
 }
+
+// ============================================================
+// Message Types (for conversion)
+// ============================================================
+
+import type {
+    MessageSetDetail,
+    Message,
+    MessagePart,
+    UserBlock,
+    ChatBlock,
+    CompareBlock,
+    BrainstormBlock,
+    ToolsBlock,
+    BlockType,
+} from "@core/chorus/ChatState";
+
+/**
+ * Message part from Convex
+ */
+export interface ConvexMessagePart {
+    id: string;
+    type: "text" | "code" | "tool_call" | "tool_result" | "image" | "file";
+    content: string;
+    language?: string;
+    toolName?: string;
+    toolCallId?: string;
+    order: number;
+}
+
+/**
+ * Message from Convex
+ */
+export interface ConvexMessage {
+    id: string;
+    messageSetId: string;
+    chatId: string;
+    role: "user" | "assistant";
+    model?: string;
+    status: "pending" | "streaming" | "complete" | "error";
+    errorMessage?: string;
+    createdAt: string;
+    updatedAt: string;
+    parts: ConvexMessagePart[];
+}
+
+/**
+ * Message set from Convex with author info
+ */
+export interface ConvexMessageSet {
+    id: string;
+    chatId: string;
+    createdAt: string;
+    authorSnapshot?: AuthorSnapshot;
+    showAttribution: boolean;
+    messages: ConvexMessage[];
+}
+
+// ============================================================
+// Message Transformation Functions
+// ============================================================
+
+/**
+ * Convert a Convex message part to the SQLite MessagePart format
+ */
+function convertConvexPart(
+    part: ConvexMessagePart,
+    chatId: string,
+    messageId: string,
+): MessagePart {
+    return {
+        chatId,
+        messageId,
+        level: part.order,
+        content: part.content,
+        // Tool calls/results are stored differently in Convex - not in parts
+        toolCalls: undefined,
+        toolResults: undefined,
+    };
+}
+
+/**
+ * Convert a Convex message to the SQLite Message format
+ */
+function convertConvexMessage(msg: ConvexMessage): Message {
+    // Combine all text parts into a single text field
+    const textParts = msg.parts.filter((p) => p.type === "text");
+    const text = textParts.map((p) => p.content).join("");
+
+    // Map Convex status to SQLite state
+    const state: "streaming" | "idle" =
+        msg.status === "streaming" ? "streaming" : "idle";
+
+    // Determine blockType from role
+    // In Convex, we simplified to just role (user/assistant)
+    // Map assistant → "tools" (the default block type)
+    const blockType: BlockType = msg.role === "user" ? "user" : "tools";
+
+    return {
+        id: msg.id,
+        chatId: msg.chatId,
+        messageSetId: msg.messageSetId,
+        blockType,
+        text,
+        model: msg.model || (msg.role === "user" ? "user" : "unknown"),
+        selected: true, // Default to selected for now
+        attachments: undefined, // Attachments not yet in Convex
+        isReview: false,
+        state,
+        streamingToken: undefined,
+        errorMessage: msg.errorMessage,
+        reviewState: undefined,
+        level: undefined,
+        parts: msg.parts.map((p) => convertConvexPart(p, msg.chatId, msg.id)),
+        replyChatId: undefined,
+        branchedFromId: undefined,
+    };
+}
+
+/**
+ * Convert Convex message sets to SQLite MessageSetDetail format
+ *
+ * This transformation allows the existing MultiChat.tsx UI to render
+ * Convex data without changes.
+ */
+export function convertConvexToMessageSetDetails(
+    convexSets: ConvexMessageSet[],
+): MessageSetDetail[] {
+    // Filter out any null/undefined sets that might have slipped through
+    return convexSets
+        .filter((set) => set != null)
+        .map((set, index) => {
+            // Convert all messages
+            const messages = set.messages.map(convertConvexMessage);
+
+            // Separate by block type
+            const userBlockMessages = messages.filter(
+                (m) => m.blockType === "user",
+            );
+            const toolsBlockMessages = messages.filter(
+                (m) => m.blockType === "tools",
+            );
+
+            // Build blocks (compare and brainstorm are deprecated, but structure needs them)
+            const userBlock: UserBlock = {
+                type: "user",
+                message: userBlockMessages[0],
+            };
+
+            const chatBlock: ChatBlock = {
+                type: "chat",
+                message: undefined, // Deprecated
+                reviews: [],
+            };
+
+            const compareBlock: CompareBlock = {
+                type: "compare",
+                messages: [],
+                synthesis: undefined,
+            };
+
+            const brainstormBlock: BrainstormBlock = {
+                type: "brainstorm",
+                ideaMessages: [],
+            };
+
+            const toolsBlock: ToolsBlock = {
+                type: "tools",
+                chatMessages: toolsBlockMessages,
+            };
+
+            // Determine set type from messages
+            const hasUserMessage = userBlockMessages.length > 0;
+            const type = hasUserMessage ? "user" : "ai";
+
+            // Default selected block type
+            const selectedBlockType: BlockType = hasUserMessage
+                ? "user"
+                : "tools";
+
+            return {
+                id: set.id,
+                chatId: set.chatId,
+                type,
+                level: index,
+                selectedBlockType,
+                createdAt: set.createdAt,
+                userBlock,
+                chatBlock,
+                compareBlock,
+                brainstormBlock,
+                toolsBlock,
+            };
+        });
+}

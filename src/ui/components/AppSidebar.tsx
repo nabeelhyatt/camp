@@ -767,8 +767,9 @@ function ChatListItem({ chat, isActive }: { chat: Chat; isActive: boolean }) {
         mutateAsync: deleteChatMutateAsync,
         isPending: deleteChatIsPending,
     } = ChatAPI.useDeleteChat();
-    const { data: parentChat } = useQuery(
-        ChatAPI.chatQueries.detail(chat.parentChatId ?? undefined),
+    // Use unified hook instead of SQLite query directly
+    const { data: parentChat } = ChatAPI.useChatQuery(
+        chat.parentChatId ?? undefined,
     );
 
     const handleOpenDeleteDialog = useCallback(() => {

@@ -351,10 +351,29 @@ export const stream = httpAction(async (ctx, request) => {
         });
     }
 
-    // Get the chat to find workspace
-    const chat = await ctx.runQuery(internal.streaming_internal.getChat, {
-        chatId: messageId.split("/")[0] as Id<"chats">, // Extract chat ID if needed
-    });
+    // Verify user has access to this chat (SECURITY FIX)
+    const accessCheck = await ctx.runQuery(
+        internal.lib.permissions.checkChatAccess,
+        {
+            chatId: chatId as Id<"chats">,
+            userId: user._id,
+        },
+    );
+
+    if (!accessCheck.allowed) {
+        return new Response(
+            JSON.stringify({
+                error: `Access denied: ${accessCheck.reason}`,
+            }),
+            {
+                status: 403,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+        );
+    }
+
+    // Chat is now available from the access check
+    const chat = accessCheck.chat;
 
     // Resolve API key for the provider
     const providerName = getProviderName(model);

@@ -7,57 +7,30 @@
  */
 
 import { useQuery, useMutation } from "convex/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@convex/_generated/api";
 import { useWorkspaceContext } from "./useWorkspaceHooks";
 import { stringToConvexIdStrict, convexIdToString } from "./convexTypes";
-import type { AuthorSnapshot } from "./convexTypes";
 import { campConfig } from "@core/campConfig";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
+import {
+    streamFromConvex,
+    createStreamingSessionId,
+} from "./ConvexStreamingClient";
+import { llmConversation } from "@core/chorus/ChatState";
+import type { LLMMessage, ModelConfig } from "@core/chorus/Models";
+import type { BlockType } from "@core/chorus/ChatState";
+import { modelConfigQueries } from "@core/chorus/api/ModelsAPI";
+import { useGetProjectContextLLMMessage } from "./UnifiedProjectAPI";
+import {
+    convertConvexToMessageSetDetails,
+    ConvexMessageSet,
+    ConvexMessage,
+    ConvexMessagePart,
+} from "./convexTypes";
 
-// ============================================================
-// Types
-// ============================================================
-
-/**
- * Message part from Convex
- */
-export interface ConvexMessagePart {
-    id: string;
-    type: "text" | "code" | "tool_call" | "tool_result" | "image" | "file";
-    content: string;
-    language?: string;
-    toolName?: string;
-    toolCallId?: string;
-    order: number;
-}
-
-/**
- * Message from Convex
- */
-export interface ConvexMessage {
-    id: string;
-    messageSetId: string;
-    chatId: string;
-    role: "user" | "assistant";
-    model?: string;
-    status: "pending" | "streaming" | "complete" | "error";
-    errorMessage?: string;
-    createdAt: string;
-    updatedAt: string;
-    parts: ConvexMessagePart[];
-}
-
-/**
- * Message set from Convex with author info
- */
-export interface ConvexMessageSet {
-    id: string;
-    chatId: string;
-    createdAt: string;
-    authorSnapshot?: AuthorSnapshot;
-    showAttribution: boolean;
-    messages: ConvexMessage[];
-}
+// Re-export types for backwards compatibility
+export type { ConvexMessageSet, ConvexMessage, ConvexMessagePart };
 
 // ============================================================
 // Queries
@@ -512,5 +485,420 @@ export function useDeleteMessageConvex() {
         mutate: (args: { messageId: string }) => void mutateAsync(args),
         isPending,
         isIdle: !isPending,
+    };
+}
+
+// ============================================================
+// Higher-Level Mutations (for ChatInput.tsx compatibility)
+// ============================================================
+
+/**
+ * Create a message set pair (user + AI message sets)
+ * This mirrors the SQLite useCreateMessageSetPair interface
+ */
+export function useCreateMessageSetPairConvex() {
+    const { clerkId } = useWorkspaceContext();
+    const createSet = useMutation(api.messages.createSet);
+    const [isPending, setIsPending] = useState(false);
+
+    const mutateAsync = useCallback(
+        async (args: {
+            chatId: string;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            userMessageSetParent: any; // MessageSet type from SQLite - not used in Convex
+            selectedBlockType: string;
+        }) => {
+            if (!clerkId) throw new Error("Not authenticated");
+            setIsPending(true);
+            try {
+                const chatIdConvex = stringToConvexIdStrict<"chats">(
+                    args.chatId,
+                );
+
+                // Create user message set
+                const userMessageSetId = await createSet({
+                    clerkId,
+                    chatId: chatIdConvex,
+                });
+
+                // Create AI message set
+                const aiMessageSetId = await createSet({
+                    clerkId,
+                    chatId: chatIdConvex,
+                });
+
+                return {
+                    userMessageSetId: convexIdToString(userMessageSetId),
+                    aiMessageSetId: convexIdToString(aiMessageSetId),
+                };
+            } finally {
+                setIsPending(false);
+            }
+        },
+        [clerkId, createSet],
+    );
+
+    return {
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
+        isPending,
+        isIdle: !isPending,
+    };
+}
+
+/**
+ * Create a message with return value matching SQLite's useCreateMessage
+ * Returns { messageId, streamingToken } or undefined
+ */
+export function useCreateMessageConvex() {
+    const createUserMessage = useCreateUserMessageConvex();
+    const createAssistantMessage = useCreateAssistantMessageConvex();
+    const [isPending, setIsPending] = useState(false);
+
+    const mutateAsync = useCallback(
+        async (args: {
+            message: {
+                chatId: string;
+                messageSetId: string;
+                text?: string;
+                model?: string;
+                selected?: boolean;
+                blockType: string;
+                level?: number;
+            };
+            options?: {
+                mode: "always" | "first" | "unique_model";
+            };
+        }) => {
+            setIsPending(true);
+            try {
+                const { message } = args;
+
+                // Determine if this is a user or assistant message based on blockType
+                const isUserMessage = message.blockType === "user";
+
+                // Helper to generate UUID (with fallback for older environments)
+                const generateUUID = (): string => {
+                    if (
+                        typeof crypto !== "undefined" &&
+                        crypto.randomUUID !== undefined
+                    ) {
+                        return crypto.randomUUID();
+                    }
+                    // Fallback for older environments
+                    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+                        /[xy]/g,
+                        (c) => {
+                            const r = (Math.random() * 16) | 0;
+                            const v = c === "x" ? r : (r & 0x3) | 0x8;
+                            return v.toString(16);
+                        },
+                    );
+                };
+
+                if (isUserMessage) {
+                    // Create user message
+                    const messageId = await createUserMessage.mutateAsync({
+                        messageSetId: message.messageSetId,
+                        content: message.text || "",
+                    });
+
+                    // Generate a streaming token for compatibility
+                    const streamingToken = generateUUID();
+
+                    return { messageId, streamingToken };
+                } else {
+                    // Create assistant message
+                    const streamingToken = generateUUID();
+                    const messageId = await createAssistantMessage.mutateAsync({
+                        messageSetId: message.messageSetId,
+                        model: message.model || "unknown",
+                        streamingSessionId: streamingToken,
+                    });
+
+                    return { messageId, streamingToken };
+                }
+            } finally {
+                setIsPending(false);
+            }
+        },
+        [createUserMessage, createAssistantMessage],
+    );
+
+    return {
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
+        isPending,
+        isIdle: !isPending,
+    };
+}
+
+// ============================================================
+// Streaming Hook (for AI response generation)
+// ============================================================
+
+/**
+ * Populate a block with AI response via Convex streaming
+ *
+ * This is the Convex version of usePopulateBlock from MessageAPI.ts.
+ * MVP scope:
+ * - Single model support (no compare mode)
+ * - No tool calls (deferred to post-MVP)
+ * - Uses project context and message history
+ */
+export function usePopulateBlockConvex(
+    chatId: string,
+    isQuickChatWindow: boolean,
+) {
+    const queryClient = useQueryClient();
+    const { clerkId } = useWorkspaceContext();
+    const createAssistantMessage = useCreateAssistantMessageConvex();
+    // Note: completeMessage is called by the streaming HTTP action, not here
+    const errorMessageMutation = useErrorMessageConvex();
+    const getProjectContext = useGetProjectContextLLMMessage();
+
+    // Get chat data from Convex (for projectId lookup)
+    const chatResult = useQuery(
+        api.chats.get,
+        clerkId && chatId
+            ? { clerkId, chatId: stringToConvexIdStrict<"chats">(chatId) }
+            : "skip",
+    );
+
+    // Get message sets from Convex for building conversation
+    const messageSetsResult = useQuery(
+        api.messages.listSetsWithMessages,
+        clerkId && chatId
+            ? { clerkId, chatId: stringToConvexIdStrict<"chats">(chatId) }
+            : "skip",
+    );
+
+    // Track active streaming for cancellation
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    const [isPending, setIsPending] = useState(false);
+
+    /**
+     * Get selected model configs (same logic as SQLite version)
+     */
+    const getSelectedModelConfigs = useCallback(async (): Promise<
+        ModelConfig[]
+    > => {
+        if (isQuickChatWindow) {
+            const quickChatModelConfig = await queryClient.ensureQueryData(
+                modelConfigQueries.quickChat(),
+            );
+            return quickChatModelConfig ? [quickChatModelConfig] : [];
+        } else {
+            return await queryClient.ensureQueryData(
+                modelConfigQueries.compare(),
+            );
+        }
+    }, [isQuickChatWindow, queryClient]);
+
+    /**
+     * Build conversation from Convex message sets
+     * Uses reactively-loaded Convex data instead of SQLite queries
+     */
+    const buildConversation = useCallback(async (): Promise<LLMMessage[]> => {
+        // Get project context from Convex chat data
+        // For MVP, skip project context if chat data not loaded yet
+        let projectContext: LLMMessage[] = [];
+        if (chatResult?.projectId) {
+            const projectIdStr = convexIdToString(chatResult.projectId);
+            projectContext = await getProjectContext(projectIdStr, chatId);
+        }
+
+        // Convert Convex message sets to MessageSetDetail format
+        if (!messageSetsResult) {
+            console.log(
+                "[usePopulateBlockConvex] No message sets loaded yet, using empty conversation",
+            );
+            return projectContext;
+        }
+
+        // Transform to the format expected by llmConversation
+        const convexMessageSets: ConvexMessageSet[] = messageSetsResult.map(
+            (set) => ({
+                id: convexIdToString(set._id),
+                chatId: convexIdToString(set.chatId),
+                createdAt: new Date(set.createdAt).toISOString(),
+                showAttribution: set.showAttribution ?? false,
+                messages: set.messages.map((msg) => ({
+                    id: convexIdToString(msg._id),
+                    messageSetId: convexIdToString(msg.messageSetId),
+                    chatId: convexIdToString(msg.chatId),
+                    role: msg.role,
+                    model: msg.model,
+                    status: msg.status,
+                    errorMessage: msg.errorMessage,
+                    createdAt: new Date(msg.createdAt).toISOString(),
+                    updatedAt: new Date(msg.updatedAt).toISOString(),
+                    parts: msg.parts.map((p) => ({
+                        id: convexIdToString(p._id),
+                        type: p.type,
+                        content: p.content,
+                        language: p.language,
+                        toolName: p.toolName,
+                        toolCallId: p.toolCallId,
+                        order: p.order,
+                    })),
+                })),
+            }),
+        );
+
+        const messageSetDetails =
+            convertConvexToMessageSetDetails(convexMessageSets);
+
+        // Convert to LLM conversation format (exclude last set as it's the one we're populating)
+        const previousMessageSets = messageSetDetails.slice(0, -1);
+        const conversation: LLMMessage[] = [
+            ...projectContext,
+            ...llmConversation(previousMessageSets),
+        ];
+
+        console.log(
+            `[usePopulateBlockConvex] Built conversation with ${conversation.length} messages from ${previousMessageSets.length} message sets`,
+        );
+
+        return conversation;
+    }, [chatId, chatResult, messageSetsResult, getProjectContext]);
+
+    const mutateAsync = useCallback(
+        async (args: {
+            messageSetId: string;
+            blockType: BlockType;
+            replyToModelId?: string;
+        }): Promise<{ skipped: boolean }> => {
+            if (!clerkId) {
+                console.error(
+                    "[usePopulateBlockConvex] Not authenticated, skipping",
+                );
+                return { skipped: true };
+            }
+
+            // Only support tools block for now (same as SQLite version)
+            if (args.blockType !== "tools") {
+                console.error(
+                    `[usePopulateBlockConvex] Unsupported block type: ${args.blockType}`,
+                );
+                return { skipped: true };
+            }
+
+            setIsPending(true);
+
+            // Create abort controller for cancellation
+            abortControllerRef.current = new AbortController();
+
+            try {
+                // Get selected model configs
+                const modelConfigs = await getSelectedModelConfigs();
+
+                if (modelConfigs.length === 0) {
+                    console.warn(
+                        "[usePopulateBlockConvex] No model configs selected",
+                    );
+                    return { skipped: true };
+                }
+
+                // MVP: Only use the first model (no compare mode)
+                const modelConfig = modelConfigs[0];
+                console.log(
+                    `[usePopulateBlockConvex] Starting stream with model: ${modelConfig.id}`,
+                );
+
+                // Generate streaming session ID
+                const streamingSessionId = createStreamingSessionId();
+
+                // Create assistant message in Convex
+                const messageId = await createAssistantMessage.mutateAsync({
+                    messageSetId: args.messageSetId,
+                    model: modelConfig.id,
+                    streamingSessionId,
+                });
+
+                // Build conversation from Convex (includes project context)
+                const conversation = await buildConversation();
+
+                // Stream from Convex HTTP endpoint
+                await streamFromConvex({
+                    clerkId,
+                    messageId,
+                    chatId,
+                    model: modelConfig.id,
+                    conversation,
+                    streamingSessionId,
+                    // No tools for MVP
+                    tools: undefined,
+                    onChunk: (_chunk) => {
+                        // Chunks are written to Convex by the HTTP action
+                        // The UI updates via reactive queries
+                        // We could add local optimistic updates here for faster feedback
+                    },
+                    onToolCall: undefined, // No tool calls for MVP
+                    onComplete: (hasToolCalls) => {
+                        if (hasToolCalls) {
+                            // MVP doesn't support tool calls, log warning
+                            console.warn(
+                                "[usePopulateBlockConvex] Tool calls not supported in MVP",
+                            );
+                        }
+                        // Message is already marked complete by the HTTP action
+                    },
+                    onError: async (errMsg) => {
+                        console.error(
+                            `[usePopulateBlockConvex] Streaming error: ${errMsg}`,
+                        );
+                        // Mark message as error
+                        await errorMessageMutation.mutateAsync({
+                            messageId,
+                            errorMessage: errMsg,
+                        });
+                    },
+                    signal: abortControllerRef.current.signal,
+                });
+
+                // Invalidate queries to ensure UI updates
+                await queryClient.invalidateQueries({
+                    queryKey: ["chats", chatId, "messageSets", "list"],
+                });
+
+                return { skipped: false };
+            } catch (error) {
+                console.error("[usePopulateBlockConvex] Error:", error);
+                return { skipped: true };
+            } finally {
+                setIsPending(false);
+                abortControllerRef.current = null;
+            }
+        },
+        [
+            clerkId,
+            chatId,
+            getSelectedModelConfigs,
+            buildConversation,
+            createAssistantMessage,
+            errorMessageMutation,
+            queryClient,
+        ],
+    );
+
+    // Cancel streaming
+    const cancel = useCallback(() => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+    }, []);
+
+    return {
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
+        isPending,
+        isIdle: !isPending,
+        cancel,
     };
 }

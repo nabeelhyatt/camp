@@ -56,8 +56,8 @@ export interface StreamFromConvexParams {
     onToolCall?: (calls: UserToolCall[]) => Promise<void>;
     /** Callback when streaming is complete */
     onComplete: (hasToolCalls: boolean) => void;
-    /** Callback for errors */
-    onError: (message: string) => void;
+    /** Callback for errors (can be async) */
+    onError: (message: string) => void | Promise<void>;
     /** AbortController signal for cancellation */
     signal?: AbortSignal;
 }
@@ -163,12 +163,12 @@ export async function streamFromConvex(
             } catch {
                 errorMessage = errorText || errorMessage;
             }
-            onError(errorMessage);
+            void onError(errorMessage);
             return;
         }
 
         if (!response.body) {
-            onError("No response body received");
+            void onError("No response body received");
             return;
         }
 
@@ -246,7 +246,7 @@ export async function streamFromConvex(
 
         const errorMessage =
             error instanceof Error ? error.message : "Unknown streaming error";
-        onError(errorMessage);
+        void onError(errorMessage);
     }
 }
 
@@ -259,7 +259,7 @@ function handleStreamEvent(
         onChunk: (chunk: string) => void;
         onToolCall?: (calls: UserToolCall[]) => Promise<void>;
         onComplete: (hasToolCalls: boolean) => void;
-        onError: (message: string) => void;
+        onError: (message: string) => void | Promise<void>;
     },
 ): void {
     switch (event.type) {
@@ -281,7 +281,7 @@ function handleStreamEvent(
             break;
 
         case "error":
-            handlers.onError(event.message || "Unknown error");
+            void handlers.onError(event.message || "Unknown error");
             break;
     }
 }

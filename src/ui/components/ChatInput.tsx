@@ -10,6 +10,7 @@ import {
 } from "./ManageModelsBox";
 import { MessageSetDetail } from "@core/chorus/ChatState";
 import * as MessageAPI from "@core/chorus/api/MessageAPI";
+import * as UnifiedMessageAPI from "@core/camp/api/UnifiedMessageAPI";
 import { useSettings } from "./hooks/useSettings";
 import { toast } from "sonner";
 import { usePostHog } from "posthog-js/react";
@@ -98,7 +99,7 @@ export function ChatInput({
 
     const attachmentsQuery = DraftAPI.useDraftAttachments(chatId);
     const convertDraftAttachmentsToMessageAttachments =
-        MessageAPI.useConvertDraftAttachmentsToMessageAttachments();
+        UnifiedMessageAPI.useConvertDraftAttachmentsToMessageAttachments();
     const removeAttachment = DraftAPI.useDeleteAttachmentFromDraft({ chatId });
     const deleteDraftAttachment = DraftAPI.useDeleteDraftAttachment();
     const fileDrop = useFileDrop({
@@ -168,14 +169,15 @@ export function ChatInput({
     const updateSelectedModelConfigsCompare =
         MessageAPI.useUpdateSelectedModelConfigsCompare();
 
-    const createMessageSetPair = MessageAPI.useCreateMessageSetPair();
-    const createMessage = MessageAPI.useCreateMessage();
-    const forceRefreshMessageSets = MessageAPI.useForceRefreshMessageSets();
-    const generateChatTitle = MessageAPI.useGenerateChatTitle();
+    const createMessageSetPair = UnifiedMessageAPI.useCreateMessageSetPair();
+    const createMessage = UnifiedMessageAPI.useCreateMessage();
+    const forceRefreshMessageSets =
+        UnifiedMessageAPI.useForceRefreshMessageSets();
+    const generateChatTitle = UnifiedMessageAPI.useGenerateChatTitle();
     const markProjectContextSummaryAsStale =
         ProjectAPI.useMarkProjectContextSummaryAsStale();
 
-    const populateBlock = MessageAPI.usePopulateBlock(
+    const populateBlock = UnifiedMessageAPI.usePopulateBlock(
         chatId,
         isQuickChatWindow,
     );

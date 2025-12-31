@@ -110,8 +110,11 @@ import {
 import { readFile } from "@tauri-apps/plugin-fs";
 import { filterReplyMessageSets } from "@ui/lib/replyUtils";
 import * as MessageAPI from "@core/chorus/api/MessageAPI";
+import * as UnifiedMessageAPI from "@core/camp/api/UnifiedMessageAPI";
 import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
 import * as ProjectAPI from "@core/camp/api/UnifiedProjectAPI";
+import { isSQLiteId } from "@core/camp/api/convexTypes";
+import { campConfig } from "@core/campConfig";
 import * as ModelsAPI from "@core/chorus/api/ModelsAPI";
 import * as AttachmentsAPI from "@core/chorus/api/AttachmentsAPI";
 import * as DraftAPI from "@core/chorus/api/DraftAPI";
@@ -159,7 +162,7 @@ function ContextLimitError({ chatId }: { chatId: string }) {
     const [isSummarizing, setIsSummarizing] = useState(false);
     const summarizeChat = MessageAPI.useSummarizeChat();
     const chatQuery = ChatAPI.useChat(chatId);
-    const messageSetsQuery = MessageAPI.useMessageSets(chatId);
+    const messageSetsQuery = UnifiedMessageAPI.useMessageSets(chatId);
     const createNewChat = ChatAPI.useCreateNewChat();
     const createAttachment = AttachmentsAPI.useCreateAttachment();
     const finalizeAttachmentForDraft = DraftAPI.useFinalizeAttachmentForDraft();
@@ -1099,7 +1102,7 @@ export function ToolsReplyCountView({
     const chatQuery = ChatAPI.useChat(replyChatId);
     // TODO: we _could_ make this more efficient by just fetching the count - but we do re-use this exact query when rendering replies
     // and query this conservatively (only if replyChatId is not null)
-    const messageSetsQuery = MessageAPI.useMessageSets(replyChatId);
+    const messageSetsQuery = UnifiedMessageAPI.useMessageSets(replyChatId);
 
     const replyCount = useMemo(() => {
         console.log(messageSetsQuery.data, chatQuery.data);
@@ -1609,7 +1612,10 @@ const MessageSetView = memo(
     }: MessageSetViewProps) => {
         const { chatId } = useParams();
 
-        const messageSetQuery = MessageAPI.useMessageSet(chatId!, messageSetId);
+        const messageSetQuery = UnifiedMessageAPI.useMessageSet(
+            chatId!,
+            messageSetId,
+        );
 
         if (messageSetQuery.isPending) {
             return <RetroSpinner />;
@@ -1620,7 +1626,13 @@ const MessageSetView = memo(
 
         const messageSet = messageSetQuery.data?.[0];
 
-        if (messageSet?.selectedBlockType === "compare" && isQuickChatWindow) {
+        // Guard against undefined messageSet (can happen when Convex mode is enabled
+        // but the chat/messages don't exist in Convex yet)
+        if (!messageSet) {
+            return <RetroSpinner />;
+        }
+
+        if (messageSet.selectedBlockType === "compare" && isQuickChatWindow) {
             console.error(
                 "Error: shouldn't render compare block in quick chat window",
             );
@@ -1722,7 +1734,7 @@ export default function MultiChat() {
     const navigate = useNavigate();
     const location = useLocation();
     const appMetadata = useWaitForAppMetadata();
-    const messageSetsQuery = MessageAPI.useMessageSets(chatId);
+    const messageSetsQuery = UnifiedMessageAPI.useMessageSets(chatId ?? "");
     const [searchParams] = useSearchParams();
 
     // Extract replyId from query parameters
@@ -1828,6 +1840,13 @@ export default function MultiChat() {
     useEffect(() => {
         if (!chatId) {
             console.error("no chatId, navigating home");
+            navigate("/");
+        } else if (campConfig.useConvexData && isSQLiteId(chatId)) {
+            // In Convex mode, SQLite chat IDs can't be loaded
+            // Navigate home to create a new Convex chat
+            console.warn(
+                `SQLite chat ID ${chatId} cannot be loaded in Convex mode. Navigating home.`,
+            );
             navigate("/");
         } else if (chatQuery.isError) {
             console.warn(
@@ -2647,7 +2666,7 @@ function MainScrollableContentView({
     const { chatId } = useParams();
     const { isQuickChatWindow } = useAppContext();
 
-    const messageSetsQuery = MessageAPI.useMessageSets(chatId);
+    const messageSetsQuery = UnifiedMessageAPI.useMessageSets(chatId ?? "");
 
     const manageScrollBottomButton = useCallback(() => {
         const container = chatContainerRef.current;
@@ -2757,7 +2776,7 @@ function MainScrollableContentView({
         return <div>Error: {messageSetsQuery.error.message}</div>;
     }
 
-    const messageSets = messageSetsQuery.data;
+    const messageSets = messageSetsQuery.data ?? [];
 
     function renderMessageSet(
         ms: MessageSetDetail,
@@ -2776,18 +2795,24 @@ function MainScrollableContentView({
         );
     }
 
-    let lastUserSet;
-    let lastAISet;
-    let otherMessageSets;
+    let lastUserSet: MessageSetDetail | null;
+    let lastAISet: MessageSetDetail | null;
+    let otherMessageSets: MessageSetDetail[];
     if (messageSets.length === 0) {
         lastUserSet = null;
         lastAISet = null;
         otherMessageSets = messageSets;
-    } else if (messageSets[messageSets.length - 1].type === "user") {
+    } else if (messageSets[messageSets.length - 1]?.type === "user") {
         lastUserSet = messageSets[messageSets.length - 1];
         lastAISet = null;
         otherMessageSets = messageSets.slice(0, -1);
+    } else if (messageSets.length === 1) {
+        // Only one AI message set - no user set before it
+        lastUserSet = null;
+        lastAISet = messageSets[0];
+        otherMessageSets = [];
     } else {
+        // messageSets.length >= 2 and last is AI
         lastUserSet = messageSets[messageSets.length - 2];
         lastAISet = messageSets[messageSets.length - 1];
         otherMessageSets = messageSets.slice(0, -2);

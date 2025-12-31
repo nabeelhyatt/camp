@@ -21,6 +21,7 @@ import {
     useDeleteProjectConvex,
     useToggleProjectIsCollapsedConvex,
     useAutoSyncProjectContextTextConvex,
+    useGetProjectContextLLMMessageConvex,
     projectKeys,
     projectQueries,
 } from "./ProjectAPIConvex";
@@ -34,10 +35,10 @@ import {
     fetchProject,
     // Re-export hooks that don't yet have Convex equivalents
     useAutoSyncProjectContextText as useAutoSyncProjectContextTextSQLite,
-    useGetProjectContextLLMMessage,
+    useGetProjectContextLLMMessage as useGetProjectContextLLMMessageSQLite,
     useSetMagicProjectsEnabled,
-    useMarkProjectContextSummaryAsStale,
-    useRegenerateProjectContextSummaries,
+    useMarkProjectContextSummaryAsStale as useMarkProjectContextSummaryAsStaleSQLite,
+    useRegenerateProjectContextSummaries as useRegenerateProjectContextSummariesSQLite,
     useDeleteAttachmentFromProject,
     useFinalizeAttachmentForProject,
     useSetChatProject as useSetChatProjectSQLite,
@@ -52,10 +53,7 @@ import { useQuery } from "@tanstack/react-query";
 
 // Re-export hooks that don't yet have Convex equivalents (for backwards compatibility)
 export {
-    useGetProjectContextLLMMessage,
     useSetMagicProjectsEnabled,
-    useMarkProjectContextSummaryAsStale,
-    useRegenerateProjectContextSummaries,
     useDeleteAttachmentFromProject,
     useFinalizeAttachmentForProject,
     projectContextQueries,
@@ -64,6 +62,62 @@ export {
     type Project,
     type Projects,
 };
+
+/**
+ * Mark project context summary as stale
+ *
+ * NOTE: This is not yet implemented for Convex. In Convex mode, this is a no-op
+ * to avoid calling the SQLite layer with Convex chat IDs.
+ */
+export function useMarkProjectContextSummaryAsStale() {
+    if (campConfig.useConvexData) {
+        return {
+            mutateAsync: async (_args: { chatId: string }) => {},
+            mutate: (_args: { chatId: string }) => {},
+            isLoading: false,
+            isPending: false,
+            isIdle: true,
+        };
+    }
+
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useMarkProjectContextSummaryAsStaleSQLite();
+}
+
+/**
+ * Regenerate project context summaries
+ *
+ * NOTE: This is not yet implemented for Convex. In Convex mode, this is a no-op
+ * to avoid calling the SQLite layer with Convex chat IDs.
+ */
+export function useRegenerateProjectContextSummaries() {
+    if (campConfig.useConvexData) {
+        return {
+            mutateAsync: async (_args: { chatId: string }) => {},
+            mutate: (_args: { chatId: string }) => {},
+            isLoading: false,
+            isPending: false,
+            isIdle: true,
+        };
+    }
+
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useRegenerateProjectContextSummariesSQLite();
+}
+
+/**
+ * Get project context for LLM conversations
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
+ */
+export function useGetProjectContextLLMMessage() {
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useGetProjectContextLLMMessageConvex();
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useGetProjectContextLLMMessageSQLite();
+}
 
 // Re-export query keys for cache compatibility
 export { projectKeys, projectQueries };

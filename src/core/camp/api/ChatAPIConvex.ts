@@ -217,7 +217,12 @@ export function useGetOrCreateNewChatConvex() {
             }
 
             if (!clerkId || !workspaceId) {
-                throw new Error("Not authenticated or no active workspace");
+                // Context not ready yet - this can happen during initial load
+                // Don't throw, just log and return. The component will retry when ready.
+                console.log(
+                    "[useGetOrCreateNewChatConvex] Waiting for auth context...",
+                );
+                return;
             }
 
             isPendingRef.current = true;
@@ -289,7 +294,12 @@ export function useGetOrCreateNewQuickChatConvex() {
         }
 
         if (!clerkId || !workspaceId) {
-            throw new Error("Not authenticated or no active workspace");
+            // Context not ready yet - this can happen during initial load
+            // Don't throw, just log and return. The component will retry when ready.
+            console.log(
+                "[useGetOrCreateNewQuickChatConvex] Waiting for auth context...",
+            );
+            return;
         }
 
         setStatus("pending");

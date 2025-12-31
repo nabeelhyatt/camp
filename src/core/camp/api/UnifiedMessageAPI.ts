@@ -20,13 +20,24 @@ import {
     useCompleteMessageConvex,
     useErrorMessageConvex,
     useDeleteMessageConvex,
+    useCreateMessageSetPairConvex,
+    useCreateMessageConvex,
+    usePopulateBlockConvex,
+} from "./MessageAPIConvex";
+import {
+    convertConvexToMessageSetDetails,
     ConvexMessageSet,
     ConvexMessage,
     ConvexMessagePart,
-} from "./MessageAPIConvex";
+} from "./convexTypes";
+import * as MessageAPI from "@core/chorus/api/MessageAPI";
+import type { MessageSetDetail } from "@core/chorus/ChatState";
 
 // Re-export types for convenience
 export type { ConvexMessageSet, ConvexMessage, ConvexMessagePart };
+
+// Re-export conversion function for external use
+export { convertConvexToMessageSetDetails };
 
 // ============================================================
 // Query Hooks
@@ -56,6 +67,83 @@ export function useMessageSetsQuery(chatId: string | undefined) {
         isError: false,
         error: null,
     };
+}
+
+/**
+ * Unified hook to list message sets, compatible with both SQLite and Convex
+ *
+ * Returns the same shape as MessageAPI.useMessageSets for drop-in replacement.
+ * When useConvexData=true, transforms Convex data to MessageSetDetail format.
+ */
+export function useMessageSets(
+    chatId: string,
+    select?: (data: MessageSetDetail[]) => MessageSetDetail[],
+) {
+    // Always call both hooks (React rules)
+    const sqliteResult = MessageAPI.useMessageSets(chatId, select);
+    const convexResult = useMessageSetsQueryConvex(chatId);
+
+    if (campConfig.useConvexData) {
+        // Transform Convex data to MessageSetDetail format
+        console.log(
+            "[useMessageSets] Convex result:",
+            convexResult.data?.length,
+            "sets",
+        );
+        const transformedData = convexResult.data
+            ? convertConvexToMessageSetDetails(convexResult.data)
+            : undefined;
+        console.log(
+            "[useMessageSets] Transformed:",
+            transformedData?.length,
+            "sets",
+        );
+
+        // Apply select function if provided
+        const finalData =
+            transformedData && select
+                ? select(transformedData)
+                : transformedData;
+
+        // Return a TanStack Query-like result shape
+        return {
+            data: finalData,
+            isLoading: convexResult.isLoading,
+            isError: convexResult.isError,
+            error: convexResult.error,
+            isPending: convexResult.isLoading,
+            isSuccess: !convexResult.isLoading && !convexResult.isError,
+            status: convexResult.isLoading
+                ? ("pending" as const)
+                : convexResult.isError
+                  ? ("error" as const)
+                  : ("success" as const),
+            // These are used by some components - Convex is reactive so refetch is a no-op
+            // that returns current data (no manual refresh needed, subscriptions auto-update)
+            refetch: () => Promise.resolve({ data: finalData }),
+            isFetching: false,
+            isRefetching: false,
+        };
+    }
+
+    return sqliteResult;
+}
+
+/**
+ * Hook to get a single message set by ID
+ *
+ * This is a filtered version of useMessageSets that returns just one set.
+ * Returns the same shape as MessageAPI.useMessageSet for drop-in replacement.
+ */
+export function useMessageSet(chatId: string, messageSetId: string) {
+    // Use the unified useMessageSets with a select filter
+    return useMessageSets(chatId, (data) => {
+        const set = data.find((m) => m.id === messageSetId);
+        if (!set) {
+            return [];
+        }
+        return [set];
+    });
 }
 
 /**
@@ -258,4 +346,117 @@ export function useDeleteMessage() {
         isPending: false,
         isIdle: true,
     };
+}
+
+// ============================================================
+// Higher-Level Mutation Hooks (for ChatInput.tsx)
+// ============================================================
+
+/**
+ * Create a message set pair (user + AI message sets)
+ * This is used by ChatInput.tsx to create both message sets at once
+ */
+export function useCreateMessageSetPair() {
+    const convexHook = useCreateMessageSetPairConvex();
+
+    const sqliteHook = MessageAPI.useCreateMessageSetPair();
+
+    if (campConfig.useConvexData) {
+        return convexHook;
+    }
+
+    return sqliteHook;
+}
+
+/**
+ * Create a message (user or AI)
+ * This is used by ChatInput.tsx to create messages
+ */
+export function useCreateMessage() {
+    const convexHook = useCreateMessageConvex();
+
+    const sqliteHook = MessageAPI.useCreateMessage();
+
+    if (campConfig.useConvexData) {
+        return convexHook;
+    }
+
+    return sqliteHook;
+}
+
+/**
+ * Force refresh message sets
+ * For Convex, this is a no-op since Convex is reactive.
+ * For SQLite, it invalidates the query cache.
+ */
+export function useForceRefreshMessageSets() {
+    const sqliteHook = MessageAPI.useForceRefreshMessageSets();
+
+    if (campConfig.useConvexData) {
+        // Convex is reactive, so no need to force refresh
+        // Return a no-op function with the same signature
+        return (_chatId: string) => {
+            // No-op for Convex - data is automatically synced
+            return Promise.resolve([]);
+        };
+    }
+
+    return sqliteHook;
+}
+
+/**
+ * Generate chat title
+ * This is used after sending a message to auto-generate a title
+ */
+export function useGenerateChatTitle() {
+    if (campConfig.useConvexData) {
+        // Convex chat titles are not yet implemented - no-op to avoid SQLite lookups
+        return {
+            mutateAsync: (_args: { chatId: string }) =>
+                Promise.resolve({ skipped: true }),
+            mutate: (_args: { chatId: string }) => {},
+            isPending: false,
+            isIdle: true,
+            isLoading: false,
+        };
+    }
+
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return MessageAPI.useGenerateChatTitle();
+}
+
+/**
+ * Populate a block with AI responses
+ * This is the main hook that triggers AI streaming
+ *
+ * When useConvexData=true:
+ * - Creates assistant message in Convex
+ * - Streams via Convex HTTP action
+ * - Writes content to Convex periodically for real-time sync
+ *
+ * MVP limitations:
+ * - Single model only (no compare mode)
+ * - No tool calls (deferred to post-MVP)
+ */
+export function usePopulateBlock(chatId: string, isQuickChatWindow: boolean) {
+    // Note: Both hooks must be called unconditionally to satisfy React rules
+    const sqliteHook = MessageAPI.usePopulateBlock(chatId, isQuickChatWindow);
+    const convexHook = usePopulateBlockConvex(chatId, isQuickChatWindow);
+
+    if (campConfig.useConvexData) {
+        return convexHook;
+    }
+
+    return sqliteHook;
+}
+
+/**
+ * Convert draft attachments to message attachments
+ * This is used after creating a message to associate attachments
+ */
+export function useConvertDraftAttachmentsToMessageAttachments() {
+    // For now, both paths use the SQLite version since attachments
+    // aren't migrated to Convex yet
+
+    return MessageAPI.useConvertDraftAttachmentsToMessageAttachments();
 }

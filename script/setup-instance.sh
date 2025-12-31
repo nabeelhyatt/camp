@@ -91,7 +91,48 @@ else
 fi
 
 # ============================================
-# Step 4: Create Application Support directory
+# Step 4: Sync Convex environment variables
+# ============================================
+# The Convex backend needs its own env vars (separate from Vite)
+# This syncs default API keys from .env to Convex
+echo ""
+echo "Syncing environment variables to Convex..."
+
+# Map of Vite env vars to Convex env vars
+declare -A CONVEX_ENV_MAPPINGS=(
+    ["VITE_DEFAULT_OPENROUTER_KEY"]="DEFAULT_OPENROUTER_KEY"
+    ["VITE_DEFAULT_OPENAI_KEY"]="DEFAULT_OPENAI_KEY"
+    ["VITE_DEFAULT_ANTHROPIC_KEY"]="DEFAULT_ANTHROPIC_KEY"
+    ["VITE_DEFAULT_GOOGLE_KEY"]="DEFAULT_GOOGLE_KEY"
+    ["VITE_DEFAULT_PERPLEXITY_KEY"]="DEFAULT_PERPLEXITY_KEY"
+    ["VITE_DEFAULT_GROK_KEY"]="DEFAULT_GROK_KEY"
+)
+
+CONVEX_SYNCED=0
+for VITE_VAR in "${!CONVEX_ENV_MAPPINGS[@]}"; do
+    CONVEX_VAR="${CONVEX_ENV_MAPPINGS[$VITE_VAR]}"
+    # Extract value from .env (handle quotes and whitespace)
+    VALUE=$(grep -m1 -E "^[[:space:]]*${VITE_VAR}=" "$REPO_DIR/.env" 2>/dev/null | sed 's/.*=//' | tr -d '"' | tr -d "'" | tr -d '[:space:]')
+
+    if [ -n "$VALUE" ]; then
+        # Set in Convex (suppress output for cleaner logs)
+        if npx convex env set "$CONVEX_VAR" "$VALUE" >/dev/null 2>&1; then
+            echo "  ✓ $CONVEX_VAR synced"
+            CONVEX_SYNCED=$((CONVEX_SYNCED + 1))
+        else
+            echo "  ⚠ Failed to sync $CONVEX_VAR (Convex not configured?)"
+        fi
+    fi
+done
+
+if [ $CONVEX_SYNCED -gt 0 ]; then
+    echo "✓ $CONVEX_SYNCED Convex env vars synced"
+else
+    echo "⚠ No API keys found in .env to sync to Convex"
+fi
+
+# ============================================
+# Step 5: Create Application Support directory
 # ============================================
 APP_SUPPORT_DIR="$HOME/Library/Application Support"
 INSTANCE_DIR="$APP_SUPPORT_DIR/$IDENTIFIER"
@@ -105,7 +146,7 @@ else
 fi
 
 # ============================================
-# Step 5: Copy auth.dat if available
+# Step 6: Copy auth.dat if available
 # ============================================
 SOURCE_AUTH="$APP_SUPPORT_DIR/ai.getcamp.app.dev/auth.dat"
 if [ -f "$SOURCE_AUTH" ]; then
@@ -117,7 +158,7 @@ else
 fi
 
 # ============================================
-# Step 6: Copy chats.db if available
+# Step 7: Copy chats.db if available
 # ============================================
 SOURCE_CHATS="$APP_SUPPORT_DIR/ai.getcamp.app.dev/chats.db"
 if [ -f "$SOURCE_CHATS" ]; then
@@ -132,7 +173,7 @@ else
 fi
 
 # ============================================
-# Step 7: Generate custom icon (optional)
+# Step 8: Generate custom icon (optional)
 # ============================================
 if command -v magick >/dev/null 2>&1; then
     echo ""
