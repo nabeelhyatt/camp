@@ -129,6 +129,23 @@ export function useMessageSets(
 }
 
 /**
+ * Hook to get a single message set by ID
+ *
+ * This is a filtered version of useMessageSets that returns just one set.
+ * Returns the same shape as MessageAPI.useMessageSet for drop-in replacement.
+ */
+export function useMessageSet(chatId: string, messageSetId: string) {
+    // Use the unified useMessageSets with a select filter
+    return useMessageSets(chatId, (data) => {
+        const set = data.find((m) => m.id === messageSetId);
+        if (!set) {
+            return [];
+        }
+        return [set];
+    });
+}
+
+/**
  * Hook to get a single message with parts
  */
 export function useMessageQuery(messageId: string | undefined) {

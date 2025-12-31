@@ -1612,7 +1612,10 @@ const MessageSetView = memo(
     }: MessageSetViewProps) => {
         const { chatId } = useParams();
 
-        const messageSetQuery = MessageAPI.useMessageSet(chatId!, messageSetId);
+        const messageSetQuery = UnifiedMessageAPI.useMessageSet(
+            chatId!,
+            messageSetId,
+        );
 
         if (messageSetQuery.isPending) {
             return <RetroSpinner />;
