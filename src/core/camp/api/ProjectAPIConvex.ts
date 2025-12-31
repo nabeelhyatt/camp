@@ -6,8 +6,8 @@
  * the SQLite-based ProjectAPI for seamless switching.
  */
 
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useState, useEffect, useCallback } from "react";
+import { useQuery, useMutation, useConvex } from "convex/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "@convex/_generated/api";
@@ -434,39 +434,64 @@ import type { LLMMessage } from "@core/chorus/Models";
  * Convex version of useGetProjectContextLLMMessage
  *
  * Returns a function that builds LLM context messages from project data.
- * MVP version: Returns project context text only (no chat summaries).
+ * Uses the Convex client to fetch project data imperatively.
  */
 export function useGetProjectContextLLMMessageConvex(): (
     projectId: string,
     chatId: string,
 ) => Promise<LLMMessage[]> {
     const { clerkId } = useWorkspaceContext();
+    const convex = useConvex();
 
-    return (projectId: string, _chatId: string) => {
-        // Skip sentinel project IDs
-        if (isSentinelProjectId(projectId)) {
-            return Promise.resolve([]);
-        }
+    return useCallback(
+        async (projectId: string, _chatId: string): Promise<LLMMessage[]> => {
+            // Skip sentinel project IDs (like "default" or "quick-chat")
+            if (isSentinelProjectId(projectId)) {
+                return [];
+            }
 
-        if (!clerkId) {
-            console.warn(
-                "[useGetProjectContextLLMMessageConvex] No clerkId, skipping project context",
-            );
-            return Promise.resolve([]);
-        }
+            if (!clerkId) {
+                console.warn(
+                    "[useGetProjectContextLLMMessageConvex] No clerkId, skipping project context",
+                );
+                return [];
+            }
 
-        // For Convex, we use the reactive query data from useProjectQueryConvex
-        // But since this is called imperatively, we need to fetch directly
-        // For MVP, return empty - the project context will be loaded reactively
-        // and passed through buildConversation in usePopulateBlockConvex
+            try {
+                // Fetch project data from Convex
+                const project = await convex.query(api.projects.get, {
+                    clerkId,
+                    projectId: stringToConvexIdStrict<"projects">(projectId),
+                });
 
-        // TODO: Implement proper Convex fetch for project context
-        // For now, return empty to unblock message sending
-        console.log(
-            `[useGetProjectContextLLMMessageConvex] Project context for ${projectId} - MVP returns empty`,
-        );
-        return Promise.resolve([]);
-    };
+                if (!project || !project.contextText) {
+                    console.log(
+                        `[useGetProjectContextLLMMessageConvex] No context text for project ${projectId}`,
+                    );
+                    return [];
+                }
+
+                // Build the LLM message with project context
+                const contextMessage: LLMMessage = {
+                    role: "user",
+                    content: `<project_context>\n${project.contextText}\n</project_context>`,
+                };
+
+                console.log(
+                    `[useGetProjectContextLLMMessageConvex] Added project context (${project.contextText.length} chars)`,
+                );
+
+                return [contextMessage];
+            } catch (error) {
+                console.error(
+                    "[useGetProjectContextLLMMessageConvex] Error fetching project:",
+                    error,
+                );
+                return [];
+            }
+        },
+        [clerkId, convex],
+    );
 }
 
 // ============================================================
