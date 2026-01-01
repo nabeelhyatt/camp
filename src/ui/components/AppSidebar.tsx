@@ -58,6 +58,7 @@ import {
 } from "./ui/dialog";
 import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
 import * as ProjectAPI from "@core/camp/api/UnifiedProjectAPI";
+import { campConfig } from "@core/campConfig";
 import RetroSpinner from "./ui/retro-spinner";
 import FeedbackButton from "./FeedbackButton";
 import { SpeakerLoudIcon } from "@radix-ui/react-icons";
@@ -387,6 +388,19 @@ export function AppSidebarInner() {
     const updateChatProject = ProjectAPI.useSetChatProject();
     const getOrCreateNewChat = ChatAPI.useGetOrCreateNewChat();
 
+    // Phase 2: Private forks for multiplayer
+    const privateForksQuery = ChatAPI.usePrivateForksQuery();
+    const privateForks = useMemo(
+        () =>
+            (privateForksQuery.data ?? []).map((fork) => ({
+                id: fork.id,
+                title: fork.title || "Private exploration",
+                parentChat: fork.parentChat,
+                updatedAt: new Date(fork.updatedAt).getTime(),
+            })),
+        [privateForksQuery.data],
+    );
+
     const [showAllChats, setShowAllChats] = useState(false);
 
     const sensors = useSensors(
@@ -616,8 +630,11 @@ export function AppSidebarInner() {
                                 {/* SHARED SECTION - Coming soon (Phase 4) */}
                                 <SharedSection enabled={false} />
 
-                                {/* PRIVATE SECTION - Coming soon (Phase 2) */}
-                                <PrivateSection enabled={false} />
+                                {/* PRIVATE SECTION - Phase 2: Private forks */}
+                                <PrivateSection
+                                    enabled={campConfig.useConvexData}
+                                    privateForks={privateForks}
+                                />
                             </SidebarMenu>
                         </SidebarGroupContent>
                     </SidebarGroup>

@@ -14,12 +14,14 @@ import { api } from "@convex/_generated/api";
 import { useWorkspaceContext } from "./useWorkspaceHooks";
 import {
     convexChatToChat,
+    convexChatToConvexChat,
     convexChatsToChats,
     stringToConvexId,
     isSentinelProjectId,
     isQuickChatByProjectId,
     stringToConvexIdStrict,
     isSQLiteId,
+    type ConvexChat,
 } from "./convexTypes";
 import { chatQueries } from "@core/chorus/api/ChatAPI";
 import { campConfig } from "@core/campConfig";
@@ -82,8 +84,17 @@ export function useChatsQueryConvex(options?: { projectId?: string }) {
 
 /**
  * Hook to get a single chat by ID
+ * Returns ConvexChat which includes multiplayer fields (visibility, forkDepth, etc.)
  */
-export function useChatQueryConvex(chatId: string | undefined) {
+export function useChatQueryConvex(chatId: string | undefined): {
+    data: ConvexChat | undefined;
+    isLoading: boolean;
+    isError: boolean;
+    error: null;
+    isSuccess: boolean;
+    status: "pending" | "success" | "idle";
+    isSQLiteChat: boolean;
+} {
     const { clerkId } = useWorkspaceContext();
 
     // Skip Convex queries when not using Convex data layer
@@ -99,7 +110,8 @@ export function useChatQueryConvex(chatId: string | undefined) {
             : "skip",
     );
 
-    const data = result ? convexChatToChat(result) : undefined;
+    // Use convexChatToConvexChat to include multiplayer fields (visibility, forkDepth, etc.)
+    const data = result ? convexChatToConvexChat(result) : undefined;
     const isLoading = result === undefined && !!chatId && !isSqliteChat;
 
     return {

@@ -63,6 +63,9 @@ export {
     type Chat,
 };
 
+// Re-export ConvexChat type for multiplayer features
+export type { ConvexChat } from "./convexTypes";
+
 // Re-export useChat as alias to useChatQuery (for backwards compatibility)
 // UI code can continue using useChat or switch to useChatQuery
 export { useChatQuery as useChat };
