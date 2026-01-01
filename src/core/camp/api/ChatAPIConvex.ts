@@ -573,6 +573,14 @@ export function useGenerateChatTitleConvex() {
             setIsPending(true);
 
             try {
+                // Guard against SQLite IDs in Convex context
+                if (isSQLiteId(args.chatId)) {
+                    console.warn(
+                        "[useGenerateChatTitleConvex] SQLite chatId in Convex context, skipping",
+                        args.chatId,
+                    );
+                    return { skipped: true };
+                }
                 const chatId = stringToConvexIdStrict<"chats">(args.chatId);
 
                 // Check if chat already has a title

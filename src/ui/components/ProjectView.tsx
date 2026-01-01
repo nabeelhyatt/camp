@@ -305,7 +305,10 @@ export default function ProjectView() {
                         }}
                         onBlur={() => {
                             // Allow server sync again after user finishes editing
-                            hasUserEditedRef.current = false;
+                            // Delay reset to ensure 250ms debounce has flushed
+                            setTimeout(() => {
+                                hasUserEditedRef.current = false;
+                            }, 300);
                         }}
                         onKeyDown={(e) => {
                             if (e.key === "Enter") {
