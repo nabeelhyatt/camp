@@ -1558,8 +1558,8 @@ export default function Settings({ tab = "general" }: SettingsProps) {
 
             <div className="h-full flex">
                 {/* Settings Sidebar */}
-                <div className="w-52 bg-sidebar p-4 overflow-y-auto border-r">
-                    <div className="flex flex-col gap-1">
+                <div className="w-52 bg-sidebar p-4 overflow-y-auto border-r flex flex-col">
+                    <div className="flex flex-col gap-1 flex-1">
                         {Object.entries(TABS).map(
                             ([id, { label, icon: Icon }]) => (
                                 <button
@@ -1592,6 +1592,72 @@ export default function Settings({ tab = "general" }: SettingsProps) {
                                 </button>
                             ),
                         )}
+                    </div>
+
+                    {/* Built with section */}
+                    <div className="pt-4 mt-4 border-t border-border">
+                        <p className="text-xs text-muted-foreground mb-2">
+                            Built with
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={() =>
+                                            void openUrl(
+                                                "https://anthropic.com",
+                                            )
+                                        }
+                                        className="group p-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
+                                    >
+                                        <RiClaudeFill className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    Anthropic
+                                </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={() =>
+                                            void openUrl("https://convex.dev")
+                                        }
+                                        className="group p-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
+                                    >
+                                        <img
+                                            src="/convex.svg"
+                                            alt="Convex"
+                                            className="w-5 h-5 opacity-60 group-hover:opacity-100 transition-opacity"
+                                        />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    Convex
+                                </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={() =>
+                                            void openUrl(
+                                                "https://conductor.build",
+                                            )
+                                        }
+                                        className="group p-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
+                                    >
+                                        <img
+                                            src="/conductor.png"
+                                            alt="Conductor"
+                                            className="w-5 h-5 opacity-60 group-hover:opacity-100 transition-opacity"
+                                        />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    Conductor
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
                     </div>
                 </div>
 
