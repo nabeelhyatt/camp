@@ -1608,9 +1608,9 @@ export default function Settings({ tab = "general" }: SettingsProps) {
                                                 "https://anthropic.com",
                                             )
                                         }
-                                        className="p-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
+                                        className="group p-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
                                     >
-                                        <RiClaudeFill className="w-5 h-5 text-muted-foreground hover:text-foreground" />
+                                        <RiClaudeFill className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
@@ -1623,12 +1623,12 @@ export default function Settings({ tab = "general" }: SettingsProps) {
                                         onClick={() =>
                                             void openUrl("https://convex.dev")
                                         }
-                                        className="p-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
+                                        className="group p-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
                                     >
                                         <img
                                             src="/convex.svg"
                                             alt="Convex"
-                                            className="w-5 h-5 opacity-60 hover:opacity-100"
+                                            className="w-5 h-5 opacity-60 group-hover:opacity-100 transition-opacity"
                                         />
                                     </button>
                                 </TooltipTrigger>
@@ -1644,12 +1644,12 @@ export default function Settings({ tab = "general" }: SettingsProps) {
                                                 "https://conductor.build",
                                             )
                                         }
-                                        className="p-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
+                                        className="group p-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
                                     >
                                         <img
                                             src="/conductor.png"
                                             alt="Conductor"
-                                            className="w-5 h-5 opacity-60 hover:opacity-100"
+                                            className="w-5 h-5 opacity-60 group-hover:opacity-100 transition-opacity"
                                         />
                                     </button>
                                 </TooltipTrigger>
