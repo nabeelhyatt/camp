@@ -376,6 +376,9 @@ export const completeMessage = mutation({
     args: {
         clerkId: v.string(),
         messageId: v.id("messages"),
+        status: v.optional(
+            v.union(v.literal("complete"), v.literal("stopped")),
+        ),
     },
     handler: async (ctx, args) => {
         const user = await getUserByClerkIdOrThrow(ctx, args.clerkId);
@@ -390,7 +393,7 @@ export const completeMessage = mutation({
         await assertCanAccessChat(ctx, message.chatId, user._id);
 
         await ctx.db.patch(args.messageId, {
-            status: "complete",
+            status: args.status ?? "complete",
             streamingSessionId: undefined,
             updatedAt: Date.now(),
         });

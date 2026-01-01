@@ -2,87 +2,162 @@
 
 ## Current Status (December 2024)
 
-**TL;DR: User messages flow to Convex, AI responses still go to SQLite. Need to implement `usePopulateBlockConvex` to complete the circuit.**
+**TL;DR: Full message flow now works via Convex! User messages AND AI responses stream through Convex with real-time sync to other clients.**
 
 ### What's DONE ✅
 
 **Backend (Convex):**
 
--   `convex/schema.ts` - Full schema with messages, messageSets, messageParts
+-   `convex/schema.ts` - Full schema with messages, messageSets, messageParts, soft deletes, fork provenance
 -   `convex/lib/permissions.ts` - Access control with `assertCanAccessChat`
--   `convex/messages.ts` - CRUD for messages, sets, parts
--   `convex/chats.ts` - Chat creation, deletion, renaming
--   `convex/projects.ts` - Project CRUD
--   `convex/streaming.ts` - HTTP action for SSE streaming (has security bugs - see below)
+-   `convex/messages.ts` - CRUD for messages, sets, parts with author snapshots
+-   `convex/chats.ts` - Chat creation, deletion, renaming, private forks
+-   `convex/projects.ts` - Project CRUD with context text
+-   `convex/streaming.ts` - HTTP action for SSE streaming with security checks
 -   `convex/http.ts` - Routes for /stream endpoint
 -   `convex/lib/featureFlags.ts` - Runtime feature flags
--   `convex/lib/audit.ts` - Audit logging helper (not wired up yet)
+-   `convex/lib/audit.ts` - Audit logging helper (foundation in place)
 
-**Frontend:**
+**Frontend (Phase 1 + 1.5 Complete):**
 
--   `src/core/camp/api/UnifiedMessageAPI.ts` - Branching logic for Convex vs SQLite
--   `src/core/camp/api/MessageAPIConvex.ts` - Convex mutations for messages
--   `src/core/camp/api/ConvexStreamingClient.ts` - SSE client (exists but not used)
--   `src/ui/components/ChatInput.tsx` - Now uses UnifiedMessageAPI
+-   `src/core/camp/api/UnifiedMessageAPI.ts` - Full Convex vs SQLite branching
+-   `src/core/camp/api/MessageAPIConvex.ts` - Full streaming with stop support
+-   `src/core/camp/api/ConvexStreamingClient.ts` - SSE client (now integrated)
+-   `src/core/camp/api/ChatAPIConvex.ts` - Chat title generation
+-   `src/ui/components/ChatInput.tsx` - Uses UnifiedMessageAPI
+-   `src/ui/components/MultiChat.tsx` - MessageAttribution integrated
 -   Sidebar 3-tier structure (Team/Shared/Private)
--   MessageAttribution component (built but not integrated)
 
-### What's BROKEN ❌
+### What's Working ✅
 
-1. **AI responses go to SQLite, not Convex**
+1. **Full message flow via Convex**
 
-    - `usePopulateBlock()` in UnifiedMessageAPI returns SQLite hook with warning
-    - User sends message → goes to Convex ✅
-    - AI responds → goes to SQLite ❌
-    - Result: Other users don't see AI responses
+    - User sends message → Convex ✅
+    - AI streams response → Convex HTTP action → SSE → periodic DB writes ✅
+    - Real-time sync to other clients ✅
 
-2. **Security bugs in `convex/streaming.ts`**
+2. **Security in streaming.ts**
 
-    - No `assertCanAccessChat` call - anyone can stream to any chat
-    - Wrong chat ID parsing: uses `messageId.split("/")[0]` instead of `chatId` param
+    - `checkChatAccess` validates user can access chat before streaming
+    - API key resolution: workspace keys → Convex env vars → user settings
 
-3. **Dead code: `ConvexStreamingClient.ts`**
-    - Never imported anywhere
-    - Has `streamFromConvex()` ready to use
+3. **Stop streaming**
+
+    - `useStopMessageConvex` aborts HTTP request and marks message as "stopped"
+    - Works with unified `useStopMessage` hook in UnifiedMessageAPI
+
+4. **Message attribution (Slack-style)**
+
+    - `MessageAttribution` component shows author avatar + name + timestamp
+    - `authorSnapshot` embedded in message sets (no joins needed)
+    - `showAttribution` flag controls visibility (team chats only)
+
+5. **Chat title generation**
+    - `useGenerateChatTitleConvex` generates titles from first user message
+    - Uses client-side `simpleLLM` with Anthropic API
+
+### What's Incomplete ⚠️
+
+1. **JWT Auth for Streaming (P0 - Security)**
+
+    - Streaming endpoint trusts `clerkId` from request body without JWT verification
+    - Should verify Clerk JWT before processing stream
+    - Located in: `ConvexStreamingClient.ts`, `convex/streaming.ts`
+
+2. **Project Context Summaries (P2)**
+
+    - `useMarkProjectContextSummaryAsStale` returns no-op for Convex
+    - `useRegenerateProjectContextSummaries` returns empty function
+    - Project context IS read and injected into conversations ✅
+
+3. **Team API Keys UI (P2)**
+    - Convex `apiKeys` table exists but no UI to set team keys
+    - Currently relying on default env keys only
 
 ---
 
-## MVP Scope (Immediate Priority)
+## MVP Scope ✅ COMPLETE
 
-**Goal: Messages work in multiplayer** - send, stream, stop.
+**Goal: Messages work in multiplayer** - send, stream, stop. **ACHIEVED!**
 
-### MVP Features ✅
+### MVP Features ✅ All Complete
 
--   Basic send message (user message to Convex)
--   Basic AI streaming (via Convex HTTP action)
--   Stop streaming
--   Summaries and project context (needed for coherent AI responses)
+-   ✅ Basic send message (user message to Convex)
+-   ✅ Basic AI streaming (via Convex HTTP action)
+-   ✅ Stop streaming (abort controller + message status)
+-   ✅ Project context injection (for coherent AI responses)
+-   ✅ Message attribution (Slack-style author display)
+-   ✅ Chat title generation
 
-### NOT MVP (deferred)
+### NOT MVP (deferred to Phase 2+)
 
 -   Compare mode (multiple AI responses)
 -   Tool blocks / MCP execution in multiplayer
 -   Code reviews
--   Attachments (shortly after MVP)
--   Branching/forking (shortly after MVP)
+-   Attachments
+-   JWT auth for streaming (security hardening)
+-   Large context handling (>100k tokens: chunking, summarization, RAG)
 
-### MVP Implementation Tasks
+### MVP Implementation Tasks ✅ COMPLETE
 
-1. **Fix security bugs in `convex/streaming.ts`**
+1. ✅ **Security in `convex/streaming.ts`** (PR #11)
 
-    - Add `assertCanAccessChat(ctx, chatId, clerkId)` check
-    - Use `chatId` parameter instead of parsing from messageId
+    - `checkChatAccess` validates user before streaming
+    - Uses chatId parameter correctly
 
-2. **Implement `usePopulateBlockConvex`**
+2. ✅ **`usePopulateBlockConvex` implemented** (PR #11)
 
-    - Create assistant message in Convex
-    - Call `streamFromConvex()` from ConvexStreamingClient
-    - Handle onChunk, onComplete, onError callbacks
-    - NO tool calls for MVP (defer to post-MVP)
+    - Creates assistant message in Convex
+    - Streams via `ConvexStreamingClient.streamFromConvex()`
+    - Handles onChunk, onComplete, onError callbacks
+    - Periodic DB writes for real-time sync
 
-3. **Wire into UnifiedMessageAPI**
-    - Replace SQLite fallback with Convex implementation
-    - Remove warning log
+3. ✅ **Unified API complete** (PR #11 + Phase 1.5)
+    - `usePopulateBlock` returns Convex hook when enabled
+    - `useStopMessage` supports both backends
+    - `useGenerateChatTitle` generates titles for Convex chats
+
+---
+
+## Phase 1.5: Stability & MVP Completion ✅ COMPLETE
+
+**Goal:** Fix critical gaps discovered in PR #11 review before Phase 2 (Private Forks).
+
+### Tasks Completed
+
+1. ✅ **Fix Race Condition in Conversation Building**
+
+    - Problem: `usePopulateBlockConvex` created assistant message, then built conversation from reactive query that might not have updated yet
+    - Solution: Build conversation BEFORE creating assistant message, pass explicitly to streaming
+    - File: `src/core/camp/api/MessageAPIConvex.ts`
+
+2. ✅ **Implement Stop Streaming**
+
+    - Added module-level Map for streaming session management
+    - `registerStreamingSession`, `unregisterStreamingSession`, `abortStreamingSession` functions
+    - `useStopMessageConvex` hook that aborts HTTP request + marks message as "stopped"
+    - Added "stopped" status to Convex schema
+    - Files: `MessageAPIConvex.ts`, `UnifiedMessageAPI.ts`, `MultiChat.tsx`, `convex/schema.ts`, `convex/messages.ts`
+
+3. ✅ **Wire Message Attribution UI**
+
+    - Backend already populated `authorSnapshot` in `createSet` mutation
+    - Updated `convertConvexToMessageSetDetails` to pass through `authorSnapshot` and `showAttribution`
+    - Added `MessageSetDetailWithAttribution` extended type
+    - Integrated `MessageAttribution` component into `MultiChat.tsx`'s `UserBlockView`
+    - Files: `convexTypes.ts`, `MultiChat.tsx`
+
+4. ✅ **Implement Chat Title Generation**
+    - Created `useGenerateChatTitleConvex` in `ChatAPIConvex.ts`
+    - Fetches messages from Convex, uses client-side `simpleLLM` to generate title
+    - Updates chat title via Convex mutation
+    - Unified hook in `UnifiedMessageAPI.ts`
+    - Files: `ChatAPIConvex.ts`, `UnifiedMessageAPI.ts`
+
+### Deferred to Later
+
+-   **JWT Auth for Streaming** - Security improvement, not blocking for internal testing
+-   **Project Context Summaries** - Working for reads, regeneration can wait
 
 ---
 

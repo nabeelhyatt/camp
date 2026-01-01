@@ -361,7 +361,7 @@ export interface ConvexMessage {
     chatId: string;
     role: "user" | "assistant";
     model?: string;
-    status: "pending" | "streaming" | "complete" | "error";
+    status: "pending" | "streaming" | "complete" | "stopped" | "error";
     errorMessage?: string;
     createdAt: string;
     updatedAt: string;
@@ -442,14 +442,23 @@ function convertConvexMessage(msg: ConvexMessage): Message {
 }
 
 /**
- * Convert Convex message sets to SQLite MessageSetDetail format
+ * Extended MessageSetDetail with author attribution for Convex
+ * The base MessageSetDetail type is from SQLite and doesn't include author info.
+ */
+export interface MessageSetDetailWithAttribution extends MessageSetDetail {
+    authorSnapshot?: AuthorSnapshot;
+    showAttribution: boolean;
+}
+
+/**
+ * Convert Convex message sets to MessageSetDetail format with attribution
  *
  * This transformation allows the existing MultiChat.tsx UI to render
- * Convex data without changes.
+ * Convex data without changes, plus adds author attribution info.
  */
 export function convertConvexToMessageSetDetails(
     convexSets: ConvexMessageSet[],
-): MessageSetDetail[] {
+): MessageSetDetailWithAttribution[] {
     // Filter out any null/undefined sets that might have slipped through
     return convexSets
         .filter((set) => set != null)
@@ -514,6 +523,9 @@ export function convertConvexToMessageSetDetails(
                 compareBlock,
                 brainstormBlock,
                 toolsBlock,
+                // Author attribution (Convex only - not in SQLite MessageSetDetail type)
+                authorSnapshot: set.authorSnapshot,
+                showAttribution: set.showAttribution,
             };
         });
 }

@@ -73,6 +73,8 @@ export default function ProjectView() {
     const deleteConfirmButtonRef = useRef<HTMLButtonElement>(null);
     const contextEditorRef = useRef<ProjectContextEditorRef>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    // Track if user has started editing to prevent server data from overwriting
+    const hasUserEditedRef = useRef(false);
 
     // Mutations
     const renameProject = ProjectAPI.useRenameProject();
@@ -98,12 +100,17 @@ export default function ProjectView() {
         navigate(-1);
     }, [navigate]);
 
-    // effects
+    // Sync from server when project data arrives (but not if user is editing)
     useEffect(() => {
-        if (project) {
+        if (project && !hasUserEditedRef.current) {
             setNewName(project.name || "");
         }
     }, [project, projectId]);
+
+    // Reset edit flag when project changes
+    useEffect(() => {
+        hasUserEditedRef.current = false;
+    }, [projectId]);
 
     // Debounce effect
     useEffect(() => {
@@ -293,7 +300,15 @@ export default function ProjectView() {
                         autoFocus
                         value={newName}
                         onChange={(e) => {
+                            hasUserEditedRef.current = true;
                             setNewName(e.target.value);
+                        }}
+                        onBlur={() => {
+                            // Allow server sync again after user finishes editing
+                            // Delay reset to ensure 250ms debounce has flushed
+                            setTimeout(() => {
+                                hasUserEditedRef.current = false;
+                            }, 300);
                         }}
                         onKeyDown={(e) => {
                             if (e.key === "Enter") {

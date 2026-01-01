@@ -6,7 +6,7 @@
  * the SQLite-based ProjectAPI for seamless switching.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useConvex } from "convex/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -307,9 +307,13 @@ export function useAutoSyncProjectContextTextConvex(
     const [isInitialized, setIsInitialized] = useState(false);
     const [lastSaved, setLastSaved] = useState<string>("");
 
+    // Track if user has started editing to prevent server data from overwriting
+    const hasUserEditedRef = useRef(false);
+
     // Initialize from server data when it arrives
+    // BUT only if user hasn't started editing (prevents race condition)
     useEffect(() => {
-        if (projectResult.data && !isInitialized) {
+        if (projectResult.data && !isInitialized && !hasUserEditedRef.current) {
             setLocalDraft(projectResult.data.contextText ?? "");
             setLastSaved(projectResult.data.contextText ?? "");
             setIsInitialized(true);
@@ -321,6 +325,7 @@ export function useAutoSyncProjectContextTextConvex(
         setIsInitialized(false);
         setLocalDraft("");
         setLastSaved("");
+        hasUserEditedRef.current = false;
     }, [projectId]);
 
     // Save to Convex whenever the local draft changes
@@ -345,9 +350,18 @@ export function useAutoSyncProjectContextTextConvex(
         lastSaved,
     ]);
 
+    // Wrapper that sets the edit flag before updating local draft
+    const setDraftWithEditFlag = useCallback(
+        (value: string | ((prev: string) => string)) => {
+            hasUserEditedRef.current = true;
+            setLocalDraft(value);
+        },
+        [],
+    );
+
     return {
         draft: localDraft,
-        setDraft: setLocalDraft,
+        setDraft: setDraftWithEditFlag,
     };
 }
 
@@ -475,13 +489,24 @@ export function useGetProjectContextLLMMessageConvex(): (
                 const contextMessage: LLMMessage = {
                     role: "user",
                     content: `<project_context>\n${project.contextText}\n</project_context>`,
+                    attachments: [],
+                };
+
+                // Assistant acknowledges context - this creates a clear boundary
+                // between context setup and actual conversation. Without this,
+                // the model may focus on the context rather than the user's question.
+                // This matches the SQLite version's behavior.
+                const contextAck: LLMMessage = {
+                    role: "assistant",
+                    content: "Okay.",
+                    toolCalls: [],
                 };
 
                 console.log(
                     `[useGetProjectContextLLMMessageConvex] Added project context (${project.contextText.length} chars)`,
                 );
 
-                return [contextMessage];
+                return [contextMessage, contextAck];
             } catch (error) {
                 console.error(
                     "[useGetProjectContextLLMMessageConvex] Error fetching project:",

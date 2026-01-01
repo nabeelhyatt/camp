@@ -64,6 +64,10 @@ import {
     ToolsBlock,
     MessagePart,
 } from "@core/chorus/ChatState";
+import {
+    MessageAttribution,
+    type AuthorSnapshot,
+} from "./chat/MessageAttribution";
 import { useShareChat } from "@ui/hooks/useShareChat";
 import { Skeleton } from "./ui/skeleton";
 import { ChatInput } from "./ChatInput";
@@ -1150,7 +1154,7 @@ export function ToolsMessageView({
     // const [streamStartTime, setStreamStartTime] = useState<Date>();
 
     const selectMessage = MessageAPI.useSelectMessage();
-    const stopMessage = MessageAPI.useStopMessage();
+    const stopMessage = UnifiedMessageAPI.useStopMessage();
     const restartMessage = MessageAPI.useRestartMessage(
         message.chatId,
         message.messageSetId,
@@ -1574,16 +1578,29 @@ function UserBlockView({
     userBlock,
     userMessageRef,
     isQuickChatWindow,
+    authorSnapshot,
+    showAttribution,
+    createdAt,
 }: {
     userBlock: UserBlock;
     userMessageRef?: React.RefObject<HTMLDivElement>;
     isQuickChatWindow: boolean;
+    authorSnapshot?: AuthorSnapshot;
+    showAttribution?: boolean;
+    createdAt?: string;
 }) {
     return (
         <div
             className={`ml-10 max-w-prose ${isQuickChatWindow ? "ml-auto" : ""}`}
             ref={userMessageRef}
         >
+            {/* Show author attribution for team chats (Slack-style) */}
+            {showAttribution && authorSnapshot && createdAt && (
+                <MessageAttribution
+                    author={authorSnapshot}
+                    timestamp={new Date(createdAt).getTime()}
+                />
+            )}
             {userBlock.message && (
                 <UserMessageView
                     message={userBlock.message}
@@ -1664,6 +1681,22 @@ const MessageSetView = memo(
                             userBlock={messageSet.userBlock}
                             userMessageRef={userMessageRef}
                             isQuickChatWindow={isQuickChatWindow}
+                            // Pass attribution info from Convex (fields exist when useConvexData=true)
+                            authorSnapshot={
+                                (
+                                    messageSet as MessageSetDetail & {
+                                        authorSnapshot?: AuthorSnapshot;
+                                    }
+                                ).authorSnapshot
+                            }
+                            showAttribution={
+                                (
+                                    messageSet as MessageSetDetail & {
+                                        showAttribution?: boolean;
+                                    }
+                                ).showAttribution
+                            }
+                            createdAt={messageSet.createdAt}
                         />
                     ) : messageSet.selectedBlockType === "compare" ? (
                         <CompareBlockView

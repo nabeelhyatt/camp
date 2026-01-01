@@ -33,6 +33,48 @@ import {
 export type { ConvexMessageSet, ConvexMessage, ConvexMessagePart };
 
 // ============================================================
+// Streaming Session Management
+// ============================================================
+
+/**
+ * Module-level Map to track active streaming sessions.
+ * Key: messageId, Value: AbortController
+ *
+ * This allows useStopMessageConvex to cancel streams started by usePopulateBlockConvex.
+ */
+const activeStreamingSessions = new Map<string, AbortController>();
+
+/**
+ * Register a streaming session for a message
+ */
+export function registerStreamingSession(
+    messageId: string,
+    abortController: AbortController,
+): void {
+    activeStreamingSessions.set(messageId, abortController);
+}
+
+/**
+ * Unregister a streaming session when complete
+ */
+export function unregisterStreamingSession(messageId: string): void {
+    activeStreamingSessions.delete(messageId);
+}
+
+/**
+ * Abort a streaming session by messageId
+ */
+export function abortStreamingSession(messageId: string): boolean {
+    const controller = activeStreamingSessions.get(messageId);
+    if (controller) {
+        controller.abort();
+        activeStreamingSessions.delete(messageId);
+        return true;
+    }
+    return false;
+}
+
+// ============================================================
 // Queries
 // ============================================================
 
@@ -390,7 +432,10 @@ export function useCompleteMessageConvex() {
     const [isPending, setIsPending] = useState(false);
 
     const mutateAsync = useCallback(
-        async (args: { messageId: string }) => {
+        async (args: {
+            messageId: string;
+            status?: "complete" | "stopped";
+        }) => {
             if (!clerkId) throw new Error("Not authenticated");
             setIsPending(true);
             try {
@@ -399,6 +444,7 @@ export function useCompleteMessageConvex() {
                     messageId: stringToConvexIdStrict<"messages">(
                         args.messageId,
                     ),
+                    status: args.status,
                 });
                 return { success: true };
             } finally {
@@ -410,7 +456,10 @@ export function useCompleteMessageConvex() {
 
     return {
         mutateAsync,
-        mutate: (args: { messageId: string }) => void mutateAsync(args),
+        mutate: (args: {
+            messageId: string;
+            status?: "complete" | "stopped";
+        }) => void mutateAsync(args),
         isPending,
         isIdle: !isPending,
     };
@@ -812,6 +861,12 @@ export function usePopulateBlockConvex(
                 // Generate streaming session ID
                 const streamingSessionId = createStreamingSessionId();
 
+                // IMPORTANT: Build conversation BEFORE creating assistant message
+                // to avoid race condition where reactive query updates mid-operation.
+                // We want the conversation state at this exact moment, not after
+                // the assistant message is created (which would add a new message set).
+                const conversation = await buildConversation();
+
                 // Create assistant message in Convex
                 const messageId = await createAssistantMessage.mutateAsync({
                     messageSetId: args.messageSetId,
@@ -819,8 +874,8 @@ export function usePopulateBlockConvex(
                     streamingSessionId,
                 });
 
-                // Build conversation from Convex (includes project context)
-                const conversation = await buildConversation();
+                // Register streaming session so useStopMessageConvex can cancel it
+                registerStreamingSession(messageId, abortControllerRef.current);
 
                 // Stream from Convex HTTP endpoint
                 await streamFromConvex({
@@ -859,6 +914,9 @@ export function usePopulateBlockConvex(
                     },
                     signal: abortControllerRef.current.signal,
                 });
+
+                // Unregister streaming session now that we're done
+                unregisterStreamingSession(messageId);
 
                 // Invalidate queries to ensure UI updates
                 await queryClient.invalidateQueries({
@@ -900,5 +958,67 @@ export function usePopulateBlockConvex(
         isPending,
         isIdle: !isPending,
         cancel,
+    };
+}
+
+// ============================================================
+// Stop Message Hook
+// ============================================================
+
+/**
+ * Hook to stop a streaming message in Convex
+ *
+ * This aborts the active HTTP request (if any) and marks the message as stopped.
+ * Works in conjunction with usePopulateBlockConvex which registers streaming sessions.
+ */
+export function useStopMessageConvex() {
+    const { clerkId } = useWorkspaceContext();
+    const completeMessage = useCompleteMessageConvex();
+    const [isPending, setIsPending] = useState(false);
+
+    const mutateAsync = useCallback(
+        async (args: { chatId: string; messageId: string }) => {
+            if (!clerkId) {
+                console.warn("[useStopMessageConvex] Not authenticated");
+                return;
+            }
+
+            setIsPending(true);
+            try {
+                console.log(
+                    `[useStopMessageConvex] Stopping message ${args.messageId}`,
+                );
+
+                // 1. Abort the HTTP streaming request if active
+                const wasAborted = abortStreamingSession(args.messageId);
+                if (wasAborted) {
+                    console.log(
+                        "[useStopMessageConvex] Aborted active streaming session",
+                    );
+                }
+
+                // 2. Mark the message as stopped in Convex
+                // Note: The HTTP action may also mark it complete, but stopped takes precedence
+                await completeMessage.mutateAsync({
+                    messageId: args.messageId,
+                    status: "stopped",
+                });
+
+                console.log("[useStopMessageConvex] Message marked as stopped");
+            } catch (error) {
+                console.error("[useStopMessageConvex] Error:", error);
+            } finally {
+                setIsPending(false);
+            }
+        },
+        [clerkId, completeMessage],
+    );
+
+    return {
+        mutateAsync,
+        mutate: (args: Parameters<typeof mutateAsync>[0]) =>
+            void mutateAsync(args),
+        isPending,
+        isIdle: !isPending,
     };
 }
