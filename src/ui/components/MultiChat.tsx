@@ -1214,15 +1214,18 @@ export function ToolsMessageView({
 
     function onReplyClick() {
         if (message.replyChatId) {
+            // Existing reply - open in sidebar drawer (SQLite behavior)
             navigate(`/chat/${message.chatId}?replyId=${message.replyChatId}`);
         } else if (campConfig.useConvexData) {
-            // In Convex mode, create a private fork
+            // In Convex mode, create a private fork and navigate to it
+            // Private forks open as full pages with the ForkIndicator banner
+            // (Different from SQLite's sidebar-based replies - by design)
             createPrivateFork.mutate({
                 parentChatId: message.chatId,
                 forkFromMessageId: message.id,
             });
         } else {
-            // In SQLite mode, use the original reply behavior
+            // In SQLite mode, use the original reply behavior (opens in sidebar)
             replyToMessage.mutate();
         }
     }

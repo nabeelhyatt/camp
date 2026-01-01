@@ -220,7 +220,10 @@ export function convexChatToChat(doc: Doc<"chats">): Chat {
             : null,
         projectContextSummary: undefined, // TODO: Add to Convex schema if needed
         projectContextSummaryIsStale: false,
-        replyToId: null, // TODO: Add to Convex schema if needed
+        // Map forkFromMessageId to replyToId for RepliesDrawer compatibility
+        replyToId: doc.forkFromMessageId
+            ? convexIdToString(doc.forkFromMessageId)
+            : null,
         gcPrototype: false, // deprecated
     };
 }

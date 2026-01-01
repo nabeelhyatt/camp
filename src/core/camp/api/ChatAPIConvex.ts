@@ -528,6 +528,7 @@ export function useCreatePrivateForkConvex() {
         forkFromMessageId?: string;
         title?: string;
         navigateToChat?: boolean;
+        openInSidebar?: boolean;
     }) => {
         if (!clerkId) {
             throw new Error("Not authenticated");
@@ -545,7 +546,13 @@ export function useCreatePrivateForkConvex() {
         void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
 
         if (args.navigateToChat !== false) {
-            navigate(`/chat/${chatId}`);
+            if (args.openInSidebar) {
+                // Open in RepliesDrawer sidebar (like Chorus SQLite behavior)
+                navigate(`/chat/${args.parentChatId}?replyId=${chatId}`);
+            } else {
+                // Navigate directly to the fork
+                navigate(`/chat/${chatId}`);
+            }
         }
 
         return String(chatId);
