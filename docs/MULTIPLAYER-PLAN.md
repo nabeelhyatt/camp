@@ -96,6 +96,7 @@
 -   Code reviews
 -   Attachments
 -   JWT auth for streaming (security hardening)
+-   Large context handling (>100k tokens: chunking, summarization, RAG)
 
 ### MVP Implementation Tasks ✅ COMPLETE
 

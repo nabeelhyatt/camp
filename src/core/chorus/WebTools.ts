@@ -60,22 +60,41 @@ export class WebTools {
         return response;
     }
 
+    /**
+     * Search the web using Perplexity API directly, or via OpenRouter as fallback
+     */
     static async search(
         query: string,
         apiKeys: ApiKeys,
     ): Promise<SearchResult> {
-        try {
-            if (!apiKeys.perplexity) {
-                return {
-                    content:
-                        "<web_search_system_message>Please add your Perplexity API key in Settings to use web search.</web_search_system_message>",
-                    error: "Perplexity API key not configured",
-                };
-            }
+        // Try Perplexity first (native API)
+        if (apiKeys.perplexity) {
+            return this.searchWithPerplexity(query, apiKeys.perplexity);
+        }
 
+        // Fallback to OpenRouter with perplexity/sonar model
+        if (apiKeys.openrouter) {
+            return this.searchWithOpenRouter(query, apiKeys.openrouter);
+        }
+
+        return {
+            content:
+                "<web_search_system_message>Please add your Perplexity or OpenRouter API key in Settings to use web search.</web_search_system_message>",
+            error: "No API key configured for web search",
+        };
+    }
+
+    /**
+     * Search using Perplexity's native API
+     */
+    private static async searchWithPerplexity(
+        query: string,
+        apiKey: string,
+    ): Promise<SearchResult> {
+        try {
             const client = new OpenAI({
                 baseURL: "https://api.perplexity.ai",
-                apiKey: apiKeys.perplexity,
+                apiKey,
                 defaultHeaders: {
                     "Content-Type": "application/json",
                 },
@@ -122,6 +141,64 @@ export class WebTools {
         } catch (error) {
             return {
                 content: `<web_search_system_message>Error searching the web: ${getErrorMessage(error)}</web_search_system_message>`,
+                error: getErrorMessage(error),
+            };
+        }
+    }
+
+    /**
+     * Search using OpenRouter with the perplexity/sonar model as fallback
+     */
+    private static async searchWithOpenRouter(
+        query: string,
+        apiKey: string,
+    ): Promise<SearchResult> {
+        try {
+            const client = new OpenAI({
+                baseURL: "https://openrouter.ai/api/v1",
+                apiKey,
+                dangerouslyAllowBrowser: true,
+            });
+
+            const completion = await client.chat.completions.create({
+                model: "perplexity/sonar",
+                messages: [
+                    {
+                        role: "system",
+                        content:
+                            "Search the web for information about the user's query. Provide relevant search results with links to sources.",
+                    },
+                    {
+                        role: "user",
+                        content: query,
+                    },
+                ],
+                stream: false,
+            });
+
+            const content = completion.choices[0]?.message?.content || "";
+
+            // OpenRouter may return citations in a similar format
+            const completionWithCitations =
+                completion as OpenAI.ChatCompletion & {
+                    citations?: string[];
+                };
+            const citations = completionWithCitations.citations;
+            let finalContent = content;
+
+            if (citations && citations.length > 0) {
+                const sources = citations
+                    .map((url, i) => `${i + 1}. [${url}](${url})`)
+                    .join("\n");
+                finalContent += "\n\nSources:\n" + sources;
+            }
+
+            return {
+                content: finalContent,
+            };
+        } catch (error) {
+            return {
+                content: `<web_search_system_message>Error searching the web via OpenRouter: ${getErrorMessage(error)}</web_search_system_message>`,
                 error: getErrorMessage(error),
             };
         }
