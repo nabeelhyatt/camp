@@ -15,6 +15,7 @@ import type * as http from "../http.js";
 import type * as lib_audit from "../lib/audit.js";
 import type * as lib_featureFlags from "../lib/featureFlags.js";
 import type * as lib_permissions from "../lib/permissions.js";
+import type * as mcpConfigs from "../mcpConfigs.js";
 import type * as messages from "../messages.js";
 import type * as projects from "../projects.js";
 import type * as streaming from "../streaming.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   "lib/audit": typeof lib_audit;
   "lib/featureFlags": typeof lib_featureFlags;
   "lib/permissions": typeof lib_permissions;
+  mcpConfigs: typeof mcpConfigs;
   messages: typeof messages;
   projects: typeof projects;
   streaming: typeof streaming;
