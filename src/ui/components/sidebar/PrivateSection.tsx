@@ -1,9 +1,10 @@
 import React from "react";
 import {
     LockIcon,
-    GitBranchIcon,
     ChevronRightIcon,
     FolderPlusIcon,
+    ReplyIcon,
+    Trash2Icon,
 } from "lucide-react";
 import {
     SidebarMenu,
@@ -31,6 +32,7 @@ interface PrivateFork {
     parentChat?: {
         id: string;
         title?: string;
+        isDeleted?: boolean;
     };
     updatedAt: number;
 }
@@ -104,9 +106,17 @@ export function PrivateSection({
 
 /**
  * Individual private fork item in the sidebar
+ *
+ * Shows: [Lock icon] [Reply icon] [Parent chat title]
+ * If parent is deleted: [Lock icon] [Reply icon] [Trash icon] [Title]
+ * This makes it clear that this is a private reply to a specific chat
  */
 function PrivateForkItem({ fork }: { fork: PrivateFork }) {
     const navigate = useNavigate();
+
+    // Use parent chat title if available, otherwise fall back to fork title
+    const displayTitle = fork.parentChat?.title || fork.title || "Untitled";
+    const isParentDeleted = fork.parentChat?.isDeleted ?? false;
 
     return (
         <SidebarMenuItem>
@@ -114,18 +124,41 @@ function PrivateForkItem({ fork }: { fork: PrivateFork }) {
                 onClick={() => navigate(`/chat/${fork.id}`)}
                 className="group/fork flex items-center justify-between"
             >
-                <span className="flex items-center gap-2 truncate">
-                    <GitBranchIcon
-                        className="size-3.5 text-muted-foreground flex-shrink-0"
-                        strokeWidth={1.5}
-                    />
-                    <span className="truncate text-sm">
-                        {fork.title || "Private exploration"}
+                <span className="flex items-center gap-1.5 truncate">
+                    {/* Lock + Reply icons to indicate private reply */}
+                    <span className="flex items-center flex-shrink-0">
+                        <LockIcon
+                            className="size-3 text-muted-foreground"
+                            strokeWidth={1.5}
+                        />
+                        <ReplyIcon
+                            className="size-3 text-muted-foreground -ml-0.5"
+                            strokeWidth={1.5}
+                        />
+                    </span>
+                    {/* Show deleted indicator if parent was deleted */}
+                    {isParentDeleted && (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Trash2Icon
+                                    className="size-3 text-muted-foreground/50 flex-shrink-0"
+                                    strokeWidth={1.5}
+                                />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                Parent chat was deleted
+                            </TooltipContent>
+                        </Tooltip>
+                    )}
+                    <span
+                        className={`truncate text-sm ${isParentDeleted ? "text-muted-foreground" : ""}`}
+                    >
+                        {displayTitle}
                     </span>
                 </span>
 
-                {/* Parent chat indicator */}
-                {fork.parentChat && (
+                {/* Go to parent chat button (on hover) - only if parent not deleted */}
+                {fork.parentChat && !isParentDeleted && (
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <span
@@ -145,15 +178,11 @@ function PrivateForkItem({ fork }: { fork: PrivateFork }) {
                                 }}
                                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground opacity-0 group-hover/fork:opacity-100 transition-opacity cursor-pointer"
                             >
-                                <span className="truncate max-w-[80px]">
-                                    {fork.parentChat.title || "Parent"}
-                                </span>
                                 <ChevronRightIcon className="size-3" />
                             </span>
                         </TooltipTrigger>
                         <TooltipContent>
-                            Go to parent chat:{" "}
-                            {fork.parentChat.title || "Untitled"}
+                            Go to parent: {fork.parentChat.title || "Untitled"}
                         </TooltipContent>
                     </Tooltip>
                 )}

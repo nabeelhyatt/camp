@@ -69,9 +69,7 @@ export function TeamSection({ onCreateProject, children }: TeamSectionProps) {
 
             {/* Section Content */}
             <SidebarMenu className="truncate">
-                {children}
-
-                {/* Full-width New Project button */}
+                {/* New Project button at top */}
                 <SidebarMenuItem>
                     <SidebarMenuButton
                         onClick={onCreateProject}
@@ -81,6 +79,8 @@ export function TeamSection({ onCreateProject, children }: TeamSectionProps) {
                         <span className="text-base">New project</span>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
+
+                {children}
             </SidebarMenu>
         </div>
     );

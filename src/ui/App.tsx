@@ -30,6 +30,7 @@ import NewPrompt from "./components/NewPrompt";
 import ListPrompts from "./components/ListPrompts";
 import Onboarding from "./components/Onboarding";
 import ProjectView from "./components/ProjectView";
+import { AllChatsPage } from "./pages/AllChatsPage";
 import { AuthGuard } from "./components/SignIn";
 import { CampAuthProvider } from "@core/camp/auth";
 import {
@@ -844,6 +845,7 @@ function AppContent() {
                             path="/projects/:projectId"
                             element={<ProjectView />}
                         />
+                        <Route path="/all-chats" element={<AllChatsPage />} />
                     </Routes>
                     {!isQuickChatWindow && (
                         <Settings tab={defaultSettingsTab || "general"} />

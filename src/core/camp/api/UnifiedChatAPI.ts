@@ -258,6 +258,9 @@ export function useRenameChat() {
 /**
  * Delete a chat
  *
+ * Note: Private forks are NOT cascade deleted. They remain accessible
+ * with a "[Deleted]" indicator for the parent chat.
+ *
  * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
 export function useDeleteChat() {
@@ -270,12 +273,9 @@ export function useDeleteChat() {
     const sqliteMutation = useDeleteChatSQLite();
 
     // Wrap SQLite mutation to match Convex interface
-    const mutateAsync = async (args: {
-        chatId: string;
-        confirmCascade?: boolean;
-    }) => {
+    const mutateAsync = async (args: { chatId: string }) => {
         await sqliteMutation.mutateAsync({ chatId: args.chatId });
-        return { success: true, forksDeleted: 0 };
+        return { success: true };
     };
 
     return {

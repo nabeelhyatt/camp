@@ -475,16 +475,16 @@ export function useSetChatProjectConvex() {
 
 /**
  * Hook to delete a chat
+ *
+ * Note: Private forks are NOT cascade deleted. They remain accessible
+ * with a "[Deleted]" indicator for the parent chat.
  */
 export function useDeleteChatConvex() {
     const { clerkId } = useWorkspaceContext();
     const removeChat = useMutation(api.chats.remove);
     const queryClient = useQueryClient();
 
-    const mutateAsync = async (args: {
-        chatId: string;
-        confirmCascade?: boolean;
-    }) => {
+    const mutateAsync = async (args: { chatId: string }) => {
         if (!clerkId) {
             throw new Error("Not authenticated");
         }
@@ -492,13 +492,7 @@ export function useDeleteChatConvex() {
         const result = await removeChat({
             clerkId,
             chatId: stringToConvexIdStrict<"chats">(args.chatId),
-            confirmCascade: args.confirmCascade,
         });
-
-        // If cascade confirmation is required, return the result
-        if ("requiresConfirmation" in result && result.requiresConfirmation) {
-            return result;
-        }
 
         void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
         return result;

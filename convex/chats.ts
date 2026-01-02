@@ -6,7 +6,6 @@ import {
     assertCanAccessChat,
     assertCanAccessProject,
     canDeleteChat,
-    getDescendantChatIds,
 } from "./lib/permissions";
 import { logAudit } from "./lib/audit";
 
@@ -188,6 +187,9 @@ export const listUngrouped = query({
 
 /**
  * Get user's private forks
+ *
+ * Returns parent chat info including whether it was deleted.
+ * If parent is deleted, parentChat.isDeleted will be true.
  */
 export const listPrivateForks = query({
     args: {
@@ -216,16 +218,17 @@ export const listPrivateForks = query({
             )
             .collect();
 
-        // Get parent chat info for each fork
+        // Get parent chat info for each fork (including deleted state)
         const forksWithParent = await Promise.all(
             privateForks.map(async (fork) => {
                 let parentChat = null;
                 if (fork.parentChatId) {
                     const parent = await ctx.db.get(fork.parentChatId);
-                    if (parent && !parent.deletedAt) {
+                    if (parent) {
                         parentChat = {
                             id: parent._id,
                             title: parent.title,
+                            isDeleted: !!parent.deletedAt,
                         };
                     }
                 }
@@ -334,12 +337,11 @@ export const createPrivateFork = mutation({
         // Determine root chat (for chain queries)
         const rootChatId = parentChat.rootChatId ?? parentChat._id;
 
+        // Title is optional - if not provided, the UI will display the parent chat title
         const chatId = await ctx.db.insert("chats", {
             workspaceId: parentChat.workspaceId,
             projectId: parentChat.projectId,
-            title:
-                args.title?.trim() ??
-                `Private exploration from ${parentChat.title ?? "chat"}`,
+            title: args.title?.trim() || undefined,
             createdBy: user._id,
             isAmbient: false,
             parentChatId: args.parentChatId,
@@ -531,13 +533,17 @@ export const update = mutation({
 
 /**
  * Delete a chat (soft delete)
- * Cascades to all forks with warning
+ *
+ * Deletion behavior:
+ * - Private forks are NOT cascade deleted - they remain accessible with
+ *   a "[Deleted]" indicator for the parent chat
+ * - Only shows warning if chat is a team chat with multiple users involved
+ *   (future: show profile icons of other users)
  */
 export const remove = mutation({
     args: {
         clerkId: v.string(),
         chatId: v.id("chats"),
-        confirmCascade: v.optional(v.boolean()),
     },
     handler: async (ctx, args) => {
         const user = await getUserByClerkIdOrThrow(ctx, args.clerkId);
@@ -553,34 +559,16 @@ export const remove = mutation({
             );
         }
 
-        // Get all descendants for cascade delete (including nested forks)
-        const descendantIds = await getDescendantChatIds(ctx, args.chatId);
-
-        if (descendantIds.length > 0 && !args.confirmCascade) {
-            // Return warning instead of deleting
-            return {
-                success: false,
-                requiresConfirmation: true,
-                forkCount: descendantIds.length,
-                message: `This will delete ${descendantIds.length} fork(s), including nested forks.`,
-            };
-        }
-
         const now = Date.now();
 
-        // Soft delete the chat
+        // Soft delete the chat only (private forks remain accessible)
         await ctx.db.patch(args.chatId, {
             deletedAt: now,
             deletedBy: user._id,
         });
 
-        // Soft delete all descendants
-        for (const descendantId of descendantIds) {
-            await ctx.db.patch(descendantId, {
-                deletedAt: now,
-                deletedBy: user._id,
-            });
-        }
+        // Note: Private forks keep their parentChatId reference
+        // The listPrivateForks query will show "[Deleted]" for orphaned parents
 
         // Audit log
         await logAudit(ctx, {
@@ -589,14 +577,10 @@ export const remove = mutation({
             action: "chat.delete",
             entityType: "chat",
             entityId: args.chatId,
-            metadata: {
-                forksDeleted: descendantIds.length,
-            },
         });
 
         return {
             success: true,
-            forksDeleted: descendantIds.length,
         };
     },
 });

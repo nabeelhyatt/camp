@@ -524,13 +524,10 @@ export function AppSidebarInner() {
                                     )}
                                 </TeamSection>
 
-                                {/* ALL CHATS SECTION - Filterable feed of ungrouped chats */}
+                                {/* ALL CHATS SECTION - Link to full page view */}
                                 {defaultChats.length > 0 && (
                                     <Droppable id="default">
-                                        <AllChatsSection
-                                            chats={defaultChats}
-                                            projects={projectsQuery.data ?? []}
-                                        />
+                                        <AllChatsSection chats={defaultChats} />
                                     </Droppable>
                                 )}
 
