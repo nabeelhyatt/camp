@@ -41,6 +41,7 @@ import {
     BookOpen,
     Globe,
     UserCircle,
+    Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { config } from "@core/config";
@@ -71,6 +72,19 @@ import { UNIVERSAL_SYSTEM_PROMPT_DEFAULT } from "@core/chorus/prompts/prompts";
 import { CustomToolsetConfig, getEnvFromJSON } from "@core/chorus/Toolsets";
 import * as ToolsetsAPI from "@core/chorus/api/ToolsetsAPI";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+    useTeamMcps,
+    useUnshareMcp,
+    useSetMcpUserSecrets,
+    TeamMcpConfig,
+} from "@core/camp/api/TeamMcpAPI";
+import { TeamMcpRow, SetupCredentialsDialog } from "./TeamMcpUI";
+import {
+    useTeamApiKeys,
+    useShareApiKey,
+    useUnshareApiKey,
+} from "@core/camp/api/TeamApiKeysAPI";
+import { TeamApiKeyRow, ShareApiKeyDialog } from "./TeamApiKeysUI";
 import { useReactQueryAutoSync } from "use-react-query-auto-sync";
 import { RiClaudeFill, RiSupabaseFill } from "react-icons/ri";
 import { TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -633,8 +647,14 @@ function ToolsTab() {
     });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [activeToolsetTab, setActiveToolsetTab] = useState<
-        "custom" | "builtin"
+        "custom" | "team" | "builtin"
     >("custom");
+
+    // Team MCP state and hooks
+    const teamMcps = useTeamMcps();
+    const unshareMcp = useUnshareMcp();
+    const setMcpUserSecrets = useSetMcpUserSecrets();
+    const [setupMcp, setSetupMcp] = useState<TeamMcpConfig | null>(null);
 
     const validateToolset = (
         toolset: CustomToolsetConfig,
@@ -975,12 +995,30 @@ function ToolsTab() {
                 <Tabs
                     value={activeToolsetTab}
                     onValueChange={(value) =>
-                        setActiveToolsetTab(value as "custom" | "builtin")
+                        setActiveToolsetTab(
+                            value as "custom" | "team" | "builtin",
+                        )
                     }
                     className="mt-6"
                 >
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="custom">Custom</TabsTrigger>
+                        <TabsTrigger value="team">
+                            Team
+                            {teamMcps &&
+                                teamMcps.filter((m) => m.needsSetup).length >
+                                    0 && (
+                                    <Badge
+                                        variant="outline"
+                                        className="ml-1 text-amber-600 border-amber-600 h-5 px-1"
+                                    >
+                                        {
+                                            teamMcps.filter((m) => m.needsSetup)
+                                                .length
+                                        }
+                                    </Badge>
+                                )}
+                        </TabsTrigger>
                         <TabsTrigger value="builtin">Built-in</TabsTrigger>
                     </TabsList>
                     <TabsContent value="custom" className="mt-4">
@@ -1010,6 +1048,46 @@ function ToolsTab() {
                                     </span>
                                 </span>
                             </button>
+                        )}
+                    </TabsContent>
+                    <TabsContent value="team" className="mt-4">
+                        {teamMcps && teamMcps.length > 0 ? (
+                            <div className="space-y-4 overflow-hidden">
+                                {teamMcps.map((mcp) => (
+                                    <TeamMcpRow
+                                        key={mcp._id}
+                                        mcp={mcp}
+                                        onSetupCredentials={(m) =>
+                                            setSetupMcp(m)
+                                        }
+                                        onUnshare={async (mcpId) => {
+                                            try {
+                                                await unshareMcp(mcpId);
+                                                toast.success(
+                                                    "MCP removed from team",
+                                                );
+                                            } catch (error) {
+                                                toast.error(
+                                                    error instanceof Error
+                                                        ? error.message
+                                                        : "Failed to unshare MCP",
+                                                );
+                                            }
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-12 text-muted-foreground">
+                                <Users className="size-12 mx-auto mb-4 opacity-50" />
+                                <p className="font-medium">
+                                    No team MCPs shared yet
+                                </p>
+                                <p className="text-sm mt-2">
+                                    Share your MCPs from the Custom tab to let
+                                    teammates use them.
+                                </p>
+                            </div>
                         )}
                     </TabsContent>
                     <TabsContent value="builtin" className="mt-4">
@@ -1067,6 +1145,240 @@ function ToolsTab() {
                     .
                 </p>
             </div>
+
+            {/* Setup credentials dialog for team MCPs */}
+            <SetupCredentialsDialog
+                isOpen={setupMcp !== null}
+                onClose={() => setSetupMcp(null)}
+                mcp={setupMcp}
+                onSave={async (env) => {
+                    if (!setupMcp) return;
+                    await setMcpUserSecrets(setupMcp._id, env);
+                }}
+            />
+        </div>
+    );
+}
+
+// ============================================================
+// ApiKeysTab Component
+// ============================================================
+
+function ApiKeysTab() {
+    const settingsManager = SettingsManager.getInstance();
+    const queryClient = useQueryClient();
+
+    // Local API keys state
+    const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+    const [lmStudioBaseUrl, setLmStudioBaseUrl] = useState(
+        "http://localhost:1234/v1",
+    );
+
+    // Team API keys hooks
+    const teamApiKeys = useTeamApiKeys();
+    const shareApiKey = useShareApiKey();
+    const unshareApiKey = useUnshareApiKey();
+    const [showShareForm, setShowShareForm] = useState(false);
+
+    // Load local settings
+    useEffect(() => {
+        const loadSettings = async () => {
+            const settings = await settingsManager.get();
+            setApiKeys(
+                (settings as { apiKeys?: Record<string, string> }).apiKeys ??
+                    {},
+            );
+            setLmStudioBaseUrl(
+                (settings as { lmStudioBaseUrl?: string }).lmStudioBaseUrl ??
+                    "http://localhost:1234/v1",
+            );
+        };
+        void loadSettings();
+    }, [settingsManager]);
+
+    const handleApiKeyChange = async (provider: string, value: string) => {
+        const currentSettings = await settingsManager.get();
+        const newApiKeys = {
+            ...(currentSettings as { apiKeys?: Record<string, string> })
+                .apiKeys,
+            [provider]: value,
+        };
+        setApiKeys(newApiKeys);
+        void settingsManager.set({
+            ...currentSettings,
+            apiKeys: newApiKeys,
+        });
+        void queryClient.invalidateQueries({ queryKey: ["apiKeys"] });
+    };
+
+    const handleLmStudioBaseUrlChange = async (
+        e: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+        const value = e.target.value;
+        setLmStudioBaseUrl(value);
+        const currentSettings = await settingsManager.get();
+        void settingsManager.set({
+            ...currentSettings,
+            lmStudioBaseUrl: value,
+        });
+    };
+
+    const handleShareApiKey = async (provider: string, apiKey: string) => {
+        await shareApiKey({ provider, apiKey });
+        setShowShareForm(false);
+    };
+
+    const handleUnshareApiKey = async (
+        keyId: Parameters<typeof unshareApiKey>[0],
+    ) => {
+        try {
+            await unshareApiKey(keyId);
+            toast.success("API key removed from team");
+        } catch (error) {
+            toast.error("Failed to remove API key", {
+                description:
+                    error instanceof Error ? error.message : "Unknown error",
+            });
+        }
+    };
+
+    // Get list of providers the user has already shared
+    const userSharedProviders =
+        teamApiKeys?.filter((key) => key.isSharer).map((key) => key.provider) ??
+        [];
+
+    return (
+        <div className="space-y-6 max-w-2xl">
+            <div>
+                <h2 className="text-2xl font-semibold mb-2">API Keys</h2>
+                <p className="text-sm text-muted-foreground">
+                    Enter your API keys for the providers you want to use.
+                    Models for each provider will become available once you add
+                    a valid key.
+                </p>
+            </div>
+
+            {/* Local API Keys */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="font-semibold">Your API Keys</h3>
+                </div>
+                <ApiKeysForm
+                    apiKeys={apiKeys}
+                    onApiKeyChange={(provider, value) =>
+                        void handleApiKeyChange(provider, value)
+                    }
+                />
+            </div>
+
+            {/* Team API Keys Section */}
+            {teamApiKeys && teamApiKeys.length > 0 && (
+                <>
+                    <Separator />
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="font-semibold flex items-center gap-2">
+                                    <Users className="h-4 w-4" />
+                                    Team API Keys
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                    API keys shared by your team members
+                                </p>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowShareForm(!showShareForm)}
+                            >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Share Key
+                            </Button>
+                        </div>
+
+                        <ShareApiKeyDialog
+                            isOpen={showShareForm}
+                            onClose={() => setShowShareForm(false)}
+                            onShare={handleShareApiKey}
+                            existingProviders={userSharedProviders}
+                        />
+
+                        <div className="space-y-2">
+                            {teamApiKeys.map((apiKey) => (
+                                <TeamApiKeyRow
+                                    key={apiKey._id}
+                                    apiKey={apiKey}
+                                    onUnshare={handleUnshareApiKey}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* Show share button even when no team keys exist */}
+            {(!teamApiKeys || teamApiKeys.length === 0) && (
+                <>
+                    <Separator />
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="font-semibold flex items-center gap-2">
+                                    <Users className="h-4 w-4" />
+                                    Team API Keys
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Share API keys with your team members
+                                </p>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowShareForm(!showShareForm)}
+                            >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Share Key
+                            </Button>
+                        </div>
+
+                        <ShareApiKeyDialog
+                            isOpen={showShareForm}
+                            onClose={() => setShowShareForm(false)}
+                            onShare={handleShareApiKey}
+                            existingProviders={userSharedProviders}
+                        />
+
+                        {!showShareForm && (
+                            <p className="text-sm text-muted-foreground text-center py-4">
+                                No team API keys shared yet. Share a key so your
+                                team members can use it.
+                            </p>
+                        )}
+                    </div>
+                </>
+            )}
+
+            <Separator />
+
+            {/* LM Studio Settings */}
+            <Collapsible className="space-y-2">
+                <div className="flex items-center justify-between">
+                    <CollapsibleTrigger className="flex items-center w-full gap-2 hover:opacity-80">
+                        <label className="font-semibold">
+                            LM Studio Settings
+                        </label>
+                        <ChevronDown className="h-4 w-4" />
+                    </CollapsibleTrigger>
+                </div>
+                <CollapsibleContent className="space-y-2">
+                    <p className="">The base URL for your LM Studio server.</p>
+                    <Input
+                        value={lmStudioBaseUrl}
+                        onChange={(e) => void handleLmStudioBaseUrlChange(e)}
+                        placeholder="http://localhost:1234/v1"
+                    />
+                </CollapsibleContent>
+            </Collapsible>
         </div>
     );
 }
@@ -1328,7 +1640,6 @@ interface Settings {
 export default function Settings({ tab = "general" }: SettingsProps) {
     const settingsManager = SettingsManager.getInstance();
     const { mode, setMode, setSansFont, setMonoFont, sansFont } = useTheme();
-    const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
     const [autoConvertLongText, setAutoConvertLongText] = useState(true);
     const [autoScrapeUrls, setAutoScrapeUrls] = useState(true);
     const [cautiousEnter, setCautiousEnter] = useState(false);
@@ -1338,9 +1649,6 @@ export default function Settings({ tab = "general" }: SettingsProps) {
         tab || (searchParams.get("tab") as SettingsTabId) || "general";
     const [quickChatEnabled, setQuickChatEnabled] = useState(true);
     const [quickChatShortcut, setQuickChatShortcut] = useState("Alt+Space");
-    const [lmStudioBaseUrl, setLmStudioBaseUrl] = useState(
-        "http://localhost:1234/v1",
-    );
     const queryClient = useQueryClient();
 
     // Use React Query hooks for custom base URL
@@ -1393,36 +1701,16 @@ export default function Settings({ tab = "general" }: SettingsProps) {
         void settingsManager.set({ ...currentSettings, sansFont: value });
     };
 
-    const handleApiKeyChange = async (provider: string, value: string) => {
-        const currentSettings = await settingsManager.get();
-        const newApiKeys = {
-            ...currentSettings.apiKeys,
-            [provider]: value,
-        };
-        setApiKeys(newApiKeys);
-        void settingsManager.set({
-            ...currentSettings,
-            apiKeys: newApiKeys,
-        });
-
-        // Invalidate the API keys query so components using useApiKeys will refresh
-        void queryClient.invalidateQueries({ queryKey: ["apiKeys"] });
-    };
-
     useEffect(() => {
         const loadSettings = async () => {
             const settings = (await settingsManager.get()) as Settings;
             setSansFont(settings.sansFont ?? "Geist");
             setMonoFont(settings.monoFont ?? "Fira Code");
-            setApiKeys(settings.apiKeys ?? {});
             setQuickChatEnabled(settings.quickChat?.enabled ?? true);
             setQuickChatShortcut(settings.quickChat?.shortcut ?? "Alt+Space");
             setAutoConvertLongText(settings.autoConvertLongText ?? true);
             setAutoScrapeUrls(settings.autoScrapeUrls ?? true);
             setCautiousEnter(settings.cautiousEnter ?? false);
-            setLmStudioBaseUrl(
-                settings.lmStudioBaseUrl ?? "http://localhost:1234/v1",
-            );
         };
 
         void loadSettings();
@@ -1501,18 +1789,6 @@ export default function Settings({ tab = "general" }: SettingsProps) {
                 shortcut: "Alt+Space",
                 enabled: true,
             },
-        });
-    };
-
-    const onLmStudioBaseUrlChange = async (
-        e: React.ChangeEvent<HTMLInputElement>,
-    ) => {
-        const newUrl = e.target.value || "http://localhost:1234/v1";
-        setLmStudioBaseUrl(newUrl);
-        const currentSettings = await settingsManager.get();
-        void settingsManager.set({
-            ...currentSettings,
-            lmStudioBaseUrl: newUrl,
         });
     };
 
@@ -1952,52 +2228,7 @@ export default function Settings({ tab = "general" }: SettingsProps) {
                         </div>
                     )}
 
-                    {activeTab === "api-keys" && (
-                        <div className="space-y-6 max-w-2xl">
-                            <div>
-                                <h2 className="text-2xl font-semibold mb-2">
-                                    API Keys
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                    Enter your API keys for the providers you
-                                    want to use. Models for each provider will
-                                    become available once you add a valid key.
-                                </p>
-                            </div>
-                            <div className="space-y-4">
-                                <ApiKeysForm
-                                    apiKeys={apiKeys}
-                                    onApiKeyChange={(provider, value) =>
-                                        void handleApiKeyChange(provider, value)
-                                    }
-                                />
-                                <Separator className="my-4" />
-                                <Collapsible className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <CollapsibleTrigger className="flex items-center w-full gap-2 hover:opacity-80">
-                                            <label className="font-semibold">
-                                                LM Studio Settings
-                                            </label>
-                                            <ChevronDown className="h-4 w-4" />
-                                        </CollapsibleTrigger>
-                                    </div>
-                                    <CollapsibleContent className="space-y-2">
-                                        <p className="">
-                                            The base URL for your LM Studio
-                                            server.
-                                        </p>
-                                        <Input
-                                            value={lmStudioBaseUrl}
-                                            onChange={(e) =>
-                                                void onLmStudioBaseUrlChange(e)
-                                            }
-                                            placeholder="http://localhost:1234/v1"
-                                        />
-                                    </CollapsibleContent>
-                                </Collapsible>
-                            </div>
-                        </div>
-                    )}
+                    {activeTab === "api-keys" && <ApiKeysTab />}
 
                     {activeTab === "account" && <AccountTab />}
 

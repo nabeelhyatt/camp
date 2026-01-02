@@ -27,6 +27,13 @@ const authorSnapshotValidator = v.object({
     avatarUrl: v.optional(v.string()),
 });
 
+// Reusable validator for sharer snapshots (Team MCPs/API Keys attribution)
+const sharerSnapshotValidator = v.object({
+    userId: v.id("users"),
+    displayName: v.string(),
+    avatarUrl: v.optional(v.string()),
+});
+
 export default defineSchema({
     // Organizations - grouped by email domain
     organizations: defineTable({
@@ -236,7 +243,7 @@ export default defineSchema({
         .index("by_message", ["messageId"])
         .index("by_chat", ["chatId"]),
 
-    // API Keys - per-workspace, encrypted
+    // API Keys - per-workspace, encrypted (shared or admin-set)
     apiKeys: defineTable({
         workspaceId: v.id("workspaces"),
         provider: v.string(), // "openai", "anthropic", "google", etc.
@@ -245,12 +252,18 @@ export default defineSchema({
         createdBy: v.id("users"),
         createdAt: v.number(),
         updatedAt: v.number(),
+
+        // Phase 3: User sharing fields (optional - only for user-shared keys)
+        sharedBy: v.optional(v.id("users")), // User who shared this key (null = admin-set team key)
+        sharerSnapshot: v.optional(sharerSnapshotValidator), // Avatar attribution
+
         // Soft delete support
         deletedAt: v.optional(v.number()),
         deletedBy: v.optional(v.id("users")),
     })
         .index("by_workspace", ["workspaceId"])
-        .index("by_workspace_and_provider", ["workspaceId", "provider"]),
+        .index("by_workspace_and_provider", ["workspaceId", "provider"])
+        .index("by_shared_by", ["sharedBy"]),
 
     // Model preferences - per-workspace
     modelPreferences: defineTable({
@@ -266,22 +279,34 @@ export default defineSchema({
         deletedBy: v.optional(v.id("users")),
     }).index("by_workspace", ["workspaceId"]),
 
-    // MCP configurations - per-workspace
+    // MCP configurations - per-workspace (shared or admin-set)
     mcpConfigs: defineTable({
         workspaceId: v.id("workspaces"),
         name: v.string(),
         type: v.union(v.literal("api"), v.literal("local")), // API-based or local binary
-        config: v.any(), // MCP server configuration
+        config: v.object({
+            command: v.string(),
+            args: v.string(),
+            env: v.optional(v.string()), // JSON string of env vars, only if includeCredentials=true
+        }),
         enabled: v.boolean(),
         createdBy: v.id("users"),
         createdAt: v.number(),
         updatedAt: v.number(),
+
+        // Phase 3: Team MCP sharing fields (optional - only for user-shared MCPs)
+        sharedBy: v.optional(v.id("users")), // User who shared this MCP (null = admin-set)
+        sharerSnapshot: v.optional(sharerSnapshotValidator), // Avatar attribution
+        includeCredentials: v.optional(v.boolean()), // Whether sharer included their credentials
+
         // Soft delete support
         deletedAt: v.optional(v.number()),
         deletedBy: v.optional(v.id("users")),
     })
         .index("by_workspace", ["workspaceId"])
-        .index("by_workspace_and_enabled", ["workspaceId", "enabled"]),
+        .index("by_workspace_and_enabled", ["workspaceId", "enabled"])
+        .index("by_shared_by", ["sharedBy"])
+        .index("by_workspace_and_shared_by", ["workspaceId", "sharedBy"]),
 
     // Presence - for real-time collaboration
     presence: defineTable({
@@ -360,4 +385,21 @@ export default defineSchema({
         .index("by_user", ["userId"])
         .index("by_entity", ["entityType", "entityId"])
         .index("by_workspace_and_timestamp", ["workspaceId", "timestamp"]),
+
+    // ============================================================
+    // Phase 3: Team MCPs & Shared API Keys
+    // ============================================================
+
+    // User secrets for shared MCPs - when user provides their own credentials
+    // for a team MCP that was shared without credentials
+    mcpUserSecrets: defineTable({
+        userId: v.id("users"),
+        mcpConfigId: v.id("mcpConfigs"),
+        encryptedEnv: v.string(), // User's personal credentials (JSON string, encrypted)
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_user", ["userId"])
+        .index("by_mcp_config", ["mcpConfigId"])
+        .index("by_user_and_mcp", ["userId", "mcpConfigId"]),
 });
