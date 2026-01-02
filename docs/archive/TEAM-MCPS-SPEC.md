@@ -1,9 +1,29 @@
 # Team MCPs & Shared API Keys - Feature Specification
 
-**Status:** Draft
+**Status:** Implemented (Phases 1-5)
 **Author:** Claude + Nabeel
 **Date:** January 2025
 **Related:** MULTIPLAYER-PLAN.md (Phase 3)
+
+## Implementation Status
+
+| Phase   | Description                                 | Status                |
+| ------- | ------------------------------------------- | --------------------- |
+| Phase 1 | Schema & Backend (Convex tables, mutations) | ✅ Done               |
+| Phase 2 | Frontend API Layer (React hooks)            | ✅ Done               |
+| Phase 3 | Wrapper & Runtime (TeamToolsetsWrapper)     | ✅ Done               |
+| Phase 4 | MCP UI (Team tab in Tools)                  | ✅ Done               |
+| Phase 5 | API Keys UI (Team section)                  | ✅ Done               |
+| Phase 6 | Real AES-GCM Encryption                     | ⏳ Deferred to future |
+
+### Implementation Notes
+
+-   **Credential sharing:** Implemented using existing base64 encoding (same as existing apiKeys). Real AES-GCM encryption deferred to Phase 6.
+-   **Wrapper approach:** Created `TeamToolsetsWrapper.ts` as pure utility functions instead of class-based wrapper to maintain simplicity
+-   **TeamToolsetsAPI.ts:** Created combined hooks for merged local + team MCPs
+-   **UI changes:** Added Team tab to Connections section, ApiKeysTab component with team sharing
+
+---
 
 ---
 
