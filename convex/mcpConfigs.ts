@@ -238,7 +238,7 @@ export const shareMcp = mutation({
 
 /**
  * Unshare an MCP (soft delete)
- * Only the sharer can unshare their own MCP
+ * Only the sharer can unshare their own MCP, and they must still have workspace access
  */
 export const unshareMcp = mutation({
     args: {
@@ -254,6 +254,9 @@ export const unshareMcp = mutation({
             throw new Error("MCP not found");
         }
 
+        // Verify user still has workspace access
+        await assertCanAccessWorkspace(ctx, mcp.workspaceId, user._id);
+
         // Only the sharer can unshare
         if (mcp.sharedBy !== user._id) {
             throw new Error("Only the sharer can unshare this MCP");
@@ -265,7 +268,8 @@ export const unshareMcp = mutation({
             deletedBy: user._id,
         });
 
-        // Delete all user secrets for this MCP
+        // Hard delete all user secrets for this MCP
+        // (intentional: no audit trail needed for user secrets, and MCP is soft-deleted)
         const userSecrets = await ctx.db
             .query("mcpUserSecrets")
             .withIndex("by_mcp_config", (q) =>

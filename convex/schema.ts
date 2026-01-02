@@ -279,7 +279,7 @@ export default defineSchema({
         deletedBy: v.optional(v.id("users")),
     }).index("by_workspace", ["workspaceId"]),
 
-    // MCP configurations - per-workspace (shared or personal)
+    // MCP configurations - per-workspace (shared or admin-set)
     mcpConfigs: defineTable({
         workspaceId: v.id("workspaces"),
         name: v.string(),
@@ -294,10 +294,10 @@ export default defineSchema({
         createdAt: v.number(),
         updatedAt: v.number(),
 
-        // Phase 3: Team MCP sharing fields
-        sharedBy: v.id("users"), // User who shared this MCP
-        sharerSnapshot: sharerSnapshotValidator, // Avatar attribution
-        includeCredentials: v.boolean(), // Whether sharer included their credentials
+        // Phase 3: Team MCP sharing fields (optional - only for user-shared MCPs)
+        sharedBy: v.optional(v.id("users")), // User who shared this MCP (null = admin-set)
+        sharerSnapshot: v.optional(sharerSnapshotValidator), // Avatar attribution
+        includeCredentials: v.optional(v.boolean()), // Whether sharer included their credentials
 
         // Soft delete support
         deletedAt: v.optional(v.number()),
@@ -305,7 +305,8 @@ export default defineSchema({
     })
         .index("by_workspace", ["workspaceId"])
         .index("by_workspace_and_enabled", ["workspaceId", "enabled"])
-        .index("by_shared_by", ["sharedBy"]),
+        .index("by_shared_by", ["sharedBy"])
+        .index("by_workspace_and_shared_by", ["workspaceId", "sharedBy"]),
 
     // Presence - for real-time collaboration
     presence: defineTable({

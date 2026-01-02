@@ -103,8 +103,10 @@ export const hasKeyForProvider = query({
 });
 
 /**
- * Internal query to get decrypted key for a provider (used by HTTP actions)
+ * Internal query to get key for a provider (used by HTTP actions)
  * This should only be called from server-side code
+ * Uses same resolution logic as resolveKeyForProvider but without userId context
+ * (returns admin team key, or most recently updated shared key)
  */
 export const getKeyForProvider = internalQuery({
     args: {
@@ -112,7 +114,7 @@ export const getKeyForProvider = internalQuery({
         provider: v.string(),
     },
     handler: async (ctx, args) => {
-        const key = await ctx.db
+        const keys = await ctx.db
             .query("apiKeys")
             .withIndex("by_workspace_and_provider", (q) =>
                 q
@@ -120,15 +122,26 @@ export const getKeyForProvider = internalQuery({
                     .eq("provider", args.provider),
             )
             .filter((q) => q.eq(q.field("deletedAt"), undefined))
-            .first();
+            .collect();
 
-        if (!key) {
+        if (keys.length === 0) {
             return null;
         }
 
+        // Prefer admin-set team key first (no sharedBy)
+        const teamKey = keys.find((k) => k.sharedBy === undefined);
+        if (teamKey) {
+            return {
+                encryptedKey: teamKey.encryptedKey,
+                provider: teamKey.provider,
+            };
+        }
+
+        // Fall back to most recently updated shared key
+        const sortedKeys = keys.sort((a, b) => b.updatedAt - a.updatedAt);
         return {
-            encryptedKey: key.encryptedKey,
-            provider: key.provider,
+            encryptedKey: sortedKeys[0].encryptedKey,
+            provider: sortedKeys[0].provider,
         };
     },
 });
@@ -237,9 +250,10 @@ export const deleteTeamKey = mutation({
 /**
  * Internal function to resolve the best API key for a provider
  * Resolution order:
- * 1. User's shared key (sharedBy field set)
- * 2. Workspace's admin-set team key (no sharedBy field)
- * 3. null (caller should fall back to default)
+ * 1. User's own shared key
+ * 2. Most recently updated user-shared key (deterministic)
+ * 3. Workspace's admin-set team key (no sharedBy field)
+ * 4. null (caller should fall back to default)
  *
  * This is called by HTTP actions that need to make API calls
  */
@@ -274,12 +288,14 @@ export const resolveKeyForProvider = internalQuery({
             };
         }
 
-        // Then any user-shared key
-        const sharedKey = keys.find((k) => k.sharedBy !== undefined);
-        if (sharedKey) {
+        // Then most recently updated user-shared key (deterministic ordering)
+        const sharedKeys = keys
+            .filter((k) => k.sharedBy !== undefined)
+            .sort((a, b) => b.updatedAt - a.updatedAt);
+        if (sharedKeys.length > 0) {
             return {
                 source: "shared" as const,
-                encryptedKey: sharedKey.encryptedKey,
+                encryptedKey: sharedKeys[0].encryptedKey,
             };
         }
 
@@ -371,7 +387,7 @@ export const shareKey = mutation({
 
 /**
  * Unshare a user's API key
- * Only the sharer can unshare their own key
+ * Only the sharer can unshare their own key, and they must still have workspace access
  */
 export const unshareKey = mutation({
     args: {
@@ -386,6 +402,9 @@ export const unshareKey = mutation({
         if (!key || key.deletedAt) {
             throw new Error("API key not found");
         }
+
+        // Verify user still has workspace access
+        await assertCanAccessWorkspace(ctx, key.workspaceId, user._id);
 
         // Only the sharer can unshare
         if (key.sharedBy !== user._id) {
