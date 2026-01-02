@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { XIcon, LockIcon, ArrowUpRightIcon, SendIcon } from "lucide-react";
+import { XIcon, LockIcon, ArrowUpRightIcon, FileTextIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import ReplyChat from "./ReplyChat";
 import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
@@ -11,6 +11,11 @@ import {
     PUBLISH_SUMMARY_DIALOG_ID,
 } from "./chat/PublishSummaryDialog";
 import { campConfig } from "@core/campConfig";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@ui/components/ui/tooltip";
 
 interface RepliesDrawerProps {
     onOpenChange: (open: boolean) => void;
@@ -100,23 +105,12 @@ export default function RepliesDrawer({
                                     <ArrowUpRightIcon className="w-3 h-3" />
                                 </Link>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handlePublishSummary}
-                                    className="text-xs"
-                                >
-                                    <SendIcon className="w-3 h-3 mr-1" />
-                                    Publish
-                                </Button>
-                                <button
-                                    onClick={() => onOpenChange(false)}
-                                    className="text-muted-foreground hover:text-foreground transition-colors"
-                                >
-                                    <XIcon className="size-4" />
-                                </button>
-                            </div>
+                            <button
+                                onClick={() => onOpenChange(false)}
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                <XIcon className="size-4" />
+                            </button>
                         </div>
                     ) : (
                         // Standard reply header (SQLite mode or non-private)
@@ -135,11 +129,35 @@ export default function RepliesDrawer({
                 </div>
 
                 {/* Content - ReplyChat for the reply thread */}
-                <div className="flex-1 overflow-hidden transition-opacity duration-300">
+                <div className="flex-1 overflow-hidden transition-opacity duration-300 relative">
                     <ReplyChat
                         chatId={replyChatId}
                         replyToId={repliedToMessageId}
                     />
+
+                    {/* Floating Summarize button for private replies */}
+                    {isPrivateReply && parentChatId && (
+                        <div className="absolute bottom-4 right-4">
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handlePublishSummary}
+                                        className="shadow-lg"
+                                    >
+                                        <FileTextIcon className="w-4 h-4 mr-1.5" />
+                                        Summarize
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    Share a summary with{" "}
+                                    {parentChatQuery.data?.title ||
+                                        "parent chat"}
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
+                    )}
                 </div>
             </div>
 
