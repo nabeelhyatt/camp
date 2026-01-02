@@ -214,6 +214,27 @@ export const shareMcp = mutation({
             );
         }
 
+        // Check for duplicate name within workspace (by same user)
+        const existingMcp = await ctx.db
+            .query("mcpConfigs")
+            .withIndex("by_workspace", (q) =>
+                q.eq("workspaceId", args.workspaceId),
+            )
+            .filter((q) =>
+                q.and(
+                    q.eq(q.field("name"), args.name),
+                    q.eq(q.field("sharedBy"), user._id),
+                    q.eq(q.field("deletedAt"), undefined),
+                ),
+            )
+            .first();
+
+        if (existingMcp) {
+            throw new Error(
+                `You already have a shared MCP named "${args.name}" in this workspace`,
+            );
+        }
+
         const now = Date.now();
 
         // Create sharer snapshot for attribution
