@@ -800,8 +800,13 @@ function ChatListItem({ chat, isActive }: { chat: Chat; isActive: boolean }) {
         });
         dialogActions.closeDialog();
 
+        // Navigate away if we're viewing the deleted chat to avoid "Chat not found" error
+        if (isActive) {
+            navigate.current("/");
+        }
+
         toast(`'${chatTitle}' deleted`);
-    }, [chat.id, chat.title, deleteChatMutateAsync]);
+    }, [chat.id, chat.title, deleteChatMutateAsync, isActive]);
 
     // Handle keyboard navigation in delete dialog
     useEffect(() => {
