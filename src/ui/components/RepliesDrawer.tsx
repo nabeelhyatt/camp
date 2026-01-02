@@ -3,7 +3,6 @@ import { XIcon, LockIcon, ArrowUpRightIcon, FileTextIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import ReplyChat from "./ReplyChat";
 import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
-import { useSidebar } from "@ui/hooks/useSidebar";
 import { Button } from "@ui/components/ui/button";
 import { dialogActions } from "@core/infra/DialogStore";
 import {
@@ -28,7 +27,6 @@ export default function RepliesDrawer({
 }: RepliesDrawerProps) {
     // Fetch the reply chat via the replyID (which is really just a chat ID in the db)
     const chatQuery = ChatAPI.useChat(replyChatId);
-    const { isMobile } = useSidebar();
 
     // Get parent chat info for the header (only for private replies in Convex mode)
     const chatData = chatQuery.data;
@@ -80,9 +78,7 @@ export default function RepliesDrawer({
         <>
             <div className="@2xl:translate-y-[50px] @2xl:h-[calc(100vh-50px)] h-full bg-background flex flex-col transition-all duration-300 ease-in-out overflow-hidden w-full">
                 {/* Header */}
-                <div
-                    className={`flex-shrink-0 transition-opacity duration-300 ${isMobile ? "pt-8" : "pt-4"}`}
-                >
+                <div className="flex-shrink-0 transition-opacity duration-300">
                     {isPrivateReply && parentChatId ? (
                         // Private reply header with ForkIndicator style
                         <div className="bg-muted/50 border-b px-4 py-2 flex items-center justify-between">
@@ -129,36 +125,35 @@ export default function RepliesDrawer({
                 </div>
 
                 {/* Content - ReplyChat for the reply thread */}
-                <div className="flex-1 overflow-hidden transition-opacity duration-300 relative">
+                <div className="flex-1 overflow-hidden transition-opacity duration-300">
                     <ReplyChat
                         chatId={replyChatId}
                         replyToId={repliedToMessageId}
                     />
-
-                    {/* Floating Summarize button for private replies */}
-                    {isPrivateReply && parentChatId && (
-                        <div className="absolute bottom-4 right-4">
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handlePublishSummary}
-                                        className="shadow-lg"
-                                    >
-                                        <FileTextIcon className="w-4 h-4 mr-1.5" />
-                                        Summarize
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    Share a summary with{" "}
-                                    {parentChatQuery.data?.title ||
-                                        "parent chat"}
-                                </TooltipContent>
-                            </Tooltip>
-                        </div>
-                    )}
                 </div>
+
+                {/* Floating Summarize button for private replies */}
+                {isPrivateReply && parentChatId && (
+                    <div className="absolute bottom-20 right-6 z-10">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handlePublishSummary}
+                                    className="shadow-lg"
+                                >
+                                    <FileTextIcon className="w-4 h-4 mr-1.5" />
+                                    Summarize
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                Share a summary with{" "}
+                                {parentChatQuery.data?.title || "parent chat"}
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                )}
             </div>
 
             {/* Publish summary dialog for private replies */}
