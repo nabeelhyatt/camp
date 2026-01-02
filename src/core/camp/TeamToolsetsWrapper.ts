@@ -113,6 +113,11 @@ export function mergeToolsetConfigs(
 
     // Add team MCPs that don't conflict with local configs
     for (const teamMcp of teamMcps) {
+        // Skip disabled team MCPs
+        if (!teamMcp.enabled) {
+            continue;
+        }
+
         // Skip if local config with same name exists
         if (localNames.has(teamMcp.name)) {
             console.log(

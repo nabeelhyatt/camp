@@ -97,9 +97,13 @@ export function useAllToolsetConfigs(): AllToolsetConfig[] | undefined {
             }),
         );
 
-        // Build sharer env map (we don't have the actual encrypted envs here,
-        // as they're not returned from listForWorkspace for security)
-        // The actual credential resolution happens in the refresh function
+        // KNOWN LIMITATION (Phase 6): Sharer credentials not yet implemented
+        // The sharerEnvs map is intentionally empty because:
+        // 1. listForWorkspace doesn't return encrypted env data for security
+        // 2. Real AES-GCM encryption for sharing credentials is Phase 6 work
+        // 3. For now, MCPs shared with includeCredentials=true still require
+        //    users to add their own credentials (they'll see "Setup required")
+        // See: docs/archive/TEAM-MCPS-SPEC.md - Phase 6: Real Encryption
         const sharerEnvs = new Map<string, string>();
 
         // Merge local + team configs

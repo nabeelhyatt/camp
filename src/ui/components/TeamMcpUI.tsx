@@ -239,7 +239,7 @@ export function SetupCredentialsDialog({
             setEnvValue("{}");
             setError(null);
         }
-    }, [isOpen]);
+    }, [isOpen, mcp]);
 
     const validateEnv = (value: string): string | null => {
         if (!value.trim()) return null;
