@@ -799,6 +799,13 @@ export function usePopulateBlockConvex(
                         errorMessage: msg.errorMessage,
                         createdAt: new Date(msg.createdAt).toISOString(),
                         updatedAt: new Date(msg.updatedAt).toISOString(),
+                        branchedFromId: msg.branchedFromId
+                            ? convexIdToString(msg.branchedFromId)
+                            : undefined,
+                        replyChatId: msg.replyChatId
+                            ? convexIdToString(msg.replyChatId)
+                            : undefined,
+                        selected: msg.selected,
                         parts: msg.parts.map((p) => ({
                             id: convexIdToString(p._id),
                             type: p.type,

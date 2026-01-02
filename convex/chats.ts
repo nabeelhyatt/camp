@@ -358,13 +358,17 @@ export const createPrivateFork = mutation({
             if (!forkedMessage) {
                 throw new Error("Forked message not found");
             }
+            // Validate that the forked message belongs to the parent chat
+            if (forkedMessage.chatId !== args.parentChatId) {
+                throw new Error("Forked message is not in the parent chat");
+            }
 
             // Get the forked message's message set to find its creation time
             const forkedMessageSet = await ctx.db.get(
                 forkedMessage.messageSetId,
             );
-            if (!forkedMessageSet) {
-                throw new Error("Forked message set not found");
+            if (!forkedMessageSet || forkedMessageSet.deletedAt) {
+                throw new Error("Forked message set not found or deleted");
             }
 
             // Get all message sets in the parent chat up to and including the forked one

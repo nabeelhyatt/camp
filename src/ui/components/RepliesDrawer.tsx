@@ -76,7 +76,7 @@ export default function RepliesDrawer({
 
     return (
         <>
-            <div className="@2xl:translate-y-[50px] @2xl:h-[calc(100vh-50px)] h-full bg-background flex flex-col transition-all duration-300 ease-in-out overflow-hidden w-full">
+            <div className="@2xl:translate-y-[50px] @2xl:h-[calc(100vh-50px)] h-full bg-background flex flex-col transition-all duration-300 ease-in-out overflow-hidden w-full relative">
                 {/* Header */}
                 <div className="flex-shrink-0 transition-opacity duration-300">
                     {isPrivateReply && parentChatId ? (
