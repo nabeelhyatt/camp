@@ -17,13 +17,12 @@ import {
     toolsetsKeys,
 } from "@core/chorus/api/ToolsetsAPI";
 import { ToolsetsManager } from "@core/chorus/ToolsetsManager";
-import { useTeamMcps, useUserMcpSecrets, TeamMcpConfig } from "./TeamMcpAPI";
+import { useTeamMcps, TeamMcpConfig } from "./TeamMcpAPI";
 import {
     mergeToolsetConfigs,
     getRefreshableConfigs,
     TeamToolsetConfig,
     TeamMcpFromServer,
-    UserMcpSecret,
 } from "../TeamToolsetsWrapper";
 
 // ============================================================
@@ -65,10 +64,9 @@ export function useAllToolsetConfigs(): AllToolsetConfig[] | undefined {
         useCustomToolsetConfigs();
 
     // Fetch team MCPs from Convex
+    // Note: listForWorkspace already resolves credentials (user > sharer)
+    // and returns encryptedEnv in the config
     const teamMcps = useTeamMcps();
-
-    // Fetch user's personal secrets for team MCPs
-    const userSecrets = useUserMcpSecrets();
 
     // Wait for all data to be loaded
     const isLoading = localLoading || teamMcps === undefined;
@@ -97,22 +95,9 @@ export function useAllToolsetConfigs(): AllToolsetConfig[] | undefined {
             }),
         );
 
-        // KNOWN LIMITATION (Phase 6): Sharer credentials not yet implemented
-        // The sharerEnvs map is intentionally empty because:
-        // 1. listForWorkspace doesn't return encrypted env data for security
-        // 2. Real AES-GCM encryption for sharing credentials is Phase 6 work
-        // 3. For now, MCPs shared with includeCredentials=true still require
-        //    users to add their own credentials (they'll see "Setup required")
-        // See: docs/archive/TEAM-MCPS-SPEC.md - Phase 6: Real Encryption
-        const sharerEnvs = new Map<string, string>();
-
         // Merge local + team configs
-        const merged = mergeToolsetConfigs(
-            localConfigs,
-            teamMcpsForMerge,
-            (userSecrets || []) as UserMcpSecret[],
-            sharerEnvs,
-        );
+        // Credential resolution is done server-side in listForWorkspace
+        const merged = mergeToolsetConfigs(localConfigs, teamMcpsForMerge);
 
         // Add enabled status (all configs are enabled by default for now)
         // TODO: Add per-config enable/disable toggle in UI
@@ -120,7 +105,7 @@ export function useAllToolsetConfigs(): AllToolsetConfig[] | undefined {
             ...config,
             enabled: true,
         }));
-    }, [isLoading, localConfigs, teamMcps, userSecrets]);
+    }, [isLoading, localConfigs, teamMcps]);
 }
 
 /**

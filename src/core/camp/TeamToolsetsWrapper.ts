@@ -29,6 +29,8 @@ export interface TeamMcpFromServer {
     config: {
         command: string;
         args: string;
+        /** Encrypted env (base64) - already resolved from user secrets or sharer credentials */
+        encryptedEnv?: string;
         hasEnv?: boolean;
     };
     enabled: boolean;
@@ -44,17 +46,6 @@ export interface TeamMcpFromServer {
     needsSetup: boolean;
     isSharer: boolean;
     hasUserCredentials: boolean;
-}
-
-/**
- * User secret for a team MCP (encrypted env)
- */
-export interface UserMcpSecret {
-    _id: Id<"mcpUserSecrets">;
-    mcpConfigId: Id<"mcpConfigs">;
-    encryptedEnv: string;
-    createdAt: number;
-    updatedAt: number;
 }
 
 /**
@@ -85,17 +76,17 @@ export interface TeamToolsetConfig extends CustomToolsetConfig {
  * 1. Local configs take priority (user's own MCPs)
  * 2. Team MCPs are added if not duplicated by name
  *
+ * Credential resolution is done server-side in listForWorkspace:
+ * - User's own credentials (mcpUserSecrets) take priority
+ * - Falls back to sharer's credentials (if includeCredentials=true)
+ *
  * @param localConfigs - Custom toolsets from local SQLite database
  * @param teamMcps - Team MCPs from Convex (from useTeamMcps hook)
- * @param userSecrets - User's personal secrets for team MCPs (from useUserMcpSecrets)
- * @param sharerEnvs - Map of MCP ID to sharer's encrypted env (if includeCredentials=true)
  * @returns Merged list of toolset configs ready for ToolsetsManager
  */
 export function mergeToolsetConfigs(
     localConfigs: CustomToolsetConfig[],
     teamMcps: TeamMcpFromServer[],
-    userSecrets: UserMcpSecret[],
-    sharerEnvs: Map<string, string>,
 ): TeamToolsetConfig[] {
     // Start with local configs (they take priority)
     const result: TeamToolsetConfig[] = localConfigs.map((config) => ({
@@ -105,11 +96,6 @@ export function mergeToolsetConfigs(
 
     // Track local config names for deduplication
     const localNames = new Set(localConfigs.map((c) => c.name));
-
-    // Create a map of user secrets by MCP ID for fast lookup
-    const userSecretsMap = new Map(
-        userSecrets.map((s) => [s.mcpConfigId, s.encryptedEnv]),
-    );
 
     // Add team MCPs that don't conflict with local configs
     for (const teamMcp of teamMcps) {
@@ -150,30 +136,16 @@ export function mergeToolsetConfigs(
             continue;
         }
 
-        // Resolve credentials: user secrets first, then sharer credentials
+        // Decrypt credentials from the resolved encryptedEnv
+        // (server already resolved: user secrets > sharer credentials)
         let env = "{}";
-        const userEnv = userSecretsMap.get(teamMcp._id);
-        const sharerEnv = sharerEnvs.get(teamMcp._id);
-
-        if (userEnv) {
-            // User has their own credentials
+        if (teamMcp.config.encryptedEnv) {
             try {
-                const decrypted = decryptApiKey(userEnv);
+                const decrypted = decryptApiKey(teamMcp.config.encryptedEnv);
                 env = decrypted;
             } catch (error) {
                 console.error(
-                    `Failed to decrypt user credentials for ${teamMcp.name}:`,
-                    error,
-                );
-            }
-        } else if (sharerEnv) {
-            // Use sharer's credentials
-            try {
-                const decrypted = decryptApiKey(sharerEnv);
-                env = decrypted;
-            } catch (error) {
-                console.error(
-                    `Failed to decrypt sharer credentials for ${teamMcp.name}:`,
+                    `Failed to decrypt credentials for ${teamMcp.name}:`,
                     error,
                 );
             }
@@ -209,26 +181,6 @@ export function getRefreshableConfigs(
     return mergedConfigs
         .filter((config) => config.source === "local" || !config.needsSetup)
         .map(({ source, teamMcpId, needsSetup, sharer, ...config }) => config);
-}
-
-/**
- * Build a map of sharer environments from team MCPs
- * Used to pass sharer credentials to mergeToolsetConfigs
- */
-export function buildSharerEnvMap(
-    teamMcps: TeamMcpFromServer[],
-    mcpEnvs: Map<string, string>,
-): Map<string, string> {
-    const result = new Map<string, string>();
-
-    for (const mcp of teamMcps) {
-        // Only include if sharer included credentials
-        if (mcp.includeCredentials && mcpEnvs.has(mcp._id)) {
-            result.set(mcp._id, mcpEnvs.get(mcp._id)!);
-        }
-    }
-
-    return result;
 }
 
 // ============================================================

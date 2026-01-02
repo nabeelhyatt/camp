@@ -73,6 +73,15 @@ export const listForWorkspace = query({
             // Is this user the sharer?
             const isSharer = mcp.sharedBy === user._id;
 
+            // Resolve encrypted env for credential resolution
+            // Priority: user's own credentials > sharer's credentials
+            let encryptedEnv: string | undefined;
+            if (hasUserCredentials && userSecret) {
+                encryptedEnv = userSecret.encryptedEnv;
+            } else if (hasSharerCredentials && mcp.config.env) {
+                encryptedEnv = mcp.config.env;
+            }
+
             return {
                 _id: mcp._id,
                 name: mcp.name,
@@ -80,7 +89,9 @@ export const listForWorkspace = query({
                 config: {
                     command: mcp.config.command,
                     args: mcp.config.args,
-                    // Only include env if user has access to credentials
+                    // Include encrypted env for credential resolution
+                    // (decryption happens client-side)
+                    encryptedEnv,
                     hasEnv: hasUserCredentials || hasSharerCredentials,
                 },
                 enabled: mcp.enabled,

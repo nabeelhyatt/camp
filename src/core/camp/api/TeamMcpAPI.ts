@@ -36,6 +36,8 @@ export interface TeamMcpConfig {
     config: {
         command: string;
         args: string;
+        /** Encrypted env (base64) - resolved from user secrets or sharer credentials */
+        encryptedEnv?: string;
         hasEnv?: boolean;
     };
     enabled: boolean;
