@@ -40,7 +40,7 @@ export type Provider = (typeof PROVIDERS)[number];
 
 /**
  * List all API keys for a workspace (without decrypted values)
- * Returns key hints for UI display
+ * Returns key hints for UI display, with sharer attribution
  */
 export const listForWorkspace = query({
     args: {
@@ -67,6 +67,10 @@ export const listForWorkspace = query({
             createdBy: key.createdBy,
             createdAt: key.createdAt,
             updatedAt: key.updatedAt,
+            // Phase 3: Sharer attribution
+            sharedBy: key.sharedBy,
+            sharerSnapshot: key.sharerSnapshot,
+            isSharer: key.sharedBy === user._id,
         }));
     },
 });
@@ -233,8 +237,8 @@ export const deleteTeamKey = mutation({
 /**
  * Internal function to resolve the best API key for a provider
  * Resolution order:
- * 1. User's personal key (TODO: implement userMcpSecrets)
- * 2. Workspace's team key
+ * 1. User's shared key (sharedBy field set)
+ * 2. Workspace's admin-set team key (no sharedBy field)
  * 3. null (caller should fall back to default)
  *
  * This is called by HTTP actions that need to make API calls
@@ -246,11 +250,8 @@ export const resolveKeyForProvider = internalQuery({
         provider: v.string(),
     },
     handler: async (ctx, args) => {
-        // TODO: Check user's personal key first (userMcpSecrets table)
-        // For Phase 0, we skip this and go straight to team key
-
-        // Check workspace's team key
-        const teamKey = await ctx.db
+        // Get all keys for this provider in the workspace
+        const keys = await ctx.db
             .query("apiKeys")
             .withIndex("by_workspace_and_provider", (q) =>
                 q
@@ -258,8 +259,32 @@ export const resolveKeyForProvider = internalQuery({
                     .eq("provider", args.provider),
             )
             .filter((q) => q.eq(q.field("deletedAt"), undefined))
-            .first();
+            .collect();
 
+        if (keys.length === 0) {
+            return null;
+        }
+
+        // Prefer user's own shared key first
+        const userKey = keys.find((k) => k.sharedBy === args.userId);
+        if (userKey) {
+            return {
+                source: "user" as const,
+                encryptedKey: userKey.encryptedKey,
+            };
+        }
+
+        // Then any user-shared key
+        const sharedKey = keys.find((k) => k.sharedBy !== undefined);
+        if (sharedKey) {
+            return {
+                source: "shared" as const,
+                encryptedKey: sharedKey.encryptedKey,
+            };
+        }
+
+        // Finally admin-set team key
+        const teamKey = keys.find((k) => k.sharedBy === undefined);
         if (teamKey) {
             return {
                 source: "team" as const,
@@ -267,7 +292,112 @@ export const resolveKeyForProvider = internalQuery({
             };
         }
 
-        // No key found - caller should use default
         return null;
+    },
+});
+
+// ============================================================
+// Phase 3: User Sharing Mutations
+// ============================================================
+
+/**
+ * Share an API key with the team (any member can share)
+ * Creates a user-attributed key entry
+ */
+export const shareKey = mutation({
+    args: {
+        clerkId: v.string(),
+        workspaceId: v.id("workspaces"),
+        provider: v.string(),
+        encryptedKey: v.string(),
+        keyHint: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const user = await getUserByClerkIdOrThrow(ctx, args.clerkId);
+        await assertCanAccessWorkspace(ctx, args.workspaceId, user._id);
+
+        const now = Date.now();
+
+        // Check if this user already has a shared key for this provider
+        const existingKeys = await ctx.db
+            .query("apiKeys")
+            .withIndex("by_workspace_and_provider", (q) =>
+                q
+                    .eq("workspaceId", args.workspaceId)
+                    .eq("provider", args.provider),
+            )
+            .filter((q) => q.eq(q.field("deletedAt"), undefined))
+            .collect();
+
+        const existingUserKey = existingKeys.find(
+            (k) => k.sharedBy === user._id,
+        );
+
+        if (existingUserKey) {
+            // Update existing key
+            await ctx.db.patch(existingUserKey._id, {
+                encryptedKey: args.encryptedKey,
+                keyHint: args.keyHint,
+                updatedAt: now,
+                sharerSnapshot: {
+                    userId: user._id,
+                    displayName: user.displayName,
+                    avatarUrl: user.avatarUrl,
+                },
+            });
+            return { _id: existingUserKey._id, updated: true };
+        }
+
+        // Create new shared key
+        const keyId = await ctx.db.insert("apiKeys", {
+            workspaceId: args.workspaceId,
+            provider: args.provider,
+            encryptedKey: args.encryptedKey,
+            keyHint: args.keyHint,
+            createdBy: user._id,
+            createdAt: now,
+            updatedAt: now,
+            sharedBy: user._id,
+            sharerSnapshot: {
+                userId: user._id,
+                displayName: user.displayName,
+                avatarUrl: user.avatarUrl,
+            },
+        });
+
+        return { _id: keyId, updated: false };
+    },
+});
+
+/**
+ * Unshare a user's API key
+ * Only the sharer can unshare their own key
+ */
+export const unshareKey = mutation({
+    args: {
+        clerkId: v.string(),
+        keyId: v.id("apiKeys"),
+    },
+    handler: async (ctx, args) => {
+        const user = await getUserByClerkIdOrThrow(ctx, args.clerkId);
+
+        const key = await ctx.db.get(args.keyId);
+
+        if (!key || key.deletedAt) {
+            throw new Error("API key not found");
+        }
+
+        // Only the sharer can unshare
+        if (key.sharedBy !== user._id) {
+            throw new Error("Only the sharer can unshare this key");
+        }
+
+        // Soft delete
+        await ctx.db.patch(args.keyId, {
+            deletedAt: Date.now(),
+            deletedBy: user._id,
+        });
+
+        return { success: true };
     },
 });
