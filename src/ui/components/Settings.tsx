@@ -41,6 +41,7 @@ import {
     BookOpen,
     Globe,
     UserCircle,
+    Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { config } from "@core/config";
@@ -71,6 +72,13 @@ import { UNIVERSAL_SYSTEM_PROMPT_DEFAULT } from "@core/chorus/prompts/prompts";
 import { CustomToolsetConfig, getEnvFromJSON } from "@core/chorus/Toolsets";
 import * as ToolsetsAPI from "@core/chorus/api/ToolsetsAPI";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+    useTeamMcps,
+    useUnshareMcp,
+    useSetMcpUserSecrets,
+    TeamMcpConfig,
+} from "@core/camp/api/TeamMcpAPI";
+import { TeamMcpRow, SetupCredentialsDialog } from "./TeamMcpUI";
 import { useReactQueryAutoSync } from "use-react-query-auto-sync";
 import { RiClaudeFill, RiSupabaseFill } from "react-icons/ri";
 import { TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -633,8 +641,14 @@ function ToolsTab() {
     });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [activeToolsetTab, setActiveToolsetTab] = useState<
-        "custom" | "builtin"
+        "custom" | "team" | "builtin"
     >("custom");
+
+    // Team MCP state and hooks
+    const teamMcps = useTeamMcps();
+    const unshareMcp = useUnshareMcp();
+    const setMcpUserSecrets = useSetMcpUserSecrets();
+    const [setupMcp, setSetupMcp] = useState<TeamMcpConfig | null>(null);
 
     const validateToolset = (
         toolset: CustomToolsetConfig,
@@ -975,12 +989,30 @@ function ToolsTab() {
                 <Tabs
                     value={activeToolsetTab}
                     onValueChange={(value) =>
-                        setActiveToolsetTab(value as "custom" | "builtin")
+                        setActiveToolsetTab(
+                            value as "custom" | "team" | "builtin",
+                        )
                     }
                     className="mt-6"
                 >
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="custom">Custom</TabsTrigger>
+                        <TabsTrigger value="team">
+                            Team
+                            {teamMcps &&
+                                teamMcps.filter((m) => m.needsSetup).length >
+                                    0 && (
+                                    <Badge
+                                        variant="outline"
+                                        className="ml-1 text-amber-600 border-amber-600 h-5 px-1"
+                                    >
+                                        {
+                                            teamMcps.filter((m) => m.needsSetup)
+                                                .length
+                                        }
+                                    </Badge>
+                                )}
+                        </TabsTrigger>
                         <TabsTrigger value="builtin">Built-in</TabsTrigger>
                     </TabsList>
                     <TabsContent value="custom" className="mt-4">
@@ -1010,6 +1042,46 @@ function ToolsTab() {
                                     </span>
                                 </span>
                             </button>
+                        )}
+                    </TabsContent>
+                    <TabsContent value="team" className="mt-4">
+                        {teamMcps && teamMcps.length > 0 ? (
+                            <div className="space-y-4 overflow-hidden">
+                                {teamMcps.map((mcp) => (
+                                    <TeamMcpRow
+                                        key={mcp._id}
+                                        mcp={mcp}
+                                        onSetupCredentials={(m) =>
+                                            setSetupMcp(m)
+                                        }
+                                        onUnshare={async (mcpId) => {
+                                            try {
+                                                await unshareMcp(mcpId);
+                                                toast.success(
+                                                    "MCP removed from team",
+                                                );
+                                            } catch (error) {
+                                                toast.error(
+                                                    error instanceof Error
+                                                        ? error.message
+                                                        : "Failed to unshare MCP",
+                                                );
+                                            }
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-12 text-muted-foreground">
+                                <Users className="size-12 mx-auto mb-4 opacity-50" />
+                                <p className="font-medium">
+                                    No team MCPs shared yet
+                                </p>
+                                <p className="text-sm mt-2">
+                                    Share your MCPs from the Custom tab to let
+                                    teammates use them.
+                                </p>
+                            </div>
                         )}
                     </TabsContent>
                     <TabsContent value="builtin" className="mt-4">
@@ -1067,6 +1139,17 @@ function ToolsTab() {
                     .
                 </p>
             </div>
+
+            {/* Setup credentials dialog for team MCPs */}
+            <SetupCredentialsDialog
+                isOpen={setupMcp !== null}
+                onClose={() => setSetupMcp(null)}
+                mcp={setupMcp}
+                onSave={async (env) => {
+                    if (!setupMcp) return;
+                    await setMcpUserSecrets(setupMcp._id, env);
+                }}
+            />
         </div>
     );
 }
