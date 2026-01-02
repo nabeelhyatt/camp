@@ -298,13 +298,11 @@ Each time you use a tool, the user has to wait for it, so only use tools as need
 `;
 
 export const PROJECTS_SYSTEM_PROMPT = `<projects_instructions>
-The user has started this chat in the context of a project, a group of related chats.
-The first user message will include the project_context, which may contain:
+The user has started this chat in the context of a project. The first message includes project_context documents:
+- project_instructions: User-provided context about the project
+- related_chat_summaries: Summaries from other chats in this project (if any)
 
-1. user_context - Explicit instructions the user has given you about this project. Any attached files
-   were also provided explicitly by the user. Pay special attention to these.
-2. chat_summaries - Summaries of other chats in the project. These may or may not be relevant to the
-   task at hand. Only reference this information if it's relevant.
+Reference these documents when relevant to the user's question.
 </projects_instructions>
 `;
 
@@ -313,17 +311,26 @@ export const PROJECTS_CONTEXT_PROMPT = (
     chatSummaries: string[] | undefined,
 ) => `
 <project_context>
-<user_context>
+<document index="1">
+<source>project_instructions</source>
+<document_content>
 ${userContext}
-</user_context>
+</document_content>
+</document>
 ${
-    chatSummaries
-        ? `<chat_summaries>
-${chatSummaries.map((s) => `<chat_summary>\n${s}\n</chat_summary>`).join("\n")}
-</chat_summaries>`
+    chatSummaries && chatSummaries.length > 0
+        ? chatSummaries
+              .map(
+                  (s, i) => `<document index="${i + 2}">
+<source>related_chat_summary_${i + 1}</source>
+<document_content>
+${s}
+</document_content>
+</document>`,
+              )
+              .join("\n")
         : ""
 }
-</chat_summaries>
 </project_context>
 `;
 

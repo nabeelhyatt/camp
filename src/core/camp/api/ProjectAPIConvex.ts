@@ -443,12 +443,15 @@ export function isProjectCollapsed(projectId: string): boolean {
 // ============================================================
 
 import type { LLMMessage } from "@core/chorus/Models";
+import * as Prompts from "@core/chorus/prompts/prompts";
 
 /**
  * Convex version of useGetProjectContextLLMMessage
  *
  * Returns a function that builds LLM context messages from project data.
  * Uses the Convex client to fetch project data imperatively.
+ * Uses the same PROJECTS_CONTEXT_PROMPT format as the SQLite version
+ * to ensure consistent prompt structure following Anthropic's best practices.
  */
 export function useGetProjectContextLLMMessageConvex(): (
     projectId: string,
@@ -485,10 +488,14 @@ export function useGetProjectContextLLMMessageConvex(): (
                     return [];
                 }
 
-                // Build the LLM message with project context
+                // Build the LLM message with project context using the shared prompt format
+                // This follows Anthropic's recommended document structure for long context
                 const contextMessage: LLMMessage = {
                     role: "user",
-                    content: `<project_context>\n${project.contextText}\n</project_context>`,
+                    content: Prompts.PROJECTS_CONTEXT_PROMPT(
+                        project.contextText,
+                        [], // TODO: Add chat summaries when magic projects is implemented for Convex
+                    ),
                     attachments: [],
                 };
 
