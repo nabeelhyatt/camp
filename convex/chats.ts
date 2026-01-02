@@ -302,6 +302,12 @@ export const create = mutation({
 /**
  * Create a private fork from a team chat
  * This is the "Reply privately" feature
+ *
+ * When forkFromMessageId is provided:
+ * 1. Creates a new private chat
+ * 2. Copies all message sets up to and including the forked message
+ * 3. Sets branchedFromId on the copied message to link back to original
+ * 4. Updates the original message with replyChatId
  */
 export const createPrivateFork = mutation({
     args: {
@@ -345,6 +351,116 @@ export const createPrivateFork = mutation({
             updatedAt: now,
         });
 
+        // If we have a forkFromMessageId, copy messages up to that point
+        if (args.forkFromMessageId) {
+            // Get the forked message to find its message set
+            const forkedMessage = await ctx.db.get(args.forkFromMessageId);
+            if (!forkedMessage) {
+                throw new Error("Forked message not found");
+            }
+            // Validate that the forked message belongs to the parent chat
+            if (forkedMessage.chatId !== args.parentChatId) {
+                throw new Error("Forked message is not in the parent chat");
+            }
+
+            // Get the forked message's message set to find its creation time
+            const forkedMessageSet = await ctx.db.get(
+                forkedMessage.messageSetId,
+            );
+            if (!forkedMessageSet || forkedMessageSet.deletedAt) {
+                throw new Error("Forked message set not found or deleted");
+            }
+
+            // Get all message sets in the parent chat up to and including the forked one
+            const parentMessageSets = await ctx.db
+                .query("messageSets")
+                .withIndex("by_chat", (q) => q.eq("chatId", args.parentChatId))
+                .filter((q) =>
+                    q.and(
+                        q.eq(q.field("deletedAt"), undefined),
+                        q.lte(q.field("createdAt"), forkedMessageSet.createdAt),
+                    ),
+                )
+                .collect();
+
+            // Sort by creation time to maintain order
+            const sortedMessageSets = parentMessageSets.sort(
+                (a, b) => a.createdAt - b.createdAt,
+            );
+
+            // Copy each message set and its messages
+            for (const sourceSet of sortedMessageSets) {
+                // Create new message set in the fork
+                const newMessageSetId = await ctx.db.insert("messageSets", {
+                    chatId,
+                    createdBy: sourceSet.createdBy,
+                    createdAt: sourceSet.createdAt,
+                    authorSnapshot: sourceSet.authorSnapshot,
+                });
+
+                // Get all messages in this set
+                const sourceMessages = await ctx.db
+                    .query("messages")
+                    .withIndex("by_message_set", (q) =>
+                        q.eq("messageSetId", sourceSet._id),
+                    )
+                    .filter((q) => q.eq(q.field("deletedAt"), undefined))
+                    .collect();
+
+                // Copy each message
+                for (const sourceMessage of sourceMessages) {
+                    // Determine if this is the message being forked from
+                    const isForkedMessage =
+                        sourceMessage._id === args.forkFromMessageId;
+
+                    // Create new message
+                    const newMessageId = await ctx.db.insert("messages", {
+                        messageSetId: newMessageSetId,
+                        chatId,
+                        role: sourceMessage.role,
+                        model: sourceMessage.model,
+                        status: "complete", // Reset status to complete
+                        errorMessage: undefined,
+                        streamingSessionId: undefined,
+                        // Link back to original if this is the forked message
+                        branchedFromId: isForkedMessage
+                            ? args.forkFromMessageId
+                            : undefined,
+                        selected: sourceMessage.selected ?? true,
+                        createdAt: sourceMessage.createdAt,
+                        updatedAt: now,
+                    });
+
+                    // Get and copy message parts
+                    const sourceParts = await ctx.db
+                        .query("messageParts")
+                        .withIndex("by_message", (q) =>
+                            q.eq("messageId", sourceMessage._id),
+                        )
+                        .filter((q) => q.eq(q.field("deletedAt"), undefined))
+                        .collect();
+
+                    for (const sourcePart of sourceParts) {
+                        await ctx.db.insert("messageParts", {
+                            messageId: newMessageId,
+                            type: sourcePart.type,
+                            content: sourcePart.content,
+                            language: sourcePart.language,
+                            toolName: sourcePart.toolName,
+                            toolCallId: sourcePart.toolCallId,
+                            order: sourcePart.order,
+                            createdAt: sourcePart.createdAt,
+                        });
+                    }
+                }
+            }
+
+            // Update the original message with replyChatId
+            await ctx.db.patch(args.forkFromMessageId, {
+                replyChatId: chatId,
+            });
+        }
+
         // Audit log
         await logAudit(ctx, {
             workspaceId: parentChat.workspaceId,
@@ -357,6 +473,7 @@ export const createPrivateFork = mutation({
                 forkFromMessageId: args.forkFromMessageId,
                 visibility: "private",
                 forkDepth,
+                messagesCopied: args.forkFromMessageId ? true : false,
             },
         });
 

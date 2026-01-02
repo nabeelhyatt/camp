@@ -179,6 +179,12 @@ export default defineSchema({
         errorMessage: v.optional(v.string()),
         // Streaming state
         streamingSessionId: v.optional(v.string()), // To track which session is streaming
+        // For branched/reply messages - points to the original message this was copied from
+        branchedFromId: v.optional(v.id("messages")),
+        // For tracking which message has a reply chat (set on the original message)
+        replyChatId: v.optional(v.id("chats")),
+        // Message selection state (for multi-response scenarios)
+        selected: v.optional(v.boolean()),
         createdAt: v.number(),
         updatedAt: v.number(),
         // Soft delete support

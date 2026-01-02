@@ -32,6 +32,7 @@ import {
     FolderOpenIcon,
     ReplyIcon,
     Trash2Icon,
+    LockIcon,
 } from "lucide-react";
 import { useAppContext } from "@ui/hooks/useAppContext";
 import { ChevronDownIcon, CopyIcon, CheckIcon, XIcon } from "lucide-react";
@@ -73,6 +74,11 @@ import { Skeleton } from "./ui/skeleton";
 import { ChatInput } from "./ChatInput";
 import { useWaitForAppMetadata } from "@ui/hooks/useWaitForAppMetadata";
 import { SUMMARY_DIALOG_ID, SummaryDialog } from "./SummaryDialog";
+import { ForkIndicator } from "./chat/ForkIndicator";
+import {
+    PublishSummaryDialog,
+    PUBLISH_SUMMARY_DIALOG_ID,
+} from "./chat/PublishSummaryDialog";
 import { FindInPage } from "./FindInPage";
 import { useEditable } from "use-editable";
 import { EditableTitle } from "./EditableTitle";
@@ -1173,6 +1179,7 @@ export function ToolsMessageView({
         blockType: "tools",
         replyToId: message.id,
     });
+    const createPrivateFork = ChatAPI.useCreatePrivateFork();
     const modelConfigsQuery = ModelsAPI.useModelConfigs();
     // // Set stream start time when streaming begins
     // useEffect(() => {
@@ -1207,8 +1214,18 @@ export function ToolsMessageView({
 
     function onReplyClick() {
         if (message.replyChatId) {
+            // Existing reply - open in sidebar drawer
             navigate(`/chat/${message.chatId}?replyId=${message.replyChatId}`);
+        } else if (campConfig.useConvexData) {
+            // In Convex mode, create a private reply and open in sidebar
+            // This copies messages up to the fork point and opens in RepliesDrawer
+            createPrivateFork.mutate({
+                parentChatId: message.chatId,
+                forkFromMessageId: message.id,
+                openInSidebar: true,
+            });
         } else {
+            // In SQLite mode, use the original reply behavior (opens in sidebar)
             replyToMessage.mutate();
         }
     }
@@ -1422,17 +1439,22 @@ export function ToolsMessageView({
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <button
-                                                    className="hover:text-foreground"
+                                                    className="hover:text-foreground flex items-center gap-0.5"
                                                     onClick={onReplyClick}
                                                 >
                                                     <ReplyIcon
                                                         strokeWidth={1.5}
                                                         className="w-3.5 h-3.5"
                                                     />
+                                                    {campConfig.useConvexData && (
+                                                        <LockIcon className="w-2.5 h-2.5" />
+                                                    )}
                                                 </button>
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                Reply to this message
+                                                {campConfig.useConvexData
+                                                    ? "Reply privately"
+                                                    : "Reply to this message"}
                                             </TooltipContent>
                                         </Tooltip>
                                     )}
@@ -1451,7 +1473,7 @@ export function ToolsMessageView({
                             !message.replyChatId && (
                                 <div className="absolute bottom-0 left-3 transform translate-y-1/2 z-10">
                                     <button
-                                        className="text-highlight-foreground hover:text-foreground transition-color flex items-center gap-2 bg-background px-2 py-1"
+                                        className="text-highlight-foreground hover:text-foreground transition-color flex items-center gap-1.5 bg-background px-2 py-1"
                                         onClick={onReplyClick}
                                     >
                                         <ReplyIcon
@@ -1459,6 +1481,9 @@ export function ToolsMessageView({
                                             className="w-3.5 h-3.5"
                                         />
                                         Reply
+                                        {campConfig.useConvexData && (
+                                            <LockIcon className="w-3 h-3" />
+                                        )}
                                     </button>
                                 </div>
                             )}
@@ -1797,6 +1822,29 @@ export default function MultiChat() {
 
     const regenerateProjectContextSummaries =
         ProjectAPI.useRegenerateProjectContextSummaries();
+
+    // Private fork detection (Convex only)
+    // We need to cast to access ConvexChat fields that may exist
+    const chatData = chatQuery.data as
+        | (ChatAPI.Chat & {
+              visibility?: "team" | "private";
+              forkDepth?: number;
+          })
+        | undefined;
+    const isPrivateFork =
+        campConfig.useConvexData &&
+        chatData?.visibility === "private" &&
+        !!chatData?.parentChatId;
+
+    // Query parent chat for fork indicator
+    const parentChatQuery = ChatAPI.useChatQuery(
+        isPrivateFork ? (chatData?.parentChatId ?? undefined) : undefined,
+    );
+
+    // Handler for opening publish summary dialog
+    const handlePublishSummary = useCallback(() => {
+        dialogActions.openDialog(PUBLISH_SUMMARY_DIALOG_ID);
+    }, []);
 
     // UI stuff
 
@@ -2499,6 +2547,16 @@ export default function MultiChat() {
                 </div>
             )}
 
+            {/* Fork indicator banner for private forks */}
+            {isPrivateFork && chatData?.parentChatId && (
+                <ForkIndicator
+                    parentChatId={chatData.parentChatId}
+                    parentChatTitle={parentChatQuery.data?.title}
+                    forkDepth={chatData.forkDepth}
+                    onPublishSummary={handlePublishSummary}
+                />
+            )}
+
             {/* Main container that handles both layouts */}
             <div className="flex-1 min-h-0 relative">
                 {/* Desktop layout - always render but conditionally show panels */}
@@ -2637,6 +2695,14 @@ export default function MultiChat() {
                 date={chatQuery.data?.createdAt || ""}
                 onRefresh={handleRefreshSummary}
             />
+
+            {/* Publish summary dialog for private forks */}
+            {isPrivateFork && chatId && (
+                <PublishSummaryDialog
+                    chatId={chatId}
+                    parentChatTitle={parentChatQuery.data?.title}
+                />
+            )}
 
             {/* Find in page UI */}
             <FindInPage dependencies={[messageSetsQuery.data]} />

@@ -6,7 +6,7 @@
  * the SQLite-based ProjectAPI for seamless switching.
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useQuery, useMutation, useConvex } from "convex/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +20,13 @@ import {
 } from "./convexTypes";
 import { projectKeys, projectQueries } from "@core/chorus/api/ProjectAPI";
 import { campConfig } from "@core/campConfig";
+
+// ============================================================
+// Constants
+// ============================================================
+
+// Event name for project collapse state changes (used to force re-render)
+const COLLAPSE_CHANGE_EVENT = "camp:projectCollapseChange";
 
 // ============================================================
 // Query Keys (for cache management)
@@ -54,8 +61,28 @@ export function useProjectsQueryConvex() {
             : "skip",
     );
 
-    // Transform to frontend types
-    const data = result ? convexProjectsToProjects(result) : undefined;
+    // Track collapse state changes to force re-render
+    // This is needed because collapse state is in localStorage, not Convex
+    const [collapseVersion, setCollapseVersion] = useState(0);
+    useEffect(() => {
+        const handleCollapseChange = () => {
+            setCollapseVersion((v) => v + 1);
+        };
+        window.addEventListener(COLLAPSE_CHANGE_EVENT, handleCollapseChange);
+        return () => {
+            window.removeEventListener(
+                COLLAPSE_CHANGE_EVENT,
+                handleCollapseChange,
+            );
+        };
+    }, []);
+
+    // Transform to frontend types - re-compute when collapse state changes
+    const data = useMemo(
+        () => (result ? convexProjectsToProjects(result) : undefined),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [result, collapseVersion],
+    );
 
     // Return object compatible with TanStack Query return type
     return {
@@ -389,12 +416,15 @@ function getCollapsedProjects(): Set<string> {
 
 /**
  * Save the set of collapsed project IDs to localStorage
+ * and dispatch a custom event to notify listeners
  */
 function setCollapsedProjects(collapsed: Set<string>): void {
     localStorage.setItem(
         COLLAPSED_PROJECTS_KEY,
         JSON.stringify([...collapsed]),
     );
+    // Dispatch event to notify listeners (like useProjectsQueryConvex)
+    window.dispatchEvent(new CustomEvent(COLLAPSE_CHANGE_EVENT));
 }
 
 /**
@@ -443,12 +473,15 @@ export function isProjectCollapsed(projectId: string): boolean {
 // ============================================================
 
 import type { LLMMessage } from "@core/chorus/Models";
+import * as Prompts from "@core/chorus/prompts/prompts";
 
 /**
  * Convex version of useGetProjectContextLLMMessage
  *
  * Returns a function that builds LLM context messages from project data.
  * Uses the Convex client to fetch project data imperatively.
+ * Uses the same PROJECTS_CONTEXT_PROMPT format as the SQLite version
+ * to ensure consistent prompt structure following Anthropic's best practices.
  */
 export function useGetProjectContextLLMMessageConvex(): (
     projectId: string,
@@ -485,10 +518,14 @@ export function useGetProjectContextLLMMessageConvex(): (
                     return [];
                 }
 
-                // Build the LLM message with project context
+                // Build the LLM message with project context using the shared prompt format
+                // This follows Anthropic's recommended document structure for long context
                 const contextMessage: LLMMessage = {
                     role: "user",
-                    content: `<project_context>\n${project.contextText}\n</project_context>`,
+                    content: Prompts.PROJECTS_CONTEXT_PROMPT(
+                        project.contextText,
+                        [], // TODO: Add chat summaries when magic projects is implemented for Convex
+                    ),
                     attachments: [],
                 };
 

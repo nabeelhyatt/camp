@@ -220,7 +220,10 @@ export function convexChatToChat(doc: Doc<"chats">): Chat {
             : null,
         projectContextSummary: undefined, // TODO: Add to Convex schema if needed
         projectContextSummaryIsStale: false,
-        replyToId: null, // TODO: Add to Convex schema if needed
+        // Map forkFromMessageId to replyToId for RepliesDrawer compatibility
+        replyToId: doc.forkFromMessageId
+            ? convexIdToString(doc.forkFromMessageId)
+            : null,
         gcPrototype: false, // deprecated
     };
 }
@@ -366,6 +369,12 @@ export interface ConvexMessage {
     createdAt: string;
     updatedAt: string;
     parts: ConvexMessagePart[];
+    // For branched/reply messages - points to the original message this was copied from
+    branchedFromId?: string;
+    // For tracking which message has a reply chat (set on the original message)
+    replyChatId?: string;
+    // Message selection state
+    selected?: boolean;
 }
 
 /**
@@ -427,7 +436,7 @@ function convertConvexMessage(msg: ConvexMessage): Message {
         blockType,
         text,
         model: msg.model || (msg.role === "user" ? "user" : "unknown"),
-        selected: true, // Default to selected for now
+        selected: msg.selected ?? true,
         attachments: undefined, // Attachments not yet in Convex
         isReview: false,
         state,
@@ -436,8 +445,8 @@ function convertConvexMessage(msg: ConvexMessage): Message {
         reviewState: undefined,
         level: undefined,
         parts: msg.parts.map((p) => convertConvexPart(p, msg.chatId, msg.id)),
-        replyChatId: undefined,
-        branchedFromId: undefined,
+        replyChatId: msg.replyChatId,
+        branchedFromId: msg.branchedFromId,
     };
 }
 

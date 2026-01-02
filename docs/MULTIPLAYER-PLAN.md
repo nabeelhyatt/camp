@@ -558,6 +558,43 @@ Private forks should appear in the "Private" section:
 
 ---
 
+## Future Feature: Public Fork (Not Yet Built)
+
+**Status:** Not implemented. This is a distinct feature from "Reply 🔒" (private replies).
+
+### Terminology Distinction
+
+| Feature           | UI Trigger                  | Visibility             | Opens In           | Context                          |
+| ----------------- | --------------------------- | ---------------------- | ------------------ | -------------------------------- |
+| **Reply 🔒**      | Reply button with lock icon | Private (creator only) | Sidebar drawer     | Copies messages up to fork point |
+| **Fork** (future) | TBD (possibly from menu)    | Team (public)          | New full-page chat | Full context from parent         |
+
+### What "Fork" Would Do
+
+A **public fork** creates a new team-visible chat that:
+
+-   Branches from any point in an existing conversation
+-   Includes all context up to the fork point
+-   Is visible to all team members (like any team chat)
+-   Appears in the project alongside the original chat
+
+This is useful when a conversation takes a significant tangent that deserves its own dedicated thread, but the tangent is still relevant to the team.
+
+### Why It's Different from Reply
+
+-   **Reply 🔒** is for personal exploration - you want to try something without interrupting the team
+-   **Fork** is for team collaboration - you want to branch the conversation for the whole team
+
+### Implementation Notes (When Built)
+
+1. Add "Fork" option to message context menu (or dedicated button)
+2. Calls `createPrivateFork` with `visibility: "team"` instead of `"private"`
+3. Opens as full page (not sidebar)
+4. Shows in Team section of sidebar (not Private)
+5. Consider showing "Forked from [Parent Chat]" indicator
+
+---
+
 ## Phase 3: Team MCPs & Admin Page (Weeks 6-8)
 
 **Goal:** Shared team tools and context, admin visibility

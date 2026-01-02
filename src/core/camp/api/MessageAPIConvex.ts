@@ -6,7 +6,7 @@
  * Phase 2: Mutations for message creation and streaming
  */
 
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useConvex } from "convex/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@convex/_generated/api";
 import { useWorkspaceContext } from "./useWorkspaceHooks";
@@ -703,6 +703,7 @@ export function usePopulateBlockConvex(
 ) {
     const queryClient = useQueryClient();
     const { clerkId } = useWorkspaceContext();
+    const convex = useConvex();
     const createAssistantMessage = useCreateAssistantMessageConvex();
     // Note: completeMessage is called by the streaming HTTP action, not here
     const errorMessageMutation = useErrorMessageConvex();
@@ -716,13 +717,10 @@ export function usePopulateBlockConvex(
             : "skip",
     );
 
-    // Get message sets from Convex for building conversation
-    const messageSetsResult = useQuery(
-        api.messages.listSetsWithMessages,
-        clerkId && chatId
-            ? { clerkId, chatId: stringToConvexIdStrict<"chats">(chatId) }
-            : "skip",
-    );
+    // NOTE: We removed the reactive messageSetsResult query here.
+    // Instead, we fetch message sets imperatively in buildConversation
+    // to ensure we always get the latest data, avoiding race conditions
+    // where the reactive query hasn't updated yet after user message creation.
 
     // Track active streaming for cancellation
     const abortControllerRef = useRef<AbortController | null>(null);
@@ -749,71 +747,119 @@ export function usePopulateBlockConvex(
 
     /**
      * Build conversation from Convex message sets
-     * Uses reactively-loaded Convex data instead of SQLite queries
+     * Uses IMPERATIVE fetch to get the latest message sets, avoiding race conditions
+     * where the reactive query hasn't updated yet after user message creation.
      */
-    const buildConversation = useCallback(async (): Promise<LLMMessage[]> => {
-        // Get project context from Convex chat data
-        // For MVP, skip project context if chat data not loaded yet
-        let projectContext: LLMMessage[] = [];
-        if (chatResult?.projectId) {
-            const projectIdStr = convexIdToString(chatResult.projectId);
-            projectContext = await getProjectContext(projectIdStr, chatId);
-        }
+    const buildConversation = useCallback(
+        async (excludeMessageSetId?: string): Promise<LLMMessage[]> => {
+            // Get project context from Convex chat data
+            // For MVP, skip project context if chat data not loaded yet
+            let projectContext: LLMMessage[] = [];
+            if (chatResult?.projectId) {
+                const projectIdStr = convexIdToString(chatResult.projectId);
+                projectContext = await getProjectContext(projectIdStr, chatId);
+            }
 
-        // Convert Convex message sets to MessageSetDetail format
-        if (!messageSetsResult) {
-            console.log(
-                "[usePopulateBlockConvex] No message sets loaded yet, using empty conversation",
+            // CRITICAL: Fetch message sets imperatively to get the latest data
+            // This avoids the race condition where the reactive query hasn't updated
+            // yet after the user message was created.
+            if (!clerkId) {
+                console.log(
+                    "[usePopulateBlockConvex] No clerkId, using empty conversation",
+                );
+                return projectContext;
+            }
+
+            const messageSetsResult = await convex.query(
+                api.messages.listSetsWithMessages,
+                { clerkId, chatId: stringToConvexIdStrict<"chats">(chatId) },
             );
-            return projectContext;
-        }
 
-        // Transform to the format expected by llmConversation
-        const convexMessageSets: ConvexMessageSet[] = messageSetsResult.map(
-            (set) => ({
-                id: convexIdToString(set._id),
-                chatId: convexIdToString(set.chatId),
-                createdAt: new Date(set.createdAt).toISOString(),
-                showAttribution: set.showAttribution ?? false,
-                messages: set.messages.map((msg) => ({
-                    id: convexIdToString(msg._id),
-                    messageSetId: convexIdToString(msg.messageSetId),
-                    chatId: convexIdToString(msg.chatId),
-                    role: msg.role,
-                    model: msg.model,
-                    status: msg.status,
-                    errorMessage: msg.errorMessage,
-                    createdAt: new Date(msg.createdAt).toISOString(),
-                    updatedAt: new Date(msg.updatedAt).toISOString(),
-                    parts: msg.parts.map((p) => ({
-                        id: convexIdToString(p._id),
-                        type: p.type,
-                        content: p.content,
-                        language: p.language,
-                        toolName: p.toolName,
-                        toolCallId: p.toolCallId,
-                        order: p.order,
+            if (!messageSetsResult || messageSetsResult.length === 0) {
+                console.log(
+                    "[usePopulateBlockConvex] No message sets found, using empty conversation",
+                );
+                return projectContext;
+            }
+
+            // Transform to the format expected by llmConversation
+            const convexMessageSets: ConvexMessageSet[] = messageSetsResult.map(
+                (set) => ({
+                    id: convexIdToString(set._id),
+                    chatId: convexIdToString(set.chatId),
+                    createdAt: new Date(set.createdAt).toISOString(),
+                    showAttribution: set.showAttribution ?? false,
+                    messages: set.messages.map((msg) => ({
+                        id: convexIdToString(msg._id),
+                        messageSetId: convexIdToString(msg.messageSetId),
+                        chatId: convexIdToString(msg.chatId),
+                        role: msg.role,
+                        model: msg.model,
+                        status: msg.status,
+                        errorMessage: msg.errorMessage,
+                        createdAt: new Date(msg.createdAt).toISOString(),
+                        updatedAt: new Date(msg.updatedAt).toISOString(),
+                        branchedFromId: msg.branchedFromId
+                            ? convexIdToString(msg.branchedFromId)
+                            : undefined,
+                        replyChatId: msg.replyChatId
+                            ? convexIdToString(msg.replyChatId)
+                            : undefined,
+                        selected: msg.selected,
+                        parts: msg.parts.map((p) => ({
+                            id: convexIdToString(p._id),
+                            type: p.type,
+                            content: p.content,
+                            language: p.language,
+                            toolName: p.toolName,
+                            toolCallId: p.toolCallId,
+                            order: p.order,
+                        })),
                     })),
-                })),
-            }),
-        );
+                }),
+            );
 
-        const messageSetDetails =
-            convertConvexToMessageSetDetails(convexMessageSets);
+            const messageSetDetails =
+                convertConvexToMessageSetDetails(convexMessageSets);
 
-        // Convert to LLM conversation format (exclude last set as it's the one we're populating)
-        const previousMessageSets = messageSetDetails.slice(0, -1);
-        const conversation: LLMMessage[] = [
-            ...projectContext,
-            ...llmConversation(previousMessageSets),
-        ];
+            // Convert to LLM conversation format (exclude the message set we're populating)
+            // This avoids dropping the latest user message when the AI set isn't yet visible.
+            const previousMessageSets = excludeMessageSetId
+                ? messageSetDetails.filter(
+                      (set) => set.id !== excludeMessageSetId,
+                  )
+                : messageSetDetails;
+            const conversation: LLMMessage[] = [
+                ...projectContext,
+                ...llmConversation(previousMessageSets),
+            ];
 
-        console.log(
-            `[usePopulateBlockConvex] Built conversation with ${conversation.length} messages from ${previousMessageSets.length} message sets`,
-        );
+            // DEBUG: Log full conversation being sent to AI
+            console.log(
+                `[usePopulateBlockConvex] Built conversation with ${conversation.length} messages from ${previousMessageSets.length} message sets`,
+            );
+            console.log(`[usePopulateBlockConvex] chatId: ${chatId}`);
+            console.log(
+                `[usePopulateBlockConvex] Full conversation:`,
+                JSON.stringify(
+                    conversation.map((msg, i) => ({
+                        index: i,
+                        role: msg.role,
+                        contentPreview:
+                            "content" in msg && typeof msg.content === "string"
+                                ? msg.content.substring(0, 200) +
+                                  (msg.content.length > 200 ? "..." : "")
+                                : "[complex content]",
+                    })),
+                    null,
+                    2,
+                ),
+            );
 
-        return conversation;
-    }, [chatId, chatResult, messageSetsResult, getProjectContext]);
+            return conversation;
+        },
+        [chatId, chatResult, clerkId, convex, getProjectContext],
+    );
 
     const mutateAsync = useCallback(
         async (args: {
@@ -857,6 +903,9 @@ export function usePopulateBlockConvex(
                 console.log(
                     `[usePopulateBlockConvex] Starting stream with model: ${modelConfig.id}`,
                 );
+                console.log(
+                    `[usePopulateBlockConvex] System prompt: ${modelConfig.systemPrompt ? modelConfig.systemPrompt.substring(0, 100) + "..." : "NONE"}`,
+                );
 
                 // Generate streaming session ID
                 const streamingSessionId = createStreamingSessionId();
@@ -865,7 +914,7 @@ export function usePopulateBlockConvex(
                 // to avoid race condition where reactive query updates mid-operation.
                 // We want the conversation state at this exact moment, not after
                 // the assistant message is created (which would add a new message set).
-                const conversation = await buildConversation();
+                const conversation = await buildConversation(args.messageSetId);
 
                 // Create assistant message in Convex
                 const messageId = await createAssistantMessage.mutateAsync({
@@ -885,6 +934,8 @@ export function usePopulateBlockConvex(
                     model: modelConfig.id,
                     conversation,
                     streamingSessionId,
+                    // Pass system prompt from model config (important for AI behavior!)
+                    systemPrompt: modelConfig.systemPrompt,
                     // No tools for MVP
                     tools: undefined,
                     onChunk: (_chunk) => {
