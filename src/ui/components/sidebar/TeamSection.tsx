@@ -1,10 +1,10 @@
-import { FolderPlusIcon, UsersIcon } from "lucide-react";
-import { SidebarMenu } from "@ui/components/ui/sidebar";
+import { PlusIcon, GlobeIcon, FolderPlusIcon } from "lucide-react";
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
-} from "@ui/components/ui/tooltip";
+    SidebarMenu,
+    SidebarMenuItem,
+    SidebarMenuButton,
+} from "@ui/components/ui/sidebar";
+import { useCurrentUser } from "@core/camp/auth/useCurrentUser";
 
 /**
  * Team Section - Shows team projects and chats
@@ -20,33 +20,68 @@ interface TeamSectionProps {
     children: React.ReactNode;
 }
 
+/**
+ * Favicon component that loads domain favicon with fallback to GlobeIcon
+ */
+function DomainIcon({
+    domain,
+    className,
+}: {
+    domain: string | undefined;
+    className?: string;
+}) {
+    // For personal domains or missing domain, use globe icon
+    if (!domain || domain.startsWith("personal-")) {
+        return <GlobeIcon className={className} strokeWidth={1.5} />;
+    }
+
+    // Use Google's favicon service
+    const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+
+    return (
+        <img
+            src={faviconUrl}
+            alt=""
+            className={className}
+            onError={(e) => {
+                // Hide image on error, parent should have fallback styling
+                e.currentTarget.style.display = "none";
+            }}
+        />
+    );
+}
+
 export function TeamSection({ onCreateProject, children }: TeamSectionProps) {
+    const { organization } = useCurrentUser();
+
     return (
         <div className="mb-4">
             {/* Section Header */}
-            <div className="pt-2 flex items-center justify-between group/section">
+            <div className="pt-2 flex items-center justify-between">
                 <div className="sidebar-label flex w-full items-center gap-2 px-3 text-muted-foreground">
-                    <UsersIcon className="size-3.5" strokeWidth={1.5} />
-                    Team
+                    <DomainIcon
+                        domain={organization?.domain}
+                        className="size-3.5"
+                    />
+                    Team Projects
                 </div>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <button
-                            className="text-muted-foreground hover:text-foreground p-1 pr-3 rounded opacity-0 group-hover/section:opacity-100 transition-opacity"
-                            onClick={onCreateProject}
-                        >
-                            <FolderPlusIcon
-                                className="size-3.5"
-                                strokeWidth={1.5}
-                            />
-                        </button>
-                    </TooltipTrigger>
-                    <TooltipContent>New Team Project</TooltipContent>
-                </Tooltip>
             </div>
 
             {/* Section Content */}
-            <SidebarMenu className="truncate">{children}</SidebarMenu>
+            <SidebarMenu className="truncate">
+                {children}
+
+                {/* Full-width New Project button */}
+                <SidebarMenuItem>
+                    <SidebarMenuButton
+                        onClick={onCreateProject}
+                        className="text-muted-foreground hover:text-foreground"
+                    >
+                        <PlusIcon className="size-4" strokeWidth={1.5} />
+                        <span className="text-base">New project</span>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
         </div>
     );
 }
