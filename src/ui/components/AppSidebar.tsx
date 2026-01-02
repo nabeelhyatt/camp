@@ -12,6 +12,7 @@ import {
 import { TeamSection, TeamSectionEmpty } from "./sidebar/TeamSection";
 import { SharedSection } from "./sidebar/SharedSection";
 import { PrivateSection } from "./sidebar/PrivateSection";
+import { AllChatsSection } from "./sidebar/AllChatsSection";
 import {
     Sidebar,
     SidebarContent,
@@ -78,58 +79,8 @@ import { useToggleProjectIsCollapsed } from "@core/camp/api/UnifiedProjectAPI";
 // Still need useQuery for SQLite-only features (parent chat lookup, chat loading)
 import { useQuery } from "@tanstack/react-query";
 
-function isToday(date: Date) {
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
-}
-
-function isYesterday(date: Date) {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    return date.toDateString() === yesterday.toDateString();
-}
-
-function isLastWeek(date: Date) {
-    const today = new Date();
-    const lastWeek = new Date();
-    lastWeek.setDate(today.getDate() - 7);
-    return date >= lastWeek && date < today;
-}
-
-function groupChatsByDate(chats: Chat[]) {
-    const groups: { label: string; chats: Chat[] }[] = [];
-
-    const today: Chat[] = [];
-    const yesterday: Chat[] = [];
-    const lastWeek: Chat[] = [];
-    const older: Chat[] = [];
-    chats.forEach((chat) => {
-        const utcDate = new Date(chat.updatedAt || 0);
-        // Convert to local time
-        const date = new Date(
-            utcDate.getTime() - utcDate.getTimezoneOffset() * 60000,
-        );
-
-        if (isToday(date)) {
-            today.push(chat);
-        } else if (isYesterday(date)) {
-            yesterday.push(chat);
-        } else if (isLastWeek(date)) {
-            lastWeek.push(chat);
-        } else {
-            older.push(chat);
-        }
-    });
-
-    if (today.length) groups.push({ label: "Today", chats: today });
-    if (yesterday.length) groups.push({ label: "Yesterday", chats: yesterday });
-    if (lastWeek.length) groups.push({ label: "Last Week", chats: lastWeek });
-    if (older.length) groups.push({ label: "Older", chats: older });
-
-    return groups;
-}
-
 // Note: EmptyProjectState was removed - now using TeamSectionEmpty from sidebar/TeamSection.tsx
+// Note: Date grouping functions moved to AllChatsSection.tsx
 
 function EmptyChatState() {
     return (
@@ -333,38 +284,55 @@ function Project({ projectId }: { projectId: string }) {
                     </div>
                 </SidebarMenuButton>
                 <CollapsibleContent>
-                    {chats.length > 0 && (
-                        <div className="relative">
-                            {/* Vertical line connecting folder to chats */}
-                            <div className="absolute left-[18px] top-0 bottom-1 w-[1px] bg-border" />
-                            <div className="pl-[28px]">
-                                {chatToDisplay.map((chat) => (
-                                    <ChatListItem
-                                        key={chat.id + "-sidebar"}
-                                        chat={chat}
-                                        isActive={currentChatId === chat.id}
+                    <div className="relative">
+                        {/* Vertical line connecting folder to chats */}
+                        <div className="absolute left-[18px] top-0 bottom-1 w-[1px] bg-border" />
+                        <div className="pl-[28px]">
+                            {chatToDisplay.map((chat) => (
+                                <ChatListItem
+                                    key={chat.id + "-sidebar"}
+                                    chat={chat}
+                                    isActive={currentChatId === chat.id}
+                                />
+                            ))}
+                            {chats.length >
+                                NUM_PROJECT_CHATS_TO_SHOW_BY_DEFAULT &&
+                                !showAllChats && (
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton
+                                            onClick={() =>
+                                                setShowAllChats(true)
+                                            }
+                                            className="text-muted-foreground hover:text-foreground"
+                                        >
+                                            <EllipsisIcon className="size-4" />
+                                            <span className="text-base">
+                                                Show More
+                                            </span>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                )}
+                            {/* Always visible New chat button */}
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        void getOrCreateNewChat.mutateAsync({
+                                            projectId,
+                                        });
+                                    }}
+                                    className="text-muted-foreground hover:text-foreground"
+                                >
+                                    <PlusIcon
+                                        className="size-4"
+                                        strokeWidth={1.5}
                                     />
-                                ))}
-                                {chats.length >
-                                    NUM_PROJECT_CHATS_TO_SHOW_BY_DEFAULT &&
-                                    !showAllChats && (
-                                        <SidebarMenuItem>
-                                            <SidebarMenuButton
-                                                onClick={() =>
-                                                    setShowAllChats(true)
-                                                }
-                                                className="text-muted-foreground hover:text-foreground"
-                                            >
-                                                <EllipsisIcon className="size-4" />
-                                                <span className="text-base">
-                                                    Show More
-                                                </span>
-                                            </SidebarMenuButton>
-                                        </SidebarMenuItem>
-                                    )}
-                            </div>
+                                    <span className="text-base">New chat</span>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
                         </div>
-                    )}
+                    </div>
                 </CollapsibleContent>
             </Collapsible>
         </SidebarMenuItem>
@@ -376,7 +344,6 @@ function filterChatsForDisplay(chats: Chat[], currentChatId: string) {
     return chats.filter((chat) => !chat.isNewChat || chat.id === currentChatId);
 }
 
-const NUM_DEFAULT_CHATS_TO_SHOW_BY_DEFAULT = 25;
 const NUM_PROJECT_CHATS_TO_SHOW_BY_DEFAULT = 10;
 
 export function AppSidebarInner() {
@@ -400,8 +367,6 @@ export function AppSidebarInner() {
             })),
         [privateForksQuery.data],
     );
-
-    const [showAllChats, setShowAllChats] = useState(false);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -429,18 +394,6 @@ export function AppSidebarInner() {
                 currentChatId,
             ),
         [chatsByProject, currentChatId],
-    );
-    const groupedChats = useMemo(
-        () =>
-            groupChatsByDate(
-                showAllChats
-                    ? defaultChats
-                    : defaultChats.slice(
-                          0,
-                          NUM_DEFAULT_CHATS_TO_SHOW_BY_DEFAULT,
-                      ),
-            ),
-        [defaultChats, showAllChats],
     );
     const quickChats = useMemo(
         () =>
@@ -543,89 +496,43 @@ export function AppSidebarInner() {
                                     }
                                 >
                                     {/* Team Projects */}
-                                    {hasNonQuickChats && (
+                                    {projectsToDisplay.length > 0 ? (
                                         <div className="flex flex-col">
-                                            {projectsToDisplay.length ? (
-                                                projectsToDisplay.map(
-                                                    (project) => (
-                                                        <Droppable
-                                                            id={project.id}
-                                                            key={project.id}
-                                                        >
-                                                            <Project
-                                                                projectId={
-                                                                    project.id
-                                                                }
-                                                            />
-                                                        </Droppable>
-                                                    ),
-                                                )
-                                            ) : (
-                                                <TeamSectionEmpty
-                                                    onCreateProject={() =>
-                                                        createProject.mutate()
-                                                    }
-                                                />
+                                            {projectsToDisplay.map(
+                                                (project) => (
+                                                    <Droppable
+                                                        id={project.id}
+                                                        key={project.id}
+                                                    >
+                                                        <Project
+                                                            projectId={
+                                                                project.id
+                                                            }
+                                                        />
+                                                    </Droppable>
+                                                ),
                                             )}
                                         </div>
+                                    ) : hasNonQuickChats ? (
+                                        <TeamSectionEmpty
+                                            onCreateProject={() =>
+                                                createProject.mutate()
+                                            }
+                                        />
+                                    ) : (
+                                        <EmptyChatState />
                                     )}
-
-                                    {/* Ungrouped team chats */}
-                                    <Droppable id="default">
-                                        {groupedChats.length > 0 ? (
-                                            groupedChats.map(
-                                                ({
-                                                    label,
-                                                    chats: groupChats,
-                                                }) => (
-                                                    <div
-                                                        key={label}
-                                                        className="pb-3"
-                                                    >
-                                                        <div className="px-3 mb-1 sidebar-label flex items-center gap-2 text-muted-foreground">
-                                                            {label}
-                                                        </div>
-                                                        {groupChats.map(
-                                                            (chat) => (
-                                                                <ChatListItem
-                                                                    key={
-                                                                        chat.id +
-                                                                        "-sidebar"
-                                                                    }
-                                                                    chat={chat}
-                                                                    isActive={
-                                                                        currentChatId ===
-                                                                        chat.id
-                                                                    }
-                                                                />
-                                                            ),
-                                                        )}
-                                                    </div>
-                                                ),
-                                            )
-                                        ) : !hasNonQuickChats ? (
-                                            <EmptyChatState />
-                                        ) : null}
-                                        {defaultChats.length >
-                                            NUM_DEFAULT_CHATS_TO_SHOW_BY_DEFAULT &&
-                                            !showAllChats && (
-                                                <SidebarMenuItem className="w-full">
-                                                    <SidebarMenuButton
-                                                        onClick={() =>
-                                                            setShowAllChats(
-                                                                true,
-                                                            )
-                                                        }
-                                                    >
-                                                        <EllipsisIcon className="size-4 text-muted-foreground" />
-                                                        <span className="text-base text-muted-foreground">
-                                                            Show More
-                                                        </span>
-                                                    </SidebarMenuButton>
-                                                </SidebarMenuItem>
-                                            )}
-                                    </Droppable>
                                 </TeamSection>
+
+                                {/* ALL CHATS SECTION - Filterable feed of ungrouped chats */}
+                                {defaultChats.length > 0 && (
+                                    <Droppable id="default">
+                                        <AllChatsSection
+                                            chats={defaultChats}
+                                            projects={projectsQuery.data ?? []}
+                                        />
+                                    </Droppable>
+                                )}
 
                                 {/* SHARED SECTION - Coming soon (Phase 4) */}
                                 <SharedSection enabled={false} />
