@@ -6,6 +6,7 @@ import {
     assertCanAccessChat,
     assertCanAccessProject,
     canDeleteChat,
+    canAccessChat,
 } from "./lib/permissions";
 import { logAudit } from "./lib/audit";
 
@@ -102,10 +103,13 @@ export const get = query({
     handler: async (ctx, args) => {
         const user = await getUserByClerkIdOrThrow(ctx, args.clerkId);
 
-        // This will throw if user can't access
-        const chat = await assertCanAccessChat(ctx, args.chatId, user._id);
+        // Return null instead of throwing for missing/inaccessible chats
+        const hasAccess = await canAccessChat(ctx, args.chatId, user._id);
+        if (!hasAccess) {
+            return null;
+        }
 
-        return chat;
+        return ctx.db.get(args.chatId);
     },
 });
 

@@ -46,14 +46,10 @@ class ErrorBoundary extends Component<Props, State> {
 
     private handleReload = () => {
         // Navigate to root route by updating window.location
+        // This triggers a full page reload which resets all React state
+        // Do NOT call setState here - it causes a race condition where the error
+        // is briefly cleared, re-rendering children that throw again before reload completes
         window.location.href = "/";
-
-        // Reset error state
-        this.setState({
-            hasError: false,
-            error: undefined,
-            errorInfo: undefined,
-        });
     };
 
     public render() {

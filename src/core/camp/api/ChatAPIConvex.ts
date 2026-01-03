@@ -90,9 +90,9 @@ export function useChatQueryConvex(chatId: string | undefined): {
     data: ConvexChat | undefined;
     isLoading: boolean;
     isError: boolean;
-    error: null;
+    error: Error | null;
     isSuccess: boolean;
-    status: "pending" | "success" | "idle";
+    status: "pending" | "success" | "idle" | "error";
     isSQLiteChat: boolean;
 } {
     const { clerkId } = useWorkspaceContext();
@@ -110,18 +110,28 @@ export function useChatQueryConvex(chatId: string | undefined): {
             : "skip",
     );
 
+    const isNotFound = result === null;
     // Use convexChatToConvexChat to include multiplayer fields (visibility, forkDepth, etc.)
     const data = result ? convexChatToConvexChat(result) : undefined;
     const isLoading = result === undefined && !!chatId && !isSqliteChat;
+    const isError = isNotFound;
+    const error = isNotFound ? new Error("Chat not found") : null;
+    const status: "pending" | "success" | "idle" | "error" = isLoading
+        ? "pending"
+        : isError
+          ? "error"
+          : data !== undefined
+            ? "success"
+            : "idle";
 
     return {
         data,
         isLoading,
-        isError: false,
-        error: null,
+        isError,
+        error,
         // TanStack Query compatibility properties
-        isSuccess: !isLoading && data !== undefined,
-        status: isLoading ? "pending" : data !== undefined ? "success" : "idle",
+        isSuccess: status === "success",
+        status,
         // Flag to indicate this is a SQLite chat that needs local lookup
         isSQLiteChat: isSqliteChat,
     };

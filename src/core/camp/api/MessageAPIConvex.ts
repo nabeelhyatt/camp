@@ -13,6 +13,7 @@ import { useWorkspaceContext } from "./useWorkspaceHooks";
 import { stringToConvexIdStrict, convexIdToString } from "./convexTypes";
 import { campConfig } from "@core/campConfig";
 import { useCallback, useState, useRef } from "react";
+import { useChatQueryConvex } from "./ChatAPIConvex";
 import {
     streamFromConvex,
     createStreamingSessionId,
@@ -84,13 +85,14 @@ export function abortStreamingSession(messageId: string): boolean {
  */
 export function useMessageSetsQueryConvex(chatId: string | undefined) {
     const { clerkId, isLoading: contextLoading } = useWorkspaceContext();
+    const chatQuery = useChatQueryConvex(chatId);
 
     // Skip Convex queries when not using Convex data layer
     const shouldSkip = !campConfig.useConvexData;
 
     const result = useQuery(
         api.messages.listSetsWithMessages,
-        !shouldSkip && clerkId && chatId
+        !shouldSkip && clerkId && chatId && !chatQuery.isError && chatQuery.data
             ? { clerkId, chatId: stringToConvexIdStrict<"chats">(chatId) }
             : "skip",
     );
@@ -141,8 +143,8 @@ export function useMessageSetsQueryConvex(chatId: string | undefined) {
     return {
         data,
         isLoading: contextLoading || (result === undefined && !!chatId),
-        isError: false,
-        error: null,
+        isError: chatQuery.isError,
+        error: chatQuery.error,
     };
 }
 
