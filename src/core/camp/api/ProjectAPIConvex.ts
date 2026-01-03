@@ -621,6 +621,14 @@ export function useGenerateProjectTitleConvex() {
             setIsPending(true);
 
             try {
+                // Guard against sentinel IDs (e.g., "_no_project")
+                if (isSentinelProjectId(args.projectId)) {
+                    console.log(
+                        "[useGenerateProjectTitleConvex] Sentinel project ID, skipping",
+                    );
+                    return { skipped: true };
+                }
+
                 // Check if project already has a name
                 const projectId = stringToConvexIdStrict<"projects">(
                     args.projectId,
