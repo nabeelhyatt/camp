@@ -180,11 +180,16 @@ export async function getApiKeys(): Promise<Models.ApiKeys> {
     const settings = await settingsManager.get();
     const userApiKeys = (settings.apiKeys || {}) as Models.ApiKeys;
 
-    // If user hasn't set an OpenRouter key, use the default from config
-    // This allows new users to try models without setting up their own keys
+    // Apply default API keys from config if user hasn't set their own
+    // This allows new users to try features without setting up their own keys
     const apiKeys: Models.ApiKeys = { ...userApiKeys };
+
     if (!apiKeys.openrouter && campConfig.defaultOpenRouterKey) {
         apiKeys.openrouter = campConfig.defaultOpenRouterKey;
+    }
+
+    if (!apiKeys.firecrawl && campConfig.defaultFirecrawlKey) {
+        apiKeys.firecrawl = campConfig.defaultFirecrawlKey;
     }
 
     return apiKeys;

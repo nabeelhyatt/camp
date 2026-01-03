@@ -157,6 +157,7 @@ export type ApiKeys = {
     openrouter?: string;
     google?: string;
     grok?: string;
+    firecrawl?: string;
 };
 
 export type Model = {
