@@ -699,17 +699,38 @@ export function useGenerateChatTitleConvex() {
                     return { skipped: true };
                 }
 
+                // Get project name if chat belongs to a project
+                let projectName: string | undefined;
+                if (chat?.projectId) {
+                    try {
+                        const project = await convex.query(api.projects.get, {
+                            clerkId,
+                            projectId: chat.projectId,
+                        });
+                        projectName = project?.name;
+                    } catch {
+                        // Project may not exist, continue without it
+                    }
+                }
+
+                // Build prompt with optional project context
+                const projectContext = projectName
+                    ? `\nThis chat is inside a project called "${projectName}". Do NOT repeat the project name in the chat title - instead, describe what THIS SPECIFIC CHAT is about within that project context.\n`
+                    : "";
+
                 // Dynamic import simpleLLM to avoid loading when not needed
                 const { simpleLLM } = await import("@core/chorus/simpleLLM");
 
                 const fullResponse = await simpleLLM(
                     `Write a 1-3 word title for this conversation. Put the most important word FIRST.
-
+${projectContext}
 Rules:
 - Be extremely concise: 1-3 words max
 - Lead with the main subject (company name, technology, specific topic)
-- Avoid filler words like "Setup", "Analysis", "Project" unless essential
+- Avoid filler words like "Setup", "Analysis", "Project", "Discussion", "Planning" unless essential
 - No articles (a, an, the)
+- Fix obvious typos in the user's message
+- If inside a project, don't repeat the project name
 
 Examples of good titles:
 - "Discord" (not "Discord Analysis of Board Decks")
@@ -718,6 +739,7 @@ Examples of good titles:
 - "Series B Deck" (not "Building Our Series B Pitch Deck")
 - "User Auth Flow" (not "Implementing User Authentication")
 - "Stripe Integration" (not "How to Integrate Stripe Payments")
+- Inside "Tabletop Library" project: "Dewey System" (not "Tabletop Library Planning")
 
 If there's no clear topic, return "Untitled Chat".
 
