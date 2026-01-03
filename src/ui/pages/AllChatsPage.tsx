@@ -34,9 +34,15 @@ function isYesterday(date: Date) {
 
 function isLastWeek(date: Date) {
     const today = new Date();
-    const lastWeek = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const lastWeek = new Date(today);
     lastWeek.setDate(today.getDate() - 7);
-    return date >= lastWeek && date < today;
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    // Last week: between 7 days ago and yesterday (not including today/yesterday)
+    return d >= lastWeek && d < yesterday;
 }
 
 function groupChatsByDate(chats: Chat[]): GroupedChats[] {
@@ -48,11 +54,8 @@ function groupChatsByDate(chats: Chat[]): GroupedChats[] {
     const older: Chat[] = [];
 
     chats.forEach((chat) => {
-        const utcDate = new Date(chat.updatedAt || 0);
-        // Convert to local time
-        const date = new Date(
-            utcDate.getTime() - utcDate.getTimezoneOffset() * 60000,
-        );
+        // toDateString() already reflects local time, no offset needed
+        const date = new Date(chat.updatedAt || 0);
 
         if (isToday(date)) {
             today.push(chat);

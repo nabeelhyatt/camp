@@ -40,9 +40,15 @@ function isYesterday(date: Date) {
 
 function isLastWeek(date: Date) {
     const today = new Date();
-    const lastWeek = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const lastWeek = new Date(today);
     lastWeek.setDate(today.getDate() - 7);
-    return date >= lastWeek && date < today;
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    // Last week: between 7 days ago and yesterday (not including today/yesterday)
+    return d >= lastWeek && d < yesterday;
 }
 
 export function PrivateChatsPage() {
@@ -78,10 +84,10 @@ export function PrivateChatsPage() {
         });
     }, [privateForks, searchQuery]);
 
-    // Sort by updatedAt descending
+    // Sort by updatedAt descending (create copy to avoid mutating memoized array)
     const sortedForks = useMemo(
         () =>
-            filteredForks.sort((a, b) => {
+            [...filteredForks].sort((a, b) => {
                 return b.updatedAt - a.updatedAt;
             }),
         [filteredForks],

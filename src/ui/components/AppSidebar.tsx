@@ -189,10 +189,11 @@ function Project({ projectId }: { projectId: string }) {
         : allProjectChats;
 
     // Filter chats to only show those from the last 7 days
+    // Always include the current chat so it doesn't disappear from sidebar
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const recentChats = myChats.filter((chat) => {
         const chatDate = new Date(chat.updatedAt).getTime();
-        return chatDate >= sevenDaysAgo;
+        return chat.id === currentChatId || chatDate >= sevenDaysAgo;
     });
 
     const chats = filterChatsForDisplay(recentChats, currentChatId);

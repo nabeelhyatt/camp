@@ -34,9 +34,15 @@ function isYesterday(date: Date) {
 
 function isLastWeek(date: Date) {
     const today = new Date();
-    const lastWeek = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const lastWeek = new Date(today);
     lastWeek.setDate(today.getDate() - 7);
-    return date >= lastWeek && date < today;
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    // Last week: between 7 days ago and yesterday (not including today/yesterday)
+    return d >= lastWeek && d < yesterday;
 }
 
 export function TeamProjectsPage() {
@@ -81,10 +87,10 @@ export function TeamProjectsPage() {
         return [...matchingProjects, ...matchingChats];
     }, [teamProjects, chats, searchQuery]);
 
-    // Sort by updatedAt descending
+    // Sort by updatedAt descending (create copy to avoid mutating memoized array)
     const sortedItems = useMemo(
         () =>
-            filteredItems.sort((a, b) => {
+            [...filteredItems].sort((a, b) => {
                 const aTime = new Date(a.updatedAt).getTime();
                 const bTime = new Date(b.updatedAt).getTime();
                 return bTime - aTime;
@@ -101,10 +107,8 @@ export function TeamProjectsPage() {
         const older: (Project | Chat)[] = [];
 
         sortedItems.forEach((item) => {
-            const utcDate = new Date(item.updatedAt);
-            const date = new Date(
-                utcDate.getTime() - utcDate.getTimezoneOffset() * 60000,
-            );
+            // toDateString() already reflects local time, no offset needed
+            const date = new Date(item.updatedAt);
 
             if (isToday(date)) {
                 today.push(item);
