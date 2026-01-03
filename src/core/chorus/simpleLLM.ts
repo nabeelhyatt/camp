@@ -1,7 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { SettingsManager } from "@core/utilities/Settings";
-import { campConfig } from "@core/campConfig";
+import { getApiKeys } from "@core/chorus/api/AppMetadataAPI";
 
 type SimpleLLMParams = {
     model: string;
@@ -74,16 +73,13 @@ export async function simpleLLM(
     prompt: string,
     params: SimpleLLMParams,
 ): Promise<string> {
-    const settingsManager = SettingsManager.getInstance();
-    const settings = await settingsManager.get();
-    const anthropicKey = settings.apiKeys?.anthropic;
-    const openRouterKey =
-        settings.apiKeys?.openrouter || campConfig.defaultOpenRouterKey;
+    // Use centralized API key management (includes default OpenRouter fallback)
+    const apiKeys = await getApiKeys();
 
     // Try Anthropic first if available
-    if (anthropicKey) {
+    if (apiKeys.anthropic) {
         const client = new Anthropic({
-            apiKey: anthropicKey,
+            apiKey: apiKeys.anthropic,
             dangerouslyAllowBrowser: true,
         });
 
@@ -109,9 +105,9 @@ export async function simpleLLM(
         return fullResponse;
     }
 
-    // Fall back to OpenRouter
-    if (openRouterKey) {
-        return simpleLLMViaOpenRouter(prompt, params, openRouterKey);
+    // Fall back to OpenRouter (getApiKeys already includes default from env)
+    if (apiKeys.openrouter) {
+        return simpleLLMViaOpenRouter(prompt, params, apiKeys.openrouter);
     }
 
     throw new Error(
@@ -127,11 +123,10 @@ export async function simpleSummarizeLLM(
     prompt: string,
     params: SimpleLLMParams,
 ): Promise<string> {
-    const settingsManager = SettingsManager.getInstance();
-    const settings = await settingsManager.get();
-    const apiKey = settings.apiKeys?.google;
+    // Use centralized API key management
+    const apiKeys = await getApiKeys();
 
-    if (!apiKey) {
+    if (!apiKeys.google) {
         throw new Error("Please add your Google AI API key in Settings.");
     }
 
@@ -142,7 +137,7 @@ export async function simpleSummarizeLLM(
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`,
+                Authorization: `Bearer ${apiKeys.google}`,
             },
             body: JSON.stringify({
                 model: params.model,
