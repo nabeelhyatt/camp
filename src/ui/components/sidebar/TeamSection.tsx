@@ -79,20 +79,22 @@ export function TeamSection({ onCreateProject, children }: TeamSectionProps) {
             </div>
 
             {/* Section Content */}
-            <SidebarMenu className="truncate">
+            <div className="truncate">
                 {/* New Project button at top */}
-                <SidebarMenuItem>
-                    <SidebarMenuButton
-                        onClick={onCreateProject}
-                        className="text-muted-foreground hover:text-foreground"
-                    >
-                        <PlusIcon className="size-4" strokeWidth={1.5} />
-                        <span className="text-base">New project</span>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            onClick={onCreateProject}
+                            className="text-muted-foreground hover:text-foreground"
+                        >
+                            <PlusIcon className="size-4" strokeWidth={1.5} />
+                            <span className="text-base">New project</span>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
 
                 {children}
-            </SidebarMenu>
+            </div>
         </div>
     );
 }
