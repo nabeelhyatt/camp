@@ -2919,8 +2919,26 @@ export function useGenerateChatTitle() {
             }
 
             const fullResponse = await simpleLLM(
-                `Based on this first message, write a 1-5 word title for the conversation. Try to put the most important words first. Format your response as <title>YOUR TITLE HERE</title>.
-If there's no information in the message, just return "Untitled Chat".
+                `Write a 1-3 word title for this conversation. Put the most important word FIRST.
+
+Rules:
+- Be extremely concise: 1-3 words max
+- Lead with the main subject (company name, technology, specific topic)
+- Avoid filler words like "Setup", "Analysis", "Project" unless essential
+- No articles (a, an, the)
+
+Examples of good titles:
+- "Discord" (not "Discord Analysis of Board Decks")
+- "Compound Engineering" (not "Setup for Compound Engineering")
+- "React Performance" (not "Optimizing React App Performance")
+- "Series B Deck" (not "Building Our Series B Pitch Deck")
+- "User Auth Flow" (not "Implementing User Authentication")
+- "Stripe Integration" (not "How to Integrate Stripe Payments")
+
+If there's no clear topic, return "Untitled Chat".
+
+Format your response as <title>YOUR TITLE HERE</title>.
+
 <message>
 ${userMessageText}
 </message>`,

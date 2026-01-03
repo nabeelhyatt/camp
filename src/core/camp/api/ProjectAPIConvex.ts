@@ -592,6 +592,182 @@ export function useGetProjectContextLLMMessageConvex(): (
 }
 
 // ============================================================
+// Project Title Generation
+// ============================================================
+
+/**
+ * Hook to generate a title for a project based on the first message in its first chat.
+ * Only generates if the project has no name (empty string).
+ * Uses client-side simpleLLM for now (reuses existing infrastructure).
+ */
+export function useGenerateProjectTitleConvex() {
+    const { clerkId } = useWorkspaceContext();
+    const updateProject = useMutation(api.projects.update);
+    const convex = useConvex();
+    const queryClient = useQueryClient();
+
+    const [isPending, setIsPending] = useState(false);
+
+    const mutateAsync = useCallback(
+        async (args: { projectId: string; chatId: string }) => {
+            if (!clerkId) {
+                console.warn(
+                    "[useGenerateProjectTitleConvex] No clerkId, skipping",
+                );
+                return { skipped: true };
+            }
+
+            setIsPending(true);
+
+            try {
+                // Check if project already has a name
+                const projectId = stringToConvexIdStrict<"projects">(
+                    args.projectId,
+                );
+                const project = await convex.query(api.projects.get, {
+                    clerkId,
+                    projectId,
+                });
+
+                if (project?.name && project.name.trim() !== "") {
+                    console.log(
+                        "[useGenerateProjectTitleConvex] Project already has name, skipping",
+                    );
+                    return { skipped: true };
+                }
+
+                // Get messages from the chat to find the first user message
+                const chatId = stringToConvexIdStrict<"chats">(args.chatId);
+                const messageSets = await convex.query(
+                    api.messages.listSetsWithMessages,
+                    { clerkId, chatId },
+                );
+
+                if (!messageSets || messageSets.length === 0) {
+                    console.log(
+                        "[useGenerateProjectTitleConvex] No message sets, skipping",
+                    );
+                    return { skipped: true };
+                }
+
+                // Find the first user message text
+                let userMessageText: string | undefined;
+
+                for (const set of messageSets) {
+                    for (const msg of set.messages) {
+                        if (msg.role === "user") {
+                            const textParts = msg.parts
+                                .filter((p) => p.type === "text")
+                                .sort((a, b) => a.order - b.order)
+                                .map((p) => p.content)
+                                .join("");
+
+                            if (textParts) {
+                                userMessageText = textParts;
+                                break;
+                            }
+                        }
+                    }
+                    if (userMessageText) break;
+                }
+
+                if (!userMessageText) {
+                    console.log(
+                        "[useGenerateProjectTitleConvex] No user message found, skipping",
+                    );
+                    return { skipped: true };
+                }
+
+                // Dynamic import simpleLLM to avoid loading when not needed
+                const { simpleLLM } = await import("@core/chorus/simpleLLM");
+
+                const fullResponse = await simpleLLM(
+                    `Write a 1-3 word title for this project. Put the most important word FIRST.
+
+Rules:
+- Be extremely concise: 1-3 words max
+- Lead with the main subject (company name, technology, specific topic)
+- Avoid filler words like "Setup", "Analysis", "Project" unless essential
+- No articles (a, an, the)
+
+Examples of good titles:
+- "Discord" (not "Discord Analysis of Board Decks")
+- "Compound Engineering" (not "Setup for Compound Engineering")
+- "React Performance" (not "Optimizing React App Performance")
+- "Series B Deck" (not "Building Our Series B Pitch Deck")
+- "User Auth Flow" (not "Implementing User Authentication")
+- "Stripe Integration" (not "How to Integrate Stripe Payments")
+
+If there's no clear topic, return "Untitled Project".
+
+Format your response as <title>YOUR TITLE HERE</title>.
+
+<message>
+${userMessageText}
+</message>`,
+                    {
+                        model: "claude-3-5-sonnet-latest",
+                        maxTokens: 100,
+                    },
+                );
+
+                // Extract title from XML tags
+                const match = fullResponse.match(/<title>(.*?)<\/title>/s);
+                if (!match || !match[1]) {
+                    console.warn(
+                        "[useGenerateProjectTitleConvex] No title found in response:",
+                        fullResponse,
+                    );
+                    return { skipped: true };
+                }
+
+                const cleanTitle = match[1]
+                    .trim()
+                    .slice(0, 40)
+                    .replace(/["']/g, "");
+
+                if (cleanTitle && cleanTitle !== "Untitled Project") {
+                    console.log(
+                        "[useGenerateProjectTitleConvex] Setting project title to:",
+                        cleanTitle,
+                    );
+
+                    await updateProject({
+                        clerkId,
+                        projectId,
+                        name: cleanTitle,
+                    });
+
+                    // Invalidate cache
+                    void queryClient.invalidateQueries({
+                        queryKey: projectKeys.all(),
+                    });
+
+                    return { title: cleanTitle };
+                }
+
+                return { skipped: true };
+            } catch (error) {
+                console.error("[useGenerateProjectTitleConvex] Error:", error);
+                return { skipped: true };
+            } finally {
+                setIsPending(false);
+            }
+        },
+        [clerkId, convex, updateProject, queryClient],
+    );
+
+    return {
+        mutateAsync,
+        mutate: (args: { projectId: string; chatId: string }) =>
+            void mutateAsync(args),
+        isPending,
+        isIdle: !isPending,
+        isLoading: isPending,
+    };
+}
+
+// ============================================================
 // Fetch Functions (for direct calls, not hooks)
 // ============================================================
 

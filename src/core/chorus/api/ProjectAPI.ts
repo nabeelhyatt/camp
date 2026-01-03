@@ -6,7 +6,7 @@ import * as Prompts from "../prompts/prompts";
 import { produce } from "immer";
 import { useGetMessageSets } from "./MessageAPI";
 import { llmConversation } from "../ChatState";
-import { simpleSummarizeLLM } from "../simpleLLM";
+import { simpleLLM, simpleSummarizeLLM } from "../simpleLLM";
 import _ from "lodash";
 import { useNavigate } from "react-router-dom";
 import { db } from "../DB";
@@ -652,6 +652,117 @@ export function useToggleProjectIsCollapsed() {
             await queryClient.invalidateQueries(
                 projectQueries.detail(variables.projectId),
             );
+        },
+    });
+}
+
+/**
+ * Hook to generate a title for a project based on the first message in its first chat.
+ * Only generates if the project has no name (empty string).
+ */
+export function useGenerateProjectTitle() {
+    const queryClient = useQueryClient();
+    const getMessageSets = useGetMessageSets();
+
+    return useMutation({
+        mutationKey: ["generateProjectTitle"] as const,
+        mutationFn: async ({
+            projectId,
+            chatId,
+        }: {
+            projectId: string;
+            chatId: string;
+        }) => {
+            // Check if project already has a name
+            const project = await queryClient.ensureQueryData(
+                projectQueries.detail(projectId),
+            );
+            if (project?.name && project.name.trim() !== "") {
+                console.log(
+                    "Skipping project title generation - already has name",
+                    projectId,
+                );
+                return { skipped: true };
+            }
+
+            // Get the first user message from the chat
+            const messageSets = await getMessageSets(chatId);
+            const userMessageText = Array.from(messageSets)
+                .reverse()
+                .map((ms) => ms.userBlock?.message?.text)
+                .find((m) => m !== undefined);
+
+            if (!userMessageText) {
+                console.log(
+                    "Skipping project title generation - no user message",
+                    projectId,
+                );
+                return { skipped: true };
+            }
+
+            const fullResponse = await simpleLLM(
+                `Write a 1-3 word title for this project. Put the most important word FIRST.
+
+Rules:
+- Be extremely concise: 1-3 words max
+- Lead with the main subject (company name, technology, specific topic)
+- Avoid filler words like "Setup", "Analysis", "Project" unless essential
+- No articles (a, an, the)
+
+Examples of good titles:
+- "Discord" (not "Discord Analysis of Board Decks")
+- "Compound Engineering" (not "Setup for Compound Engineering")
+- "React Performance" (not "Optimizing React App Performance")
+- "Series B Deck" (not "Building Our Series B Pitch Deck")
+- "User Auth Flow" (not "Implementing User Authentication")
+- "Stripe Integration" (not "How to Integrate Stripe Payments")
+
+If there's no clear topic, return "Untitled Project".
+
+Format your response as <title>YOUR TITLE HERE</title>.
+
+<message>
+${userMessageText}
+</message>`,
+                {
+                    model: "claude-3-5-sonnet-latest",
+                    maxTokens: 100,
+                },
+            );
+
+            // Extract title from XML tags and clean it up
+            const match = fullResponse.match(/<title>(.*?)<\/title>/s);
+            if (!match || !match[1]) {
+                console.warn(
+                    "No project title found in response:",
+                    fullResponse,
+                );
+                return { skipped: true };
+            }
+
+            const cleanTitle = match[1]
+                .trim()
+                .slice(0, 40)
+                .replace(/["']/g, "");
+
+            if (cleanTitle && cleanTitle !== "Untitled Project") {
+                console.log("Setting project title to:", cleanTitle);
+                await db.execute(
+                    "UPDATE projects SET name = $1 WHERE id = $2",
+                    [cleanTitle, projectId],
+                );
+                return { title: cleanTitle };
+            }
+
+            return { skipped: true };
+        },
+        onSuccess: async (data, variables) => {
+            if (!data?.skipped) {
+                await queryClient.invalidateQueries(projectQueries.list());
+                await queryClient.invalidateQueries(
+                    projectQueries.detail(variables.projectId),
+                );
+            }
         },
     });
 }

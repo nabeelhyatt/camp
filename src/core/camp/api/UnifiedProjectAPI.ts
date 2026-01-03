@@ -23,6 +23,7 @@ import {
     useToggleProjectIsCollapsedConvex,
     useAutoSyncProjectContextTextConvex,
     useGetProjectContextLLMMessageConvex,
+    useGenerateProjectTitleConvex,
     projectKeys,
     projectQueries,
 } from "./ProjectAPIConvex";
@@ -43,6 +44,7 @@ import {
     useDeleteAttachmentFromProject,
     useFinalizeAttachmentForProject,
     useSetChatProject as useSetChatProjectSQLite,
+    useGenerateProjectTitle as useGenerateProjectTitleSQLite,
     projectContextQueries,
     fetchProjectContextText,
     fetchProjectContextAttachments,
@@ -300,6 +302,23 @@ export function useAutoSyncProjectContextText(projectId: string | undefined) {
     }
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return useAutoSyncProjectContextTextSQLite(projectId ?? "");
+}
+
+// ============================================================
+// Project Title Generation
+// ============================================================
+
+/**
+ * Generate project title from first chat message
+ * This is called after sending the first message in a project's first chat.
+ */
+export function useGenerateProjectTitle() {
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useGenerateProjectTitleConvex();
+    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useGenerateProjectTitleSQLite();
 }
 
 // ============================================================

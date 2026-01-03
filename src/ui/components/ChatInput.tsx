@@ -43,6 +43,7 @@ import * as ModelsAPI from "@core/chorus/api/ModelsAPI";
 import * as DraftAPI from "@core/chorus/api/DraftAPI";
 import * as ModelConfigChatAPI from "@core/chorus/api/ModelConfigChatAPI";
 import * as ProjectAPI from "@core/camp/api/UnifiedProjectAPI";
+import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
 
 const DEFAULT_CHAT_INPUT_ID = "default-chat-input";
 const REPLY_CHAT_INPUT_ID = "reply-chat-input";
@@ -174,6 +175,8 @@ export function ChatInput({
     const forceRefreshMessageSets =
         UnifiedMessageAPI.useForceRefreshMessageSets();
     const generateChatTitle = UnifiedMessageAPI.useGenerateChatTitle();
+    const generateProjectTitle = ProjectAPI.useGenerateProjectTitle();
+    const chatQuery = ChatAPI.useChat(chatId);
     const markProjectContextSummaryAsStale =
         ProjectAPI.useMarkProjectContextSummaryAsStale();
 
@@ -322,6 +325,16 @@ export function ChatInput({
 
             // generate chat title if needed
             void generateChatTitle.mutateAsync({ chatId });
+
+            // generate project title if the chat belongs to a project
+            const projectId = chatQuery.data?.projectId;
+            if (
+                projectId &&
+                projectId !== "default" &&
+                projectId !== "quick-chat"
+            ) {
+                void generateProjectTitle.mutateAsync({ projectId, chatId });
+            }
 
             // mark project context summary as stale
             // we'll do this again when the AI message finishes streaming
