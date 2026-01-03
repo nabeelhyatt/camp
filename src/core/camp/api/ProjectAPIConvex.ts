@@ -637,9 +637,37 @@ export function useGenerateProjectTitleConvex() {
                     return { skipped: true };
                 }
 
-                // Try to use project context first
+                // Gather content from all available sources
                 let contentForTitle: string | undefined = project?.contextText;
                 let contentSource = "context";
+
+                // Also check SQLite project attachments (stored locally even in Convex mode)
+                try {
+                    const { fetchProjectContextAttachments } = await import(
+                        "@core/chorus/api/ProjectAPI"
+                    );
+                    const attachments = await fetchProjectContextAttachments(
+                        args.projectId,
+                    );
+
+                    if (attachments && attachments.length > 0) {
+                        const attachmentNames = attachments
+                            .map((a) => a.originalName)
+                            .join(", ");
+                        if (contentForTitle) {
+                            contentForTitle += `\n\nAttached files: ${attachmentNames}`;
+                        } else {
+                            contentForTitle = `Attached files: ${attachmentNames}`;
+                            contentSource = "attachments";
+                        }
+                    }
+                } catch (attachError) {
+                    // SQLite may not be available or have this project
+                    console.debug(
+                        "[useGenerateProjectTitleConvex] Could not fetch project attachments:",
+                        attachError,
+                    );
+                }
 
                 // If no project context and we have a chatId, try to get first user message
                 if (!contentForTitle && args.chatId) {

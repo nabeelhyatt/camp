@@ -1375,6 +1375,38 @@ These features from `@core/chorus/api/ProjectAPI.ts` are not migrated:
 | `useFinalizeAttachmentForProject`      | Finalizes attachment        | SQLite only                |
 | `projectContextQueries`                | Query factories for context | SQLite queries             |
 
+### ⚠️ Project Attachments: Hybrid SQLite/Convex State
+
+**Current State:** Project attachments are stored in SQLite even when `useConvexData=true`. This creates a split-brain scenario:
+
+| Data                     | Storage Location | Syncs to Team? |
+| ------------------------ | ---------------- | -------------- |
+| Project name             | Convex           | ✅ Yes         |
+| Project contextText      | Convex           | ✅ Yes         |
+| Project file attachments | SQLite (local)   | ❌ No          |
+
+**Why This Matters:**
+
+-   Team members can't see each other's project attachments
+-   Attachments don't sync across devices
+-   Title generation works (reads SQLite attachments) but the underlying data model is inconsistent
+
+**Files Involved:**
+
+-   `src/core/chorus/api/AttachmentsAPI.ts` - SQLite attachment CRUD
+-   `src/core/chorus/api/ProjectAPI.ts` - `fetchProjectContextAttachments()` reads from SQLite
+-   `convex/schema.ts` - `attachments` table exists but only for message attachments
+
+**Migration Required (Phase 3):**
+
+1. Add `projectId` field to Convex `attachments` table (or create `projectAttachments` table)
+2. Update `useFilePaste`, `useFileDrop`, `useAttachUrl` to store in Convex
+3. Implement Convex file storage for actual file content
+4. Update `projectContextQueries.attachments` to query Convex
+5. Remove SQLite `project_attachments` table usage
+
+See also: "Team Context Repository" in Q3 roadmap (lines 1056-1080) for the full vision.
+
 ### Message Hooks Still Using SQLite
 
 From `@core/chorus/api/MessageAPI.ts`:

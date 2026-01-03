@@ -315,21 +315,54 @@ export function useGetOrCreateNewChatConvex() {
 
                         if (
                             project &&
-                            (!project.name || project.name.trim() === "") &&
-                            project.contextText
+                            (!project.name || project.name.trim() === "")
                         ) {
-                            // Dynamic import simpleLLM
-                            const { simpleLLM } = await import(
-                                "@core/chorus/simpleLLM"
-                            );
+                            // Gather content from all available sources
+                            let contentForTitle = project.contextText || "";
 
-                            const truncatedContent =
-                                project.contextText.length > 2000
-                                    ? project.contextText.slice(0, 2000) + "..."
-                                    : project.contextText;
+                            // Also check SQLite project attachments (stored locally even in Convex mode)
+                            // Project ID in Convex is the full string ID
+                            const projectIdStr = String(convexProjectId);
+                            try {
+                                const { fetchProjectContextAttachments } =
+                                    await import("@core/chorus/api/ProjectAPI");
+                                const attachments =
+                                    await fetchProjectContextAttachments(
+                                        projectIdStr,
+                                    );
 
-                            const fullResponse = await simpleLLM(
-                                `Write a 1-3 word title for this project. Put the most important word FIRST.
+                                if (attachments && attachments.length > 0) {
+                                    // Use attachment filenames as context for title generation
+                                    const attachmentNames = attachments
+                                        .map((a) => a.originalName)
+                                        .join(", ");
+                                    if (contentForTitle) {
+                                        contentForTitle += `\n\nAttached files: ${attachmentNames}`;
+                                    } else {
+                                        contentForTitle = `Attached files: ${attachmentNames}`;
+                                    }
+                                }
+                            } catch (attachError) {
+                                // SQLite may not be available or have this project
+                                console.debug(
+                                    "[useGetOrCreateNewChatConvex] Could not fetch project attachments:",
+                                    attachError,
+                                );
+                            }
+
+                            if (contentForTitle) {
+                                // Dynamic import simpleLLM
+                                const { simpleLLM } = await import(
+                                    "@core/chorus/simpleLLM"
+                                );
+
+                                const truncatedContent =
+                                    contentForTitle.length > 2000
+                                        ? contentForTitle.slice(0, 2000) + "..."
+                                        : contentForTitle;
+
+                                const fullResponse = await simpleLLM(
+                                    `Write a 1-3 word title for this project. Put the most important word FIRST.
 
 Rules:
 - Be extremely concise: 1-3 words max
@@ -350,40 +383,44 @@ Format your response as <title>YOUR TITLE HERE</title>.
 <content>
 ${truncatedContent}
 </content>`,
-                                {
-                                    model: "claude-3-5-sonnet-latest",
-                                    maxTokens: 100,
-                                },
-                            );
+                                    {
+                                        model: "claude-3-5-sonnet-latest",
+                                        maxTokens: 100,
+                                    },
+                                );
 
-                            const match = fullResponse.match(
-                                /<title>(.*?)<\/title>/s,
-                            );
-                            if (match?.[1]) {
-                                const cleanTitle = match[1]
-                                    .trim()
-                                    .slice(0, 40)
-                                    .replace(/["']/g, "");
+                                const match = fullResponse.match(
+                                    /<title>(.*?)<\/title>/s,
+                                );
+                                if (match?.[1]) {
+                                    const cleanTitle = match[1]
+                                        .trim()
+                                        .slice(0, 40)
+                                        .replace(/["']/g, "");
 
-                                if (
-                                    cleanTitle &&
-                                    cleanTitle !== "Untitled Project"
-                                ) {
-                                    console.log(
-                                        "[useGetOrCreateNewChatConvex] Auto-generating project title:",
-                                        cleanTitle,
-                                    );
+                                    if (
+                                        cleanTitle &&
+                                        cleanTitle !== "Untitled Project"
+                                    ) {
+                                        console.log(
+                                            "[useGetOrCreateNewChatConvex] Auto-generating project title:",
+                                            cleanTitle,
+                                        );
 
-                                    // Use convex client directly for mutation
-                                    await convex.mutation(api.projects.update, {
-                                        clerkId,
-                                        projectId: convexProjectId,
-                                        name: cleanTitle,
-                                    });
+                                        // Use convex client directly for mutation
+                                        await convex.mutation(
+                                            api.projects.update,
+                                            {
+                                                clerkId,
+                                                projectId: convexProjectId,
+                                                name: cleanTitle,
+                                            },
+                                        );
 
-                                    void queryClient.invalidateQueries({
-                                        queryKey: ["projects"],
-                                    });
+                                        void queryClient.invalidateQueries({
+                                            queryKey: ["projects"],
+                                        });
+                                    }
                                 }
                             }
                         }

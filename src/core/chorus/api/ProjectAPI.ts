@@ -686,10 +686,24 @@ export function useGenerateProjectTitle() {
                 return { skipped: true };
             }
 
-            // Try to use project context first
+            // Gather content from all available sources
             let contentForTitle: string | undefined =
                 await fetchProjectContextText(projectId);
             let contentSource = "context";
+
+            // Also check project attachments
+            const attachments = await fetchProjectContextAttachments(projectId);
+            if (attachments && attachments.length > 0) {
+                const attachmentNames = attachments
+                    .map((a) => a.originalName)
+                    .join(", ");
+                if (contentForTitle) {
+                    contentForTitle += `\n\nAttached files: ${attachmentNames}`;
+                } else {
+                    contentForTitle = `Attached files: ${attachmentNames}`;
+                    contentSource = "attachments";
+                }
+            }
 
             // If no project context and we have a chatId, try to get first user message
             if (!contentForTitle && chatId) {
