@@ -45,7 +45,8 @@ class ErrorBoundary extends Component<Props, State> {
     }
 
     private handleReload = () => {
-        // Navigate to root route by updating window.location
+        // Navigate to root route without any parameters to ensure clean state
+        // This prevents loops when errors occur from invalid chat/project IDs in the URL
         window.location.href = "/";
 
         // Reset error state

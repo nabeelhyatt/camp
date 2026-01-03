@@ -26,6 +26,7 @@ import { ThemeProvider } from "@ui/themes/theme-provider";
 import { COMMAND_MENU_DIALOG_ID, CommandMenu } from "./components/CommandMenu";
 import Home from "./components/Home";
 import MultiChat from "./components/MultiChat";
+import { ChatErrorBoundary } from "./components/ChatErrorBoundary";
 import NewPrompt from "./components/NewPrompt";
 import ListPrompts from "./components/ListPrompts";
 import Onboarding from "./components/Onboarding";
@@ -842,7 +843,14 @@ function AppContent() {
                         <Route path="/" element={<Home />} />
                         <Route path="/new-prompt" element={<NewPrompt />} />
                         <Route path="/prompts" element={<ListPrompts />} />
-                        <Route path="/chat/:chatId" element={<MultiChat />} />
+                        <Route
+                            path="/chat/:chatId"
+                            element={
+                                <ChatErrorBoundary>
+                                    <MultiChat />
+                                </ChatErrorBoundary>
+                            }
+                        />
                         <Route
                             path="/projects/:projectId"
                             element={<ProjectView />}
