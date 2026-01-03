@@ -257,6 +257,7 @@ export function usePrivateForksQueryConvex() {
 export function useGetOrCreateNewChatConvex() {
     const { clerkId, workspaceId } = useWorkspaceContext();
     const createChat = useMutation(api.chats.create);
+    const convex = useConvex();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
 
@@ -301,6 +302,100 @@ export function useGetOrCreateNewChatConvex() {
                 void queryClient.invalidateQueries({
                     queryKey: chatKeys.all(),
                 });
+
+                // If creating chat in a project, try to generate project title from context
+                // (will be skipped if project already has a name or no context)
+                if (convexProjectId) {
+                    try {
+                        // Check if project needs a title
+                        const project = await convex.query(api.projects.get, {
+                            clerkId,
+                            projectId: convexProjectId,
+                        });
+
+                        if (
+                            project &&
+                            (!project.name || project.name.trim() === "") &&
+                            project.contextText
+                        ) {
+                            // Dynamic import simpleLLM
+                            const { simpleLLM } = await import(
+                                "@core/chorus/simpleLLM"
+                            );
+
+                            const truncatedContent =
+                                project.contextText.length > 2000
+                                    ? project.contextText.slice(0, 2000) + "..."
+                                    : project.contextText;
+
+                            const fullResponse = await simpleLLM(
+                                `Write a 1-3 word title for this project. Put the most important word FIRST.
+
+Rules:
+- Be extremely concise: 1-3 words max
+- Lead with the main subject (company name, technology, specific topic)
+- Avoid filler words like "Setup", "Analysis", "Project" unless essential
+- No articles (a, an, the)
+- Fix obvious typos
+
+Examples of good titles:
+- "Discord" (not "Discord Analysis")
+- "React Performance" (not "Optimizing React")
+- "Series B Deck" (not "Building Pitch Deck")
+
+If there's no clear topic, return "Untitled Project".
+
+Format your response as <title>YOUR TITLE HERE</title>.
+
+<content>
+${truncatedContent}
+</content>`,
+                                {
+                                    model: "claude-3-5-sonnet-latest",
+                                    maxTokens: 100,
+                                },
+                            );
+
+                            const match = fullResponse.match(
+                                /<title>(.*?)<\/title>/s,
+                            );
+                            if (match?.[1]) {
+                                const cleanTitle = match[1]
+                                    .trim()
+                                    .slice(0, 40)
+                                    .replace(/["']/g, "");
+
+                                if (
+                                    cleanTitle &&
+                                    cleanTitle !== "Untitled Project"
+                                ) {
+                                    console.log(
+                                        "[useGetOrCreateNewChatConvex] Auto-generating project title:",
+                                        cleanTitle,
+                                    );
+
+                                    // Use convex client directly for mutation
+                                    await convex.mutation(api.projects.update, {
+                                        clerkId,
+                                        projectId: convexProjectId,
+                                        name: cleanTitle,
+                                    });
+
+                                    void queryClient.invalidateQueries({
+                                        queryKey: ["projects"],
+                                    });
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        // Don't fail chat creation if title generation fails
+                        console.warn(
+                            "[useGetOrCreateNewChatConvex] Project title generation failed:",
+                            error,
+                        );
+                    }
+                }
+
                 navigate(`/chat/${chatId}`);
 
                 return String(chatId);

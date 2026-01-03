@@ -657,8 +657,9 @@ export function useToggleProjectIsCollapsed() {
 }
 
 /**
- * Hook to generate a title for a project based on the first message in its first chat.
+ * Hook to generate a title for a project.
  * Only generates if the project has no name (empty string).
+ * Uses project context if available, otherwise falls back to first chat message.
  */
 export function useGenerateProjectTitle() {
     const queryClient = useQueryClient();
@@ -671,7 +672,7 @@ export function useGenerateProjectTitle() {
             chatId,
         }: {
             projectId: string;
-            chatId: string;
+            chatId?: string;
         }) => {
             // Check if project already has a name
             const project = await queryClient.ensureQueryData(
@@ -685,20 +686,39 @@ export function useGenerateProjectTitle() {
                 return { skipped: true };
             }
 
-            // Get the first user message from the chat
-            const messageSets = await getMessageSets(chatId);
-            const userMessageText = Array.from(messageSets)
-                .reverse()
-                .map((ms) => ms.userBlock?.message?.text)
-                .find((m) => m !== undefined);
+            // Try to use project context first
+            let contentForTitle: string | undefined =
+                await fetchProjectContextText(projectId);
+            let contentSource = "context";
 
-            if (!userMessageText) {
+            // If no project context and we have a chatId, try to get first user message
+            if (!contentForTitle && chatId) {
+                const messageSets = await getMessageSets(chatId);
+                contentForTitle = Array.from(messageSets)
+                    .reverse()
+                    .map((ms) => ms.userBlock?.message?.text)
+                    .find((m) => m !== undefined);
+                contentSource = "message";
+            }
+
+            if (!contentForTitle) {
                 console.log(
-                    "Skipping project title generation - no user message",
+                    "Skipping project title generation - no content found",
                     projectId,
                 );
                 return { skipped: true };
             }
+
+            // Truncate content if too long (context can be very large)
+            const truncatedContent =
+                contentForTitle.length > 2000
+                    ? contentForTitle.slice(0, 2000) + "..."
+                    : contentForTitle;
+
+            console.log(
+                `Generating project title from ${contentSource}`,
+                projectId,
+            );
 
             const fullResponse = await simpleLLM(
                 `Write a 1-3 word title for this project. Put the most important word FIRST.
@@ -708,6 +728,7 @@ Rules:
 - Lead with the main subject (company name, technology, specific topic)
 - Avoid filler words like "Setup", "Analysis", "Project" unless essential
 - No articles (a, an, the)
+- Fix obvious typos
 
 Examples of good titles:
 - "Discord" (not "Discord Analysis of Board Decks")
@@ -721,9 +742,9 @@ If there's no clear topic, return "Untitled Project".
 
 Format your response as <title>YOUR TITLE HERE</title>.
 
-<message>
-${userMessageText}
-</message>`,
+<content>
+${truncatedContent}
+</content>`,
                 {
                     model: "claude-3-5-sonnet-latest",
                     maxTokens: 100,

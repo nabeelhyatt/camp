@@ -596,8 +596,9 @@ export function useGetProjectContextLLMMessageConvex(): (
 // ============================================================
 
 /**
- * Hook to generate a title for a project based on the first message in its first chat.
+ * Hook to generate a title for a project.
  * Only generates if the project has no name (empty string).
+ * Uses project context if available, otherwise falls back to first chat message.
  * Uses client-side simpleLLM for now (reuses existing infrastructure).
  */
 export function useGenerateProjectTitleConvex() {
@@ -609,7 +610,7 @@ export function useGenerateProjectTitleConvex() {
     const [isPending, setIsPending] = useState(false);
 
     const mutateAsync = useCallback(
-        async (args: { projectId: string; chatId: string }) => {
+        async (args: { projectId: string; chatId?: string }) => {
             if (!clerkId) {
                 console.warn(
                     "[useGenerateProjectTitleConvex] No clerkId, skipping",
@@ -636,47 +637,56 @@ export function useGenerateProjectTitleConvex() {
                     return { skipped: true };
                 }
 
-                // Get messages from the chat to find the first user message
-                const chatId = stringToConvexIdStrict<"chats">(args.chatId);
-                const messageSets = await convex.query(
-                    api.messages.listSetsWithMessages,
-                    { clerkId, chatId },
-                );
+                // Try to use project context first
+                let contentForTitle: string | undefined = project?.contextText;
+                let contentSource = "context";
 
-                if (!messageSets || messageSets.length === 0) {
-                    console.log(
-                        "[useGenerateProjectTitleConvex] No message sets, skipping",
+                // If no project context and we have a chatId, try to get first user message
+                if (!contentForTitle && args.chatId) {
+                    const chatId = stringToConvexIdStrict<"chats">(args.chatId);
+                    const messageSets = await convex.query(
+                        api.messages.listSetsWithMessages,
+                        { clerkId, chatId },
                     );
-                    return { skipped: true };
-                }
 
-                // Find the first user message text
-                let userMessageText: string | undefined;
+                    if (messageSets && messageSets.length > 0) {
+                        for (const set of messageSets) {
+                            for (const msg of set.messages) {
+                                if (msg.role === "user") {
+                                    const textParts = msg.parts
+                                        .filter((p) => p.type === "text")
+                                        .sort((a, b) => a.order - b.order)
+                                        .map((p) => p.content)
+                                        .join("");
 
-                for (const set of messageSets) {
-                    for (const msg of set.messages) {
-                        if (msg.role === "user") {
-                            const textParts = msg.parts
-                                .filter((p) => p.type === "text")
-                                .sort((a, b) => a.order - b.order)
-                                .map((p) => p.content)
-                                .join("");
-
-                            if (textParts) {
-                                userMessageText = textParts;
-                                break;
+                                    if (textParts) {
+                                        contentForTitle = textParts;
+                                        contentSource = "message";
+                                        break;
+                                    }
+                                }
                             }
+                            if (contentForTitle) break;
                         }
                     }
-                    if (userMessageText) break;
                 }
 
-                if (!userMessageText) {
+                if (!contentForTitle) {
                     console.log(
-                        "[useGenerateProjectTitleConvex] No user message found, skipping",
+                        "[useGenerateProjectTitleConvex] No content found for title generation, skipping",
                     );
                     return { skipped: true };
                 }
+
+                // Truncate content if too long (context can be very large)
+                const truncatedContent =
+                    contentForTitle.length > 2000
+                        ? contentForTitle.slice(0, 2000) + "..."
+                        : contentForTitle;
+
+                console.log(
+                    `[useGenerateProjectTitleConvex] Generating title from ${contentSource}`,
+                );
 
                 // Dynamic import simpleLLM to avoid loading when not needed
                 const { simpleLLM } = await import("@core/chorus/simpleLLM");
@@ -689,6 +699,7 @@ Rules:
 - Lead with the main subject (company name, technology, specific topic)
 - Avoid filler words like "Setup", "Analysis", "Project" unless essential
 - No articles (a, an, the)
+- Fix obvious typos
 
 Examples of good titles:
 - "Discord" (not "Discord Analysis of Board Decks")
@@ -702,9 +713,9 @@ If there's no clear topic, return "Untitled Project".
 
 Format your response as <title>YOUR TITLE HERE</title>.
 
-<message>
-${userMessageText}
-</message>`,
+<content>
+${truncatedContent}
+</content>`,
                     {
                         model: "claude-3-5-sonnet-latest",
                         maxTokens: 100,
@@ -759,7 +770,7 @@ ${userMessageText}
 
     return {
         mutateAsync,
-        mutate: (args: { projectId: string; chatId: string }) =>
+        mutate: (args: { projectId: string; chatId?: string }) =>
             void mutateAsync(args),
         isPending,
         isIdle: !isPending,
