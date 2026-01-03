@@ -41,7 +41,6 @@ import {
     BookOpen,
     Globe,
     UserCircle,
-    Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { config } from "@core/config";
@@ -74,6 +73,7 @@ import * as ToolsetsAPI from "@core/chorus/api/ToolsetsAPI";
 import { useQueryClient } from "@tanstack/react-query";
 import {
     useTeamMcps,
+    useShareMcp,
     useUnshareMcp,
     useSetMcpUserSecrets,
     TeamMcpConfig,
@@ -84,7 +84,8 @@ import {
     useShareApiKey,
     useUnshareApiKey,
 } from "@core/camp/api/TeamApiKeysAPI";
-import { TeamApiKeyRow, ShareApiKeyDialog } from "./TeamApiKeysUI";
+import { PrivateTeamToggle } from "./ui/PrivateTeamToggle";
+// TeamApiKeyRow and ShareApiKeyDialog are no longer used - sharing is now inline in ApiKeysForm
 import { useReactQueryAutoSync } from "use-react-query-auto-sync";
 import { RiClaudeFill, RiSupabaseFill } from "react-icons/ri";
 import { TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -460,12 +461,18 @@ type CustomToolsetRowProps = {
     toolset: CustomToolsetConfig;
     onEdit: (toolset: CustomToolsetConfig) => void;
     onDelete: (name: string) => void;
+    isShared?: boolean;
+    onShare?: (toolset: CustomToolsetConfig) => void;
+    onUnshare?: (toolset: CustomToolsetConfig) => void;
 };
 
 function CustomToolsetRow({
     toolset,
     onEdit,
     onDelete,
+    isShared = false,
+    onShare,
+    onUnshare,
 }: CustomToolsetRowProps) {
     const recommendedMatch = RECOMMENDED_TOOLSETS.find(
         (t) => t.name === toolset.name,
@@ -473,6 +480,15 @@ function CustomToolsetRow({
     const docsUrl = recommendedMatch?.docsUrl;
     const apiKeyUrl = recommendedMatch?.apiKeyUrl;
     const needsUserInput = recommendedMatch?.needsUserInput;
+
+    // Handle share toggle
+    const handleShareToggle = (shouldShare: boolean) => {
+        if (shouldShare && onShare) {
+            onShare(toolset);
+        } else if (!shouldShare && onUnshare) {
+            onUnshare(toolset);
+        }
+    };
 
     // Convert env to a list of commands, e.g. FOO=bar QUUX=baz
     const envToCommands = () => {
@@ -527,6 +543,7 @@ function CustomToolsetRow({
                     content={truncatedCommandText}
                 />
             </div>
+            {/* Docs and API Key links */}
             {(docsUrl || (apiKeyUrl && needsUserInput)) && (
                 <div className="text-[10px] flex justify-end items-center gap-2 mt-2 w-full">
                     {docsUrl && (
@@ -553,6 +570,16 @@ function CustomToolsetRow({
                             <ExternalLinkIcon className="size-3" /> Get API Key
                         </button>
                     )}
+                </div>
+            )}
+
+            {/* Private/Team sharing toggle */}
+            {onShare && onUnshare && (
+                <div className="mt-3 pt-3 border-t w-full">
+                    <PrivateTeamToggle
+                        isTeam={isShared}
+                        onToggle={handleShareToggle}
+                    />
                 </div>
             )}
         </div>
@@ -647,14 +674,60 @@ function ToolsTab() {
     });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [activeToolsetTab, setActiveToolsetTab] = useState<
-        "custom" | "team" | "builtin"
+        "custom" | "builtin"
     >("custom");
 
     // Team MCP state and hooks
     const teamMcps = useTeamMcps();
+    const shareMcp = useShareMcp();
     const unshareMcp = useUnshareMcp();
     const setMcpUserSecrets = useSetMcpUserSecrets();
     const [setupMcp, setSetupMcp] = useState<TeamMcpConfig | null>(null);
+
+    // Check if a custom toolset is shared with the team
+    const isToolsetShared = (toolsetName: string): boolean => {
+        if (!teamMcps) return false;
+        return teamMcps.some((mcp) => mcp.name === toolsetName && mcp.isSharer);
+    };
+
+    // Share a custom toolset with the team
+    const handleShareToolset = async (toolset: CustomToolsetConfig) => {
+        try {
+            await shareMcp({
+                name: toolset.name,
+                type: "local",
+                command: toolset.command,
+                args: toolset.args || "",
+                env: toolset.env,
+                includeCredentials: true, // Include credentials by default
+            });
+            toast.success("MCP shared with team");
+        } catch (error) {
+            toast.error("Failed to share MCP", {
+                description:
+                    error instanceof Error ? error.message : "Unknown error",
+            });
+        }
+    };
+
+    // Unshare a custom toolset from the team
+    const handleUnshareToolset = async (toolset: CustomToolsetConfig) => {
+        // Find the team MCP that corresponds to this toolset
+        const teamMcp = teamMcps?.find(
+            (mcp) => mcp.name === toolset.name && mcp.isSharer,
+        );
+        if (!teamMcp) return;
+
+        try {
+            await unshareMcp(teamMcp._id);
+            toast.success("MCP removed from team");
+        } catch (error) {
+            toast.error("Failed to unshare MCP", {
+                description:
+                    error instanceof Error ? error.message : "Unknown error",
+            });
+        }
+    };
 
     const validateToolset = (
         toolset: CustomToolsetConfig,
@@ -995,16 +1068,13 @@ function ToolsTab() {
                 <Tabs
                     value={activeToolsetTab}
                     onValueChange={(value) =>
-                        setActiveToolsetTab(
-                            value as "custom" | "team" | "builtin",
-                        )
+                        setActiveToolsetTab(value as "custom" | "builtin")
                     }
                     className="mt-6"
                 >
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="custom">Custom</TabsTrigger>
-                        <TabsTrigger value="team">
-                            Team
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="custom">
+                            Custom
                             {teamMcps &&
                                 teamMcps.filter((m) => m.needsSetup).length >
                                     0 && (
@@ -1022,38 +1092,27 @@ function ToolsTab() {
                         <TabsTrigger value="builtin">Built-in</TabsTrigger>
                     </TabsList>
                     <TabsContent value="custom" className="mt-4">
-                        {customToolsetConfigs.length > 0 ? (
-                            <div className="space-y-4 overflow-hidden">
-                                {customToolsetConfigs.map((toolset) => (
-                                    <CustomToolsetRow
-                                        key={toolset.name}
-                                        toolset={toolset}
-                                        onEdit={handleEditToolset}
-                                        onDelete={(name) =>
-                                            void handleDeleteToolset(name)
-                                        }
-                                    />
-                                ))}
-                            </div>
-                        ) : (
-                            <button
-                                type="button"
-                                className="relative block w-full hover:bg-muted rounded-lg border-2 border-dashed border-border p-12 text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                                onClick={handleCreateToolset}
-                            >
-                                <span className="mt-2 block">
-                                    <Plus className="size-12 mx-auto text-muted-foreground" />
-                                    <span className="mt-2 block  font-semibold">
-                                        New MCP
-                                    </span>
-                                </span>
-                            </button>
-                        )}
-                    </TabsContent>
-                    <TabsContent value="team" className="mt-4">
-                        {teamMcps && teamMcps.length > 0 ? (
-                            <div className="space-y-4 overflow-hidden">
-                                {teamMcps.map((mcp) => (
+                        <div className="space-y-4 overflow-hidden">
+                            {/* User's custom MCPs */}
+                            {customToolsetConfigs.map((toolset) => (
+                                <CustomToolsetRow
+                                    key={toolset.name}
+                                    toolset={toolset}
+                                    onEdit={handleEditToolset}
+                                    onDelete={(name) =>
+                                        void handleDeleteToolset(name)
+                                    }
+                                    isShared={isToolsetShared(toolset.name)}
+                                    onShare={(t) => void handleShareToolset(t)}
+                                    onUnshare={(t) =>
+                                        void handleUnshareToolset(t)
+                                    }
+                                />
+                            ))}
+
+                            {/* Team MCPs (shared by teammates) */}
+                            {teamMcps &&
+                                teamMcps.map((mcp) => (
                                     <TeamMcpRow
                                         key={mcp._id}
                                         mcp={mcp}
@@ -1076,19 +1135,24 @@ function ToolsTab() {
                                         }}
                                     />
                                 ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-12 text-muted-foreground">
-                                <Users className="size-12 mx-auto mb-4 opacity-50" />
-                                <p className="font-medium">
-                                    No team MCPs shared yet
-                                </p>
-                                <p className="text-sm mt-2">
-                                    Share your MCPs from the Custom tab to let
-                                    teammates use them.
-                                </p>
-                            </div>
-                        )}
+
+                            {/* Empty state */}
+                            {customToolsetConfigs.length === 0 &&
+                                (!teamMcps || teamMcps.length === 0) && (
+                                    <button
+                                        type="button"
+                                        className="relative block w-full hover:bg-muted rounded-lg border-2 border-dashed border-border p-12 text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                        onClick={handleCreateToolset}
+                                    >
+                                        <span className="mt-2 block">
+                                            <Plus className="size-12 mx-auto text-muted-foreground" />
+                                            <span className="mt-2 block  font-semibold">
+                                                New MCP
+                                            </span>
+                                        </span>
+                                    </button>
+                                )}
+                        </div>
                     </TabsContent>
                     <TabsContent value="builtin" className="mt-4">
                         <div className="space-y-4 overflow-hidden">
@@ -1178,7 +1242,6 @@ function ApiKeysTab() {
     const teamApiKeys = useTeamApiKeys();
     const shareApiKey = useShareApiKey();
     const unshareApiKey = useUnshareApiKey();
-    const [showShareForm, setShowShareForm] = useState(false);
 
     // Load local settings
     useEffect(() => {
@@ -1223,16 +1286,41 @@ function ApiKeysTab() {
         });
     };
 
-    const handleShareApiKey = async (provider: string, apiKey: string) => {
-        await shareApiKey({ provider, apiKey });
-        setShowShareForm(false);
+    // Get list of providers the user has already shared
+    const userSharedProviders =
+        teamApiKeys?.filter((key) => key.isSharer).map((key) => key.provider) ??
+        [];
+
+    // Share a key via the toggle (shares user's current local key)
+    const handleShareKeyViaToggle = async (provider: string) => {
+        const keyValue = apiKeys[provider];
+        if (!keyValue) {
+            toast.error("No API key to share", {
+                description: "Please enter an API key first",
+            });
+            return;
+        }
+        try {
+            await shareApiKey({ provider, apiKey: keyValue });
+            toast.success("API key shared with team");
+        } catch (error) {
+            toast.error("Failed to share API key", {
+                description:
+                    error instanceof Error ? error.message : "Unknown error",
+            });
+        }
     };
 
-    const handleUnshareApiKey = async (
-        keyId: Parameters<typeof unshareApiKey>[0],
-    ) => {
+    // Unshare a key via the toggle
+    const handleUnshareKeyViaToggle = async (provider: string) => {
+        // Find the user's shared key for this provider
+        const userKey = teamApiKeys?.find(
+            (key) => key.provider === provider && key.isSharer,
+        );
+        if (!userKey) return;
+
         try {
-            await unshareApiKey(keyId);
+            await unshareApiKey(userKey._id);
             toast.success("API key removed from team");
         } catch (error) {
             toast.error("Failed to remove API key", {
@@ -1242,10 +1330,14 @@ function ApiKeysTab() {
         }
     };
 
-    // Get list of providers the user has already shared
-    const userSharedProviders =
-        teamApiKeys?.filter((key) => key.isSharer).map((key) => key.provider) ??
-        [];
+    // Handle selecting a team key (currently just shows a toast - actual usage is in streaming)
+    const handleSelectTeamKey = (
+        key: NonNullable<typeof teamApiKeys>[number],
+    ) => {
+        toast.success(`Using ${key.sharerSnapshot?.displayName}'s key`, {
+            description: `Team key for ${key.provider} is now active`,
+        });
+    };
 
     return (
         <div className="space-y-6 max-w-2xl">
@@ -1258,105 +1350,22 @@ function ApiKeysTab() {
                 </p>
             </div>
 
-            {/* Local API Keys */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">Your API Keys</h3>
-                </div>
-                <ApiKeysForm
-                    apiKeys={apiKeys}
-                    onApiKeyChange={(provider, value) =>
-                        void handleApiKeyChange(provider, value)
-                    }
-                />
-            </div>
-
-            {/* Team API Keys Section */}
-            {teamApiKeys && teamApiKeys.length > 0 && (
-                <>
-                    <Separator />
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="font-semibold flex items-center gap-2">
-                                    <Users className="h-4 w-4" />
-                                    Team API Keys
-                                </h3>
-                                <p className="text-sm text-muted-foreground">
-                                    API keys shared by your team members
-                                </p>
-                            </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setShowShareForm(!showShareForm)}
-                            >
-                                <Plus className="h-4 w-4 mr-1" />
-                                Share Key
-                            </Button>
-                        </div>
-
-                        <ShareApiKeyDialog
-                            isOpen={showShareForm}
-                            onClose={() => setShowShareForm(false)}
-                            onShare={handleShareApiKey}
-                            existingProviders={userSharedProviders}
-                        />
-
-                        <div className="space-y-2">
-                            {teamApiKeys.map((apiKey) => (
-                                <TeamApiKeyRow
-                                    key={apiKey._id}
-                                    apiKey={apiKey}
-                                    onUnshare={handleUnshareApiKey}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                </>
-            )}
-
-            {/* Show share button even when no team keys exist */}
-            {(!teamApiKeys || teamApiKeys.length === 0) && (
-                <>
-                    <Separator />
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="font-semibold flex items-center gap-2">
-                                    <Users className="h-4 w-4" />
-                                    Team API Keys
-                                </h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Share API keys with your team members
-                                </p>
-                            </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setShowShareForm(!showShareForm)}
-                            >
-                                <Plus className="h-4 w-4 mr-1" />
-                                Share Key
-                            </Button>
-                        </div>
-
-                        <ShareApiKeyDialog
-                            isOpen={showShareForm}
-                            onClose={() => setShowShareForm(false)}
-                            onShare={handleShareApiKey}
-                            existingProviders={userSharedProviders}
-                        />
-
-                        {!showShareForm && (
-                            <p className="text-sm text-muted-foreground text-center py-4">
-                                No team API keys shared yet. Share a key so your
-                                team members can use it.
-                            </p>
-                        )}
-                    </div>
-                </>
-            )}
+            {/* API Keys with integrated team sharing */}
+            <ApiKeysForm
+                apiKeys={apiKeys}
+                onApiKeyChange={(provider, value) =>
+                    void handleApiKeyChange(provider, value)
+                }
+                teamApiKeys={teamApiKeys}
+                userSharedProviders={userSharedProviders}
+                onShareKey={(provider) =>
+                    void handleShareKeyViaToggle(provider)
+                }
+                onUnshareKey={(provider) =>
+                    void handleUnshareKeyViaToggle(provider)
+                }
+                onSelectTeamKey={handleSelectTeamKey}
+            />
 
             <Separator />
 
