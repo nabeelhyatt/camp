@@ -17,4 +17,4 @@ git push origin release || { echo "❌ Failed to push to release"; exit 1; }
 
 git checkout main || { echo "❌ Failed to return to main"; exit 1; }
 
-echo "🤝 Done... check status at https://github.com/meltylabs/chorus/actions"
+echo "🤝 Done... check status at https://github.com/nabeelhyatt/camp/actions"
