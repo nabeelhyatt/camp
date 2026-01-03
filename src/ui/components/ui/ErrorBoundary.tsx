@@ -21,17 +21,25 @@ class ErrorBoundary extends Component<Props, State> {
     };
 
     public static getDerivedStateFromError(error: Error): State {
+        // Don't show error UI for "Chat not found" errors - we'll navigate away instead
+        if (error.message && error.message.includes("Chat not found")) {
+            // Schedule navigation on next tick to avoid React state issues
+            setTimeout(() => {
+                console.log(
+                    "Chat not found error detected, navigating to home...",
+                );
+                window.location.href = "/";
+            }, 0);
+            return { hasError: false };
+        }
         return { hasError: true, error };
     }
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error("Uncaught error:", error, errorInfo);
 
-        // Check if this is a "Chat not found" error from Convex
-        // If so, navigate to home immediately without showing error UI
+        // If this is a "Chat not found" error, we already scheduled navigation in getDerivedStateFromError
         if (error.message && error.message.includes("Chat not found")) {
-            console.log("Chat not found error detected, navigating to home...");
-            window.location.href = "/";
             return;
         }
 
