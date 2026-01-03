@@ -1834,7 +1834,7 @@ export default function Settings({ tab = "general" }: SettingsProps) {
 
             <div className="h-full flex">
                 {/* Settings Sidebar */}
-                <div className="w-52 bg-sidebar p-4 overflow-y-auto border-r flex flex-col">
+                <div className="w-52 bg-sidebar p-4 overflow-y-auto border-r flex flex-col noise-bg">
                     <div className="flex flex-col gap-1 flex-1">
                         {Object.entries(TABS).map(
                             ([id, { label, icon: Icon }]) => (

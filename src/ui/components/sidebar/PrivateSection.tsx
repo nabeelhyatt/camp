@@ -16,7 +16,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from "@ui/components/ui/tooltip";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 /**
  * Private Section - Shows user's private projects and forks
@@ -50,6 +50,10 @@ export function PrivateSection({
     onCreatePrivateProject,
     children,
 }: PrivateSectionProps) {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const isActive = location.pathname === "/private-chats";
+
     if (!enabled) {
         return <PrivateSectionPlaceholder />;
     }
@@ -59,12 +63,19 @@ export function PrivateSection({
 
     return (
         <div className="mb-4">
-            {/* Section Header */}
+            {/* Section Header - Clickable to navigate to full Private Chats view */}
             <div className="pt-2 flex items-center justify-between group/section">
-                <div className="sidebar-label flex w-full items-center gap-2 px-3 text-muted-foreground">
+                <button
+                    onClick={() => navigate("/private-chats")}
+                    className={`sidebar-label flex w-full items-center gap-2 px-3 py-2 text-muted-foreground rounded-md transition-colors cursor-pointer ${
+                        isActive
+                            ? "bg-muted/50 text-foreground"
+                            : "bg-muted/30 hover:bg-muted/40"
+                    }`}
+                >
                     <LockIcon className="size-3.5" strokeWidth={1.5} />
                     Private
-                </div>
+                </button>
                 {onCreatePrivateProject && (
                     <Tooltip>
                         <TooltipTrigger asChild>

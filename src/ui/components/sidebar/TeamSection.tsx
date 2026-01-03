@@ -5,6 +5,7 @@ import {
     SidebarMenuButton,
 } from "@ui/components/ui/sidebar";
 import { useCurrentUser } from "@core/camp/auth/useCurrentUser";
+import { useNavigate, useLocation } from "react-router-dom";
 
 /**
  * Team Section - Shows team projects and chats
@@ -53,18 +54,28 @@ function DomainIcon({
 
 export function TeamSection({ onCreateProject, children }: TeamSectionProps) {
     const { organization } = useCurrentUser();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const isActive = location.pathname === "/team-projects";
 
     return (
         <div className="mb-4">
-            {/* Section Header */}
+            {/* Section Header - Clickable to navigate to full Team Projects view */}
             <div className="pt-2 flex items-center justify-between">
-                <div className="sidebar-label flex w-full items-center gap-2 px-3 text-muted-foreground">
+                <button
+                    onClick={() => navigate("/team-projects")}
+                    className={`sidebar-label flex w-full items-center gap-2 px-3 py-2 text-muted-foreground rounded-md transition-colors cursor-pointer ${
+                        isActive
+                            ? "bg-muted/50 text-foreground"
+                            : "bg-muted/30 hover:bg-muted/40"
+                    }`}
+                >
                     <DomainIcon
                         domain={organization?.domain}
                         className="size-3.5"
                     />
                     Team Projects
-                </div>
+                </button>
             </div>
 
             {/* Section Content */}

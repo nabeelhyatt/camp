@@ -141,6 +141,90 @@ export const getWithCreator = query({
 });
 
 /**
+ * List chats with creator info for attribution (e.g., All Chats page)
+ */
+export const listWithCreators = query({
+    args: {
+        clerkId: v.string(),
+        workspaceId: v.id("workspaces"),
+        projectId: v.optional(v.id("projects")),
+    },
+    handler: async (ctx, args) => {
+        const user = await getUserByClerkIdOrThrow(ctx, args.clerkId);
+
+        // Verify workspace access
+        await assertCanAccessWorkspace(ctx, args.workspaceId, user._id);
+
+        // Build query based on filters
+        let chatsQuery;
+
+        if (args.projectId) {
+            // Verify project belongs to this workspace
+            const project = await assertCanAccessProject(
+                ctx,
+                args.projectId,
+                user._id,
+            );
+            if (project.workspaceId !== args.workspaceId) {
+                throw new Error("Access denied: project not in workspace");
+            }
+            chatsQuery = ctx.db
+                .query("chats")
+                .withIndex("by_project", (q) =>
+                    q.eq("projectId", args.projectId),
+                );
+        } else {
+            chatsQuery = ctx.db
+                .query("chats")
+                .withIndex("by_workspace", (q) =>
+                    q.eq("workspaceId", args.workspaceId),
+                );
+        }
+
+        const allChats = await chatsQuery
+            .filter((q) => q.eq(q.field("deletedAt"), undefined))
+            .collect();
+
+        // Filter by access permissions
+        const accessibleChats = allChats.filter((chat) => {
+            // Filter out ambient
+            if (chat.isAmbient) {
+                return false;
+            }
+
+            // Team chats: visible to all
+            if (!chat.visibility || chat.visibility === "team") {
+                return true;
+            }
+
+            // Private chats: only visible to creator
+            return chat.createdBy === user._id;
+        });
+
+        // Get creator info for each chat
+        const chatsWithCreators = await Promise.all(
+            accessibleChats.map(async (chat) => {
+                const creator = await ctx.db.get(chat.createdBy);
+                return {
+                    ...chat,
+                    creator:
+                        creator && !creator.deletedAt
+                            ? {
+                                  id: creator._id,
+                                  displayName: creator.displayName,
+                                  avatarUrl: creator.avatarUrl,
+                              }
+                            : undefined,
+                };
+            }),
+        );
+
+        // Sort by most recent first
+        return chatsWithCreators.sort((a, b) => b.updatedAt - a.updatedAt);
+    },
+});
+
+/**
  * Get ungrouped chats (not in any project)
  */
 export const listUngrouped = query({
