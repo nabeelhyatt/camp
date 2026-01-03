@@ -134,7 +134,7 @@ export default function RepliesDrawer({
 
                 {/* Floating Summarize button for private replies */}
                 {isPrivateReply && parentChatId && (
-                    <div className="absolute bottom-20 right-6 z-10">
+                    <div className="absolute bottom-[123px] right-6 z-10">
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
@@ -143,13 +143,13 @@ export default function RepliesDrawer({
                                     onClick={handlePublishSummary}
                                     className="shadow-lg"
                                 >
-                                    <FileTextIcon className="w-4 h-4 mr-1.5" />
+                                    &lt;{" "}
+                                    <FileTextIcon className="w-4 h-4 mx-1" />{" "}
                                     Summarize
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                                Share a summary with{" "}
-                                {parentChatQuery.data?.title || "parent chat"}
+                                Share summary into main chat
                             </TooltipContent>
                         </Tooltip>
                     </div>

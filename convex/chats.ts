@@ -755,6 +755,7 @@ export const publishSummary = mutation({
             success: true,
             messageSetId,
             messageId,
+            parentChatId: fork.parentChatId,
         };
     },
 });

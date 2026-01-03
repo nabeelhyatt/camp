@@ -786,7 +786,20 @@ export function usePublishSummaryConvex() {
             summary: args.summary,
         });
 
+        // Invalidate chat list
         void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
+
+        // Invalidate the parent chat's message sets so the new summary appears immediately
+        if (result.parentChatId) {
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    "chats",
+                    String(result.parentChatId),
+                    "messageSets",
+                    "list",
+                ],
+            });
+        }
 
         return result;
     };
