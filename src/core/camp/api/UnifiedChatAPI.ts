@@ -16,6 +16,7 @@ import {
     useChatsQueryConvex,
     useChatQueryConvex,
     useUngroupedChatsQueryConvex,
+    useChatsWithCreatorsQueryConvex,
     usePrivateForksQueryConvex,
     useGetOrCreateNewChatConvex,
     useGetOrCreateNewQuickChatConvex,
@@ -63,8 +64,8 @@ export {
     type Chat,
 };
 
-// Re-export ConvexChat type for multiplayer features
-export type { ConvexChat } from "./convexTypes";
+// Re-export ConvexChat and ChatWithCreator types for multiplayer features
+export type { ConvexChat, ChatWithCreator, ChatCreator } from "./convexTypes";
 
 // Re-export useChat as alias to useChatQuery (for backwards compatibility)
 // UI code can continue using useChat or switch to useChatQuery
@@ -165,6 +166,33 @@ export function usePrivateForksQuery() {
     };
 }
 
+/**
+ * Get all team chats with creator information for attribution
+ * Used in list views like Team Projects page
+ * Note: This is a Convex-only feature
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
+ */
+export function useChatsWithCreatorsQuery() {
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useChatsWithCreatorsQueryConvex();
+    }
+
+    // SQLite doesn't have creator info - fall back to regular chats query
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const sqliteResult = useQuery(chatQueries.list());
+
+    // Transform to add empty creator field
+    return {
+        ...sqliteResult,
+        data: sqliteResult.data?.map((chat) => ({
+            ...chat,
+            creator: undefined,
+        })),
+    };
+}
+
 // ============================================================
 // Mutation Hooks
 // ============================================================
@@ -258,6 +286,9 @@ export function useRenameChat() {
 /**
  * Delete a chat
  *
+ * Note: Private forks are NOT cascade deleted. They remain accessible
+ * with a "[Deleted]" indicator for the parent chat.
+ *
  * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
  */
 export function useDeleteChat() {
@@ -270,12 +301,9 @@ export function useDeleteChat() {
     const sqliteMutation = useDeleteChatSQLite();
 
     // Wrap SQLite mutation to match Convex interface
-    const mutateAsync = async (args: {
-        chatId: string;
-        confirmCascade?: boolean;
-    }) => {
+    const mutateAsync = async (args: { chatId: string }) => {
         await sqliteMutation.mutateAsync({ chatId: args.chatId });
-        return { success: true, forksDeleted: 0 };
+        return { success: true };
     };
 
     return {

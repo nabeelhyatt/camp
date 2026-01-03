@@ -180,6 +180,60 @@ export function convexProjectsToProjects(docs: Doc<"projects">[]): Project[] {
     return docs.map(convexProjectToProject);
 }
 
+/**
+ * Project type that includes creator information for attribution
+ * Used in list views like Team Projects page
+ */
+export interface ProjectWithCreator extends Project {
+    creator?: {
+        id: string;
+        displayName: string;
+        avatarUrl?: string;
+    };
+}
+
+/**
+ * Transform a Convex project with creator doc to ProjectWithCreator type
+ */
+export function convexProjectWithCreatorToProjectWithCreator(doc: {
+    _id: Id<"projects">;
+    _creationTime: number;
+    workspaceId: Id<"workspaces">;
+    name: string;
+    description?: string;
+    contextText?: string;
+    createdBy: Id<"users">;
+    createdAt: number;
+    updatedAt: number;
+    deletedAt?: number;
+    deletedBy?: Id<"users">;
+    creator?: {
+        id: Id<"users">;
+        displayName: string;
+        avatarUrl?: string;
+    };
+}): ProjectWithCreator {
+    return {
+        ...convexProjectToProject(doc as Doc<"projects">),
+        creator: doc.creator
+            ? {
+                  id: convexIdToString(doc.creator.id),
+                  displayName: doc.creator.displayName,
+                  avatarUrl: doc.creator.avatarUrl,
+              }
+            : undefined,
+    };
+}
+
+/**
+ * Transform an array of Convex projects with creators
+ */
+export function convexProjectsWithCreatorsToProjectsWithCreators(
+    docs: Parameters<typeof convexProjectWithCreatorToProjectWithCreator>[0][],
+): ProjectWithCreator[] {
+    return docs.map(convexProjectWithCreatorToProjectWithCreator);
+}
+
 // ============================================================
 // Chat Transformers
 // ============================================================
@@ -306,6 +360,74 @@ export function convexAuthorSnapshotToAuthorSnapshot(
         displayName: snapshot.displayName,
         avatarUrl: snapshot.avatarUrl,
     };
+}
+
+// ============================================================
+// Chat with Creator Type
+// ============================================================
+
+/**
+ * Creator information for attribution in list views
+ */
+export interface ChatCreator {
+    id: string;
+    displayName: string;
+    avatarUrl?: string;
+}
+
+/**
+ * Chat type that includes creator information for attribution
+ * Used in list views like Team Projects page
+ */
+export interface ChatWithCreator extends Chat {
+    creator?: ChatCreator;
+}
+
+/**
+ * Transform a Convex chat with creator doc to ChatWithCreator type
+ */
+export function convexChatWithCreatorToChatWithCreator(doc: {
+    _id: Id<"chats">;
+    _creationTime: number;
+    workspaceId: Id<"workspaces">;
+    projectId?: Id<"projects">;
+    title?: string;
+    createdBy: Id<"users">;
+    isAmbient: boolean;
+    parentChatId?: Id<"chats">;
+    visibility?: "team" | "private";
+    forkFromMessageId?: Id<"messages">;
+    forkDepth?: number;
+    rootChatId?: Id<"chats">;
+    createdAt: number;
+    updatedAt: number;
+    deletedAt?: number;
+    deletedBy?: Id<"users">;
+    creator?: {
+        id: Id<"users">;
+        displayName: string;
+        avatarUrl?: string;
+    };
+}): ChatWithCreator {
+    return {
+        ...convexChatToChat(doc as Doc<"chats">),
+        creator: doc.creator
+            ? {
+                  id: convexIdToString(doc.creator.id),
+                  displayName: doc.creator.displayName,
+                  avatarUrl: doc.creator.avatarUrl,
+              }
+            : undefined,
+    };
+}
+
+/**
+ * Transform an array of Convex chats with creators
+ */
+export function convexChatsWithCreatorsToChatsWithCreators(
+    docs: Parameters<typeof convexChatWithCreatorToChatWithCreator>[0][],
+): ChatWithCreator[] {
+    return docs.map(convexChatWithCreatorToChatWithCreator);
 }
 
 // ============================================================

@@ -60,6 +60,8 @@ import {
 import * as ChatAPI from "@core/camp/api/UnifiedChatAPI";
 import * as ProjectAPI from "@core/camp/api/UnifiedProjectAPI";
 import { campConfig } from "@core/campConfig";
+import { useWorkspaceContext } from "@core/camp/api/useWorkspaceHooks";
+import { type ConvexChat } from "@core/camp/api/convexTypes";
 import RetroSpinner from "./ui/retro-spinner";
 import FeedbackButton from "./FeedbackButton";
 import { SpeakerLoudIcon } from "@radix-ui/react-icons";
@@ -173,10 +175,28 @@ function Project({ projectId }: { projectId: string }) {
     const currentChatId = location.pathname.split("/").pop()!; // well this is super hacky
     const projectIsActive = location.pathname.includes(projectId);
     const [showAllChats, setShowAllChats] = useState(false);
+    const { userId } = useWorkspaceContext();
 
     // Chats are already filtered by projectId from the unified hook
     const allProjectChats = chatsQuery.data ?? [];
-    const chats = filterChatsForDisplay(allProjectChats, currentChatId);
+
+    // In multiplayer mode, only show chats I've started in the sidebar
+    const myChats = campConfig.useConvexData
+        ? allProjectChats.filter((chat) => {
+              const convexChat = chat as ConvexChat;
+              return convexChat.createdBy === userId;
+          })
+        : allProjectChats;
+
+    // Filter chats to only show those from the last 7 days
+    // Always include the current chat so it doesn't disappear from sidebar
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const recentChats = myChats.filter((chat) => {
+        const chatDate = new Date(chat.updatedAt).getTime();
+        return chat.id === currentChatId || chatDate >= sevenDaysAgo;
+    });
+
+    const chats = filterChatsForDisplay(recentChats, currentChatId);
 
     const chatToDisplay = useMemo(
         () =>
@@ -357,16 +377,21 @@ export function AppSidebarInner() {
 
     // Phase 2: Private forks for multiplayer
     const privateForksQuery = ChatAPI.usePrivateForksQuery();
-    const privateForks = useMemo(
-        () =>
-            (privateForksQuery.data ?? []).map((fork) => ({
+    const privateForks = useMemo(() => {
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        return (privateForksQuery.data ?? [])
+            .filter((fork) => {
+                const forkDate = new Date(fork.updatedAt).getTime();
+                return forkDate >= sevenDaysAgo;
+            })
+            .map((fork) => ({
                 id: fork.id,
-                title: fork.title || "Private exploration",
+                // Don't pass fork.title - let PrivateForkItem show parent chat title instead
+                title: "",
                 parentChat: fork.parentChat,
                 updatedAt: new Date(fork.updatedAt).getTime(),
-            })),
-        [privateForksQuery.data],
-    );
+            }));
+    }, [privateForksQuery.data]);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -524,16 +549,6 @@ export function AppSidebarInner() {
                                     )}
                                 </TeamSection>
 
-                                {/* ALL CHATS SECTION - Filterable feed of ungrouped chats */}
-                                {defaultChats.length > 0 && (
-                                    <Droppable id="default">
-                                        <AllChatsSection
-                                            chats={defaultChats}
-                                            projects={projectsQuery.data ?? []}
-                                        />
-                                    </Droppable>
-                                )}
-
                                 {/* SHARED SECTION - Coming soon (Phase 4) */}
                                 <SharedSection enabled={false} />
 
@@ -542,6 +557,13 @@ export function AppSidebarInner() {
                                     enabled={campConfig.useConvexData}
                                     privateForks={privateForks}
                                 />
+
+                                {/* ALL CHATS SECTION - Link to full page view (at bottom) */}
+                                {defaultChats.length > 0 && (
+                                    <Droppable id="default">
+                                        <AllChatsSection chats={defaultChats} />
+                                    </Droppable>
+                                )}
                             </SidebarMenu>
                         </SidebarGroupContent>
                     </SidebarGroup>

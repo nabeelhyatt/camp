@@ -30,6 +30,9 @@ import NewPrompt from "./components/NewPrompt";
 import ListPrompts from "./components/ListPrompts";
 import Onboarding from "./components/Onboarding";
 import ProjectView from "./components/ProjectView";
+import { AllChatsPage } from "./pages/AllChatsPage";
+import { TeamProjectsPage } from "./pages/TeamProjectsPage";
+import { PrivateChatsPage } from "./pages/PrivateChatsPage";
 import { AuthGuard } from "./components/SignIn";
 import { CampAuthProvider } from "@core/camp/auth";
 import {
@@ -843,6 +846,15 @@ function AppContent() {
                         <Route
                             path="/projects/:projectId"
                             element={<ProjectView />}
+                        />
+                        <Route path="/all-chats" element={<AllChatsPage />} />
+                        <Route
+                            path="/team-projects"
+                            element={<TeamProjectsPage />}
+                        />
+                        <Route
+                            path="/private-chats"
+                            element={<PrivateChatsPage />}
                         />
                     </Routes>
                     {!isQuickChatWindow && (

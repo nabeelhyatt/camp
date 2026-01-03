@@ -16,6 +16,7 @@ import {
     convexChatToChat,
     convexChatToConvexChat,
     convexChatsToChats,
+    convexChatsWithCreatorsToChatsWithCreators,
     stringToConvexId,
     isSentinelProjectId,
     isQuickChatByProjectId,
@@ -90,9 +91,9 @@ export function useChatQueryConvex(chatId: string | undefined): {
     data: ConvexChat | undefined;
     isLoading: boolean;
     isError: boolean;
-    error: null;
+    error: Error | null;
     isSuccess: boolean;
-    status: "pending" | "success" | "idle";
+    status: "pending" | "success" | "idle" | "error";
     isSQLiteChat: boolean;
 } {
     const { clerkId } = useWorkspaceContext();
@@ -110,18 +111,28 @@ export function useChatQueryConvex(chatId: string | undefined): {
             : "skip",
     );
 
+    const isNotFound = result === null;
     // Use convexChatToConvexChat to include multiplayer fields (visibility, forkDepth, etc.)
     const data = result ? convexChatToConvexChat(result) : undefined;
     const isLoading = result === undefined && !!chatId && !isSqliteChat;
+    const isError = isNotFound;
+    const error = isNotFound ? new Error("Chat not found") : null;
+    const status: "pending" | "success" | "idle" | "error" = isLoading
+        ? "pending"
+        : isError
+          ? "error"
+          : data !== undefined
+            ? "success"
+            : "idle";
 
     return {
         data,
         isLoading,
-        isError: false,
-        error: null,
+        isError,
+        error,
         // TanStack Query compatibility properties
-        isSuccess: !isLoading && data !== undefined,
-        status: isLoading ? "pending" : data !== undefined ? "success" : "idle",
+        isSuccess: status === "success",
+        status,
         // Flag to indicate this is a SQLite chat that needs local lookup
         isSQLiteChat: isSqliteChat,
     };
@@ -148,6 +159,39 @@ export function useUngroupedChatsQueryConvex() {
     );
 
     const data = result ? convexChatsToChats(result) : undefined;
+
+    return {
+        data,
+        isLoading: contextLoading || result === undefined,
+        isError: false,
+        error: null,
+    };
+}
+
+/**
+ * Hook to list chats with creator information for attribution
+ * Used in list views like Team Projects page
+ */
+export function useChatsWithCreatorsQueryConvex() {
+    const {
+        clerkId,
+        workspaceId,
+        isLoading: contextLoading,
+    } = useWorkspaceContext();
+
+    // Skip Convex queries when not using Convex data layer
+    const shouldSkip = !campConfig.useConvexData;
+
+    const result = useQuery(
+        api.chats.listWithCreators,
+        !shouldSkip && clerkId && workspaceId
+            ? { clerkId, workspaceId }
+            : "skip",
+    );
+
+    const data = result
+        ? convexChatsWithCreatorsToChatsWithCreators(result)
+        : undefined;
 
     return {
         data,
@@ -475,16 +519,16 @@ export function useSetChatProjectConvex() {
 
 /**
  * Hook to delete a chat
+ *
+ * Note: Private forks are NOT cascade deleted. They remain accessible
+ * with a "[Deleted]" indicator for the parent chat.
  */
 export function useDeleteChatConvex() {
     const { clerkId } = useWorkspaceContext();
     const removeChat = useMutation(api.chats.remove);
     const queryClient = useQueryClient();
 
-    const mutateAsync = async (args: {
-        chatId: string;
-        confirmCascade?: boolean;
-    }) => {
+    const mutateAsync = async (args: { chatId: string }) => {
         if (!clerkId) {
             throw new Error("Not authenticated");
         }
@@ -492,13 +536,7 @@ export function useDeleteChatConvex() {
         const result = await removeChat({
             clerkId,
             chatId: stringToConvexIdStrict<"chats">(args.chatId),
-            confirmCascade: args.confirmCascade,
         });
-
-        // If cascade confirmation is required, return the result
-        if ("requiresConfirmation" in result && result.requiresConfirmation) {
-            return result;
-        }
 
         void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
         return result;
@@ -748,7 +786,20 @@ export function usePublishSummaryConvex() {
             summary: args.summary,
         });
 
+        // Invalidate chat list
         void queryClient.invalidateQueries({ queryKey: chatKeys.all() });
+
+        // Invalidate the parent chat's message sets so the new summary appears immediately
+        if (result.parentChatId) {
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    "chats",
+                    String(result.parentChatId),
+                    "messageSets",
+                    "list",
+                ],
+            });
+        }
 
         return result;
     };

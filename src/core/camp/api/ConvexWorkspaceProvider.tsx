@@ -15,16 +15,18 @@ import { WorkspaceContext } from "./workspaceContextValue";
  */
 export function ConvexWorkspaceProvider({ children }: { children: ReactNode }) {
     const { userId: clerkId } = useAuth();
-    const { isLoading, isAuthenticated, activeWorkspace } = useCurrentUser();
+    const { isLoading, isAuthenticated, activeWorkspace, user } =
+        useCurrentUser();
 
     const value = useMemo(
         () => ({
             clerkId: clerkId ?? null,
+            userId: user?._id ?? null,
             workspaceId: activeWorkspace?._id ?? null,
             isLoading,
             isAuthenticated,
         }),
-        [clerkId, activeWorkspace?._id, isLoading, isAuthenticated],
+        [clerkId, user?._id, activeWorkspace?._id, isLoading, isAuthenticated],
     );
 
     return (

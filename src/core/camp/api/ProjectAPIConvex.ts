@@ -15,6 +15,7 @@ import { useWorkspaceContext } from "./useWorkspaceHooks";
 import {
     convexProjectToProject,
     convexProjectsToProjects,
+    convexProjectsWithCreatorsToProjectsWithCreators,
     stringToConvexIdStrict,
     isSentinelProjectId,
 } from "./convexTypes";
@@ -155,6 +156,40 @@ export function useProjectsWithChatCountsQueryConvex() {
               ...convexProjectToProject(p),
               chatCount: p.chatCount,
           }))
+        : undefined;
+
+    return {
+        data,
+        isLoading: contextLoading || result === undefined,
+        isError: false,
+        error: null,
+    };
+}
+
+/**
+ * Hook to list projects with creator information for attribution
+ * Used in list views like Team Projects page
+ */
+export function useProjectsWithCreatorsQueryConvex() {
+    const {
+        clerkId,
+        workspaceId,
+        isLoading: contextLoading,
+    } = useWorkspaceContext();
+
+    // Skip Convex queries when not using Convex data layer
+    const shouldSkip = !campConfig.useConvexData;
+
+    const result = useQuery(
+        api.projects.listWithCreators,
+        !shouldSkip && clerkId && workspaceId
+            ? { clerkId, workspaceId }
+            : "skip",
+    );
+
+    // Transform to frontend types with creator added
+    const data = result
+        ? convexProjectsWithCreatorsToProjectsWithCreators(result)
         : undefined;
 
     return {

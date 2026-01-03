@@ -10,6 +10,7 @@ import { Id } from "@convex/_generated/dataModel";
 // Context value type
 export interface WorkspaceContextValue {
     clerkId: string | null;
+    userId: Id<"users"> | null;
     workspaceId: Id<"workspaces"> | null;
     isLoading: boolean;
     isAuthenticated: boolean;
