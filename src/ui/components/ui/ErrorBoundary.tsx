@@ -27,6 +27,14 @@ class ErrorBoundary extends Component<Props, State> {
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error("Uncaught error:", error, errorInfo);
 
+        // Check if this is a "Chat not found" error from Convex
+        // If so, navigate to home immediately without showing error UI
+        if (error.message && error.message.includes("Chat not found")) {
+            console.log("Chat not found error detected, navigating to home...");
+            window.location.href = "/";
+            return;
+        }
+
         // Save errorInfo to state so we can show it in UI
         this.setState({ errorInfo });
 
