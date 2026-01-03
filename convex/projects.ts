@@ -124,6 +124,52 @@ export const listWithChatCounts = query({
     },
 });
 
+/**
+ * List projects with creator info for attribution (e.g., Team Projects page)
+ */
+export const listWithCreators = query({
+    args: {
+        clerkId: v.string(),
+        workspaceId: v.id("workspaces"),
+    },
+    handler: async (ctx, args) => {
+        const user = await getUserByClerkIdOrThrow(ctx, args.clerkId);
+
+        // Verify workspace access
+        await assertCanAccessWorkspace(ctx, args.workspaceId, user._id);
+
+        // Get all non-deleted projects in workspace
+        const projects = await ctx.db
+            .query("projects")
+            .withIndex("by_workspace", (q) =>
+                q.eq("workspaceId", args.workspaceId),
+            )
+            .filter((q) => q.eq(q.field("deletedAt"), undefined))
+            .collect();
+
+        // Get creator info for each project
+        const projectsWithCreators = await Promise.all(
+            projects.map(async (project) => {
+                const creator = await ctx.db.get(project.createdBy);
+                return {
+                    ...project,
+                    creator:
+                        creator && !creator.deletedAt
+                            ? {
+                                  id: creator._id,
+                                  displayName: creator.displayName,
+                                  avatarUrl: creator.avatarUrl,
+                              }
+                            : undefined,
+                };
+            }),
+        );
+
+        // Sort by most recent first
+        return projectsWithCreators.sort((a, b) => b.updatedAt - a.updatedAt);
+    },
+});
+
 // ============================================================
 // Mutations
 // ============================================================

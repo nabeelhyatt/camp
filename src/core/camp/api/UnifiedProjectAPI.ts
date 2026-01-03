@@ -16,6 +16,7 @@ import {
     useProjectsQueryConvex,
     useProjectQueryConvex,
     useProjectsWithChatCountsQueryConvex,
+    useProjectsWithCreatorsQueryConvex,
     useCreateProjectConvex,
     useRenameProjectConvex,
     useDeleteProjectConvex,
@@ -62,6 +63,9 @@ export {
     type Project,
     type Projects,
 };
+
+// Re-export ProjectWithCreator type for Team Projects page
+export type { ProjectWithCreator } from "./convexTypes";
 
 /**
  * Mark project context summary as stale
@@ -177,6 +181,32 @@ export function useProjectsWithChatCountsQuery() {
     }
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return useQuery(projectQueries.list());
+}
+
+/**
+ * List projects with creator information for attribution
+ * Used in list views like Team Projects page
+ *
+ * NOTE: We branch on campConfig.useConvexData which is a build-time constant.
+ */
+export function useProjectsWithCreatorsQuery() {
+    if (campConfig.useConvexData) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useProjectsWithCreatorsQueryConvex();
+    }
+
+    // SQLite doesn't have creator info - fall back to regular projects query
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const sqliteResult = useQuery(projectQueries.list());
+
+    // Transform to add empty creator field
+    return {
+        ...sqliteResult,
+        data: sqliteResult.data?.map((project) => ({
+            ...project,
+            creator: undefined,
+        })),
+    };
 }
 
 // ============================================================

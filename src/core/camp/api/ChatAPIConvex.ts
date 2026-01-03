@@ -16,6 +16,7 @@ import {
     convexChatToChat,
     convexChatToConvexChat,
     convexChatsToChats,
+    convexChatsWithCreatorsToChatsWithCreators,
     stringToConvexId,
     isSentinelProjectId,
     isQuickChatByProjectId,
@@ -158,6 +159,39 @@ export function useUngroupedChatsQueryConvex() {
     );
 
     const data = result ? convexChatsToChats(result) : undefined;
+
+    return {
+        data,
+        isLoading: contextLoading || result === undefined,
+        isError: false,
+        error: null,
+    };
+}
+
+/**
+ * Hook to list chats with creator information for attribution
+ * Used in list views like Team Projects page
+ */
+export function useChatsWithCreatorsQueryConvex() {
+    const {
+        clerkId,
+        workspaceId,
+        isLoading: contextLoading,
+    } = useWorkspaceContext();
+
+    // Skip Convex queries when not using Convex data layer
+    const shouldSkip = !campConfig.useConvexData;
+
+    const result = useQuery(
+        api.chats.listWithCreators,
+        !shouldSkip && clerkId && workspaceId
+            ? { clerkId, workspaceId }
+            : "skip",
+    );
+
+    const data = result
+        ? convexChatsWithCreatorsToChatsWithCreators(result)
+        : undefined;
 
     return {
         data,
