@@ -1110,31 +1110,33 @@ function ToolsTab() {
                                 />
                             ))}
 
-                            {/* Team MCPs (shared by teammates) */}
+                            {/* Team MCPs (shared by teammates, excluding user's own) */}
                             {teamMcps &&
-                                teamMcps.map((mcp) => (
-                                    <TeamMcpRow
-                                        key={mcp._id}
-                                        mcp={mcp}
-                                        onSetupCredentials={(m) =>
-                                            setSetupMcp(m)
-                                        }
-                                        onUnshare={async (mcpId) => {
-                                            try {
-                                                await unshareMcp(mcpId);
-                                                toast.success(
-                                                    "MCP removed from team",
-                                                );
-                                            } catch (error) {
-                                                toast.error(
-                                                    error instanceof Error
-                                                        ? error.message
-                                                        : "Failed to unshare MCP",
-                                                );
+                                teamMcps
+                                    .filter((mcp) => !mcp.isSharer)
+                                    .map((mcp) => (
+                                        <TeamMcpRow
+                                            key={mcp._id}
+                                            mcp={mcp}
+                                            onSetupCredentials={(m) =>
+                                                setSetupMcp(m)
                                             }
-                                        }}
-                                    />
-                                ))}
+                                            onUnshare={async (mcpId) => {
+                                                try {
+                                                    await unshareMcp(mcpId);
+                                                    toast.success(
+                                                        "MCP removed from team",
+                                                    );
+                                                } catch (error) {
+                                                    toast.error(
+                                                        error instanceof Error
+                                                            ? error.message
+                                                            : "Failed to unshare MCP",
+                                                    );
+                                                }
+                                            }}
+                                        />
+                                    ))}
 
                             {/* Empty state */}
                             {customToolsetConfigs.length === 0 &&
@@ -1334,9 +1336,12 @@ function ApiKeysTab() {
     const handleSelectTeamKey = (
         key: NonNullable<typeof teamApiKeys>[number],
     ) => {
-        toast.success(`Using ${key.sharerSnapshot?.displayName}'s key`, {
-            description: `Team key for ${key.provider} is now active`,
-        });
+        toast.success(
+            `Using ${key.sharerSnapshot?.displayName ?? "a team member"}'s key`,
+            {
+                description: `Team key for ${key.provider} is now active`,
+            },
+        );
     };
 
     return (

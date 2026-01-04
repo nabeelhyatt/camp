@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Switch } from "./switch";
 import { LockIcon, GlobeIcon } from "lucide-react";
 import { useCurrentUser } from "@core/camp/auth/useCurrentUser";
@@ -20,23 +21,22 @@ function OrgIcon({
     domain: string | undefined;
     className?: string;
 }) {
-    // For personal domains or missing domain, use globe icon
-    if (!domain || domain.startsWith("personal-")) {
+    const [hasError, setHasError] = useState(false);
+
+    // For personal domains, missing domain, or load errors, use globe icon
+    if (!domain || domain.startsWith("personal-") || hasError) {
         return <GlobeIcon className={className} strokeWidth={1.5} />;
     }
 
-    // Use Google's favicon service
-    const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    // Use Google's favicon service with URL encoding
+    const faviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`;
 
     return (
         <img
             src={faviconUrl}
             alt=""
             className={className}
-            onError={(e) => {
-                // Hide image on error, parent should have fallback styling
-                e.currentTarget.style.display = "none";
-            }}
+            onError={() => setHasError(true)}
         />
     );
 }
