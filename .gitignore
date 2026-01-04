@@ -29,6 +29,7 @@ dist-ssr
 src-tauri/target
 .tauri-private-key
 .tauri-private-key.pub
+Certificates.p12
 
 # pnpm specific
 .pnpm-store/
