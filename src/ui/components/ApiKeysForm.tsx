@@ -3,21 +3,57 @@ import { Label } from "./ui/label";
 import { ProviderName } from "@core/chorus/Models";
 import { ProviderLogo } from "./ui/provider-logo";
 import { Card } from "./ui/card";
-import { CheckIcon, FlameIcon } from "lucide-react";
-import { useState } from "react";
+import { CheckIcon, FlameIcon, Users } from "lucide-react";
+import { useState, useMemo } from "react";
+import { PrivateTeamToggle } from "./ui/PrivateTeamToggle";
+import { TeamKeyPicker } from "./ui/TeamKeyPicker";
+import { TeamApiKey } from "@core/camp/api/TeamApiKeysAPI";
 
 interface ApiKeysFormProps {
     apiKeys: Record<string, string>;
     onApiKeyChange: (provider: string, value: string) => void;
+    // Team sharing props (optional for backward compatibility)
+    teamApiKeys?: TeamApiKey[];
+    userSharedProviders?: string[];
+    onShareKey?: (provider: string) => void;
+    onUnshareKey?: (provider: string) => void;
+    onSelectTeamKey?: (key: TeamApiKey) => void;
 }
 
 export default function ApiKeysForm({
     apiKeys,
     onApiKeyChange,
+    teamApiKeys,
+    userSharedProviders = [],
+    onShareKey,
+    onUnshareKey,
+    onSelectTeamKey,
 }: ApiKeysFormProps) {
     const [selectedProvider, setSelectedProvider] = useState<string | null>(
         null,
     );
+
+    // Get team keys for the selected provider
+    const teamKeysForProvider = useMemo(() => {
+        if (!selectedProvider || !teamApiKeys) return [];
+        return teamApiKeys.filter((key) => key.provider === selectedProvider);
+    }, [selectedProvider, teamApiKeys]);
+
+    // Check if the user has shared a key for the selected provider
+    const isSharedByUser = useMemo(() => {
+        if (!selectedProvider) return false;
+        return userSharedProviders.includes(selectedProvider);
+    }, [selectedProvider, userSharedProviders]);
+
+    // Handle toggle between private and team
+    const handleShareToggle = (isTeam: boolean) => {
+        if (!selectedProvider) return;
+        if (isTeam && onShareKey) {
+            onShareKey(selectedProvider);
+        } else if (!isTeam && onUnshareKey) {
+            onUnshareKey(selectedProvider);
+        }
+    };
 
     const providers = [
         {
@@ -88,9 +124,18 @@ export default function ApiKeysForm({
                             )}
                             <span className="font-medium">{provider.name}</span>
                         </div>
+                        {/* Show check if user has their own key */}
                         {apiKeys[provider.id] && (
                             <div className="absolute top-2 right-2">
                                 <CheckIcon className="w-4 h-4 text-green-500" />
+                            </div>
+                        )}
+                        {/* Show team indicator if team keys exist for this provider */}
+                        {teamApiKeys?.some(
+                            (k) => k.provider === provider.id,
+                        ) && (
+                            <div className="absolute top-2 left-2">
+                                <Users className="w-3 h-3 text-muted-foreground" />
                             </div>
                         )}
                     </Card>
@@ -99,47 +144,80 @@ export default function ApiKeysForm({
 
             {selectedProvider && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-top-4">
-                    <div className="space-y-2">
-                        <Label htmlFor={`${selectedProvider}-key`}>
-                            {
-                                providers.find((p) => p.id === selectedProvider)
-                                    ?.name
-                            }{" "}
-                            API Key
-                        </Label>
-                        <Input
-                            id={`${selectedProvider}-key`}
-                            type="password"
-                            placeholder={
-                                providers.find((p) => p.id === selectedProvider)
-                                    ?.placeholder
-                            }
-                            value={apiKeys[selectedProvider] || ""}
-                            onChange={(e) =>
-                                onApiKeyChange(selectedProvider, e.target.value)
-                            }
-                        />
-                        <p className="text-sm text-muted-foreground">
-                            <a
-                                href={
-                                    providers.find(
-                                        (p) => p.id === selectedProvider,
-                                    )?.url
-                                }
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                Get{" "}
+                    {/* Your Key Section */}
+                    <div className="space-y-3 border rounded-lg p-4">
+                        <h4 className="font-medium text-sm text-muted-foreground">
+                            Your Key
+                        </h4>
+                        <div className="space-y-2">
+                            <Label htmlFor={`${selectedProvider}-key`}>
                                 {
                                     providers.find(
                                         (p) => p.id === selectedProvider,
                                     )?.name
                                 }{" "}
-                                API key
-                            </a>
-                            .
-                        </p>
+                                API Key
+                            </Label>
+                            <Input
+                                id={`${selectedProvider}-key`}
+                                type="password"
+                                placeholder={
+                                    providers.find(
+                                        (p) => p.id === selectedProvider,
+                                    )?.placeholder
+                                }
+                                value={apiKeys[selectedProvider] || ""}
+                                onChange={(e) =>
+                                    onApiKeyChange(
+                                        selectedProvider,
+                                        e.target.value,
+                                    )
+                                }
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                <a
+                                    href={
+                                        providers.find(
+                                            (p) => p.id === selectedProvider,
+                                        )?.url
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    Get{" "}
+                                    {
+                                        providers.find(
+                                            (p) => p.id === selectedProvider,
+                                        )?.name
+                                    }{" "}
+                                    API key
+                                </a>
+                                .
+                            </p>
+                        </div>
+
+                        {/* Private/Team Toggle - only show if user has a key and sharing is enabled */}
+                        {apiKeys[selectedProvider] &&
+                            onShareKey &&
+                            onUnshareKey && (
+                                <div className="pt-2 border-t">
+                                    <PrivateTeamToggle
+                                        isTeam={isSharedByUser}
+                                        onToggle={handleShareToggle}
+                                    />
+                                </div>
+                            )}
                     </div>
+
+                    {/* Team Keys Section - only show if there are team keys */}
+                    {teamKeysForProvider.length > 0 && onSelectTeamKey && (
+                        <div className="border rounded-lg p-4">
+                            <TeamKeyPicker
+                                teamKeys={teamKeysForProvider}
+                                onSelect={onSelectTeamKey}
+                            />
+                        </div>
+                    )}
                 </div>
             )}
         </div>

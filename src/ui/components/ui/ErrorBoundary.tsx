@@ -45,6 +45,10 @@ class ErrorBoundary extends Component<Props, State> {
     }
 
     private handleReload = () => {
+        // Use history.replaceState to clear the current URL from history
+        // This prevents the browser from navigating back to a broken chat URL
+        window.history.replaceState(null, "", "/");
+
         // Navigate to root route by updating window.location
         // This triggers a full page reload which resets all React state
         // Do NOT call setState here - it causes a race condition where the error
