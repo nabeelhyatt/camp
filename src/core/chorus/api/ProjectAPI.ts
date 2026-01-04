@@ -6,7 +6,7 @@ import * as Prompts from "../prompts/prompts";
 import { produce } from "immer";
 import { useGetMessageSets } from "./MessageAPI";
 import { llmConversation } from "../ChatState";
-import { simpleSummarizeLLM } from "../simpleLLM";
+import { simpleLLM, simpleSummarizeLLM } from "../simpleLLM";
 import _ from "lodash";
 import { useNavigate } from "react-router-dom";
 import { db } from "../DB";
@@ -652,6 +652,152 @@ export function useToggleProjectIsCollapsed() {
             await queryClient.invalidateQueries(
                 projectQueries.detail(variables.projectId),
             );
+        },
+    });
+}
+
+/**
+ * Hook to generate a title for a project.
+ * Only generates if the project has no name (empty string).
+ * Uses project context if available, otherwise falls back to first chat message.
+ */
+export function useGenerateProjectTitle() {
+    const queryClient = useQueryClient();
+    const getMessageSets = useGetMessageSets();
+
+    return useMutation({
+        mutationKey: ["generateProjectTitle"] as const,
+        mutationFn: async ({
+            projectId,
+            chatId,
+        }: {
+            projectId: string;
+            chatId?: string;
+        }) => {
+            // Check if project already has a name
+            const project = await queryClient.ensureQueryData(
+                projectQueries.detail(projectId),
+            );
+            if (project?.name && project.name.trim() !== "") {
+                console.log(
+                    "Skipping project title generation - already has name",
+                    projectId,
+                );
+                return { skipped: true };
+            }
+
+            // Gather content from all available sources
+            let contentForTitle: string | undefined =
+                await fetchProjectContextText(projectId);
+            let contentSource = "context";
+
+            // Also check project attachments
+            const attachments = await fetchProjectContextAttachments(projectId);
+            if (attachments && attachments.length > 0) {
+                const attachmentNames = attachments
+                    .map((a) => a.originalName)
+                    .join(", ");
+                if (contentForTitle) {
+                    contentForTitle += `\n\nAttached files: ${attachmentNames}`;
+                } else {
+                    contentForTitle = `Attached files: ${attachmentNames}`;
+                    contentSource = "attachments";
+                }
+            }
+
+            // If no project context and we have a chatId, try to get first user message
+            if (!contentForTitle && chatId) {
+                const messageSets = await getMessageSets(chatId);
+                contentForTitle = Array.from(messageSets)
+                    .reverse()
+                    .map((ms) => ms.userBlock?.message?.text)
+                    .find((m) => m !== undefined);
+                contentSource = "message";
+            }
+
+            if (!contentForTitle) {
+                console.log(
+                    "Skipping project title generation - no content found",
+                    projectId,
+                );
+                return { skipped: true };
+            }
+
+            // Truncate content if too long (context can be very large)
+            const truncatedContent =
+                contentForTitle.length > 2000
+                    ? contentForTitle.slice(0, 2000) + "..."
+                    : contentForTitle;
+
+            console.log(
+                `Generating project title from ${contentSource}`,
+                projectId,
+            );
+
+            const fullResponse = await simpleLLM(
+                `Write a 1-3 word title for this project. Put the most important word FIRST.
+
+Rules:
+- Be extremely concise: 1-3 words max
+- Lead with the main subject (company name, technology, specific topic)
+- Avoid filler words like "Setup", "Analysis", "Project" unless essential
+- No articles (a, an, the)
+- Fix obvious typos
+
+Examples of good titles:
+- "Discord" (not "Discord Analysis of Board Decks")
+- "Compound Engineering" (not "Setup for Compound Engineering")
+- "React Performance" (not "Optimizing React App Performance")
+- "Series B Deck" (not "Building Our Series B Pitch Deck")
+- "User Auth Flow" (not "Implementing User Authentication")
+- "Stripe Integration" (not "How to Integrate Stripe Payments")
+
+If there's no clear topic, return "Untitled Project".
+
+Format your response as <title>YOUR TITLE HERE</title>.
+
+<content>
+${truncatedContent}
+</content>`,
+                {
+                    model: "claude-3-5-sonnet-latest",
+                    maxTokens: 100,
+                },
+            );
+
+            // Extract title from XML tags and clean it up
+            const match = fullResponse.match(/<title>(.*?)<\/title>/s);
+            if (!match || !match[1]) {
+                console.warn(
+                    "No project title found in response:",
+                    fullResponse,
+                );
+                return { skipped: true };
+            }
+
+            const cleanTitle = match[1]
+                .trim()
+                .slice(0, 40)
+                .replace(/["']/g, "");
+
+            if (cleanTitle && cleanTitle !== "Untitled Project") {
+                console.log("Setting project title to:", cleanTitle);
+                await db.execute(
+                    "UPDATE projects SET name = $1 WHERE id = $2",
+                    [cleanTitle, projectId],
+                );
+                return { title: cleanTitle };
+            }
+
+            return { skipped: true };
+        },
+        onSuccess: async (data, variables) => {
+            if (!data?.skipped) {
+                await queryClient.invalidateQueries(projectQueries.list());
+                await queryClient.invalidateQueries(
+                    projectQueries.detail(variables.projectId),
+                );
+            }
         },
     });
 }

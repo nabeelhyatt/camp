@@ -17,7 +17,7 @@ import { captureWholeScreenCompressed } from "@core/chorus/screenshot";
 import * as ProjectAPI from "@core/camp/api/UnifiedProjectAPI";
 import * as DraftAPI from "@core/chorus/api/DraftAPI";
 import { invoke } from "@tauri-apps/api/core";
-import { SettingsManager } from "@core/utilities/Settings";
+import { getApiKeys } from "@core/chorus/api/AppMetadataAPI";
 
 export function useFilePaste({
     association,
@@ -200,17 +200,17 @@ export function useAttachUrl({
         mutationFn: async ({ url }: { url: string }) => {
             const path = await generateStorePath(url, "md");
 
-            // Get Firecrawl API key from settings
-            const settings = await SettingsManager.getInstance().get();
-            const firecrawlApiKey = settings.apiKeys?.firecrawl;
+            // Get Firecrawl API key (includes default from env fallback)
+            const apiKeys = await getApiKeys();
 
-            if (!firecrawlApiKey) {
+            if (!apiKeys.firecrawl) {
                 toast.error("Firecrawl API key not configured", {
                     description:
                         "Please add your Firecrawl API key in Settings to scrape URLs.",
                 });
                 return;
             }
+            const firecrawlApiKey = apiKeys.firecrawl;
 
             // Check rate limit
             if (!canScrape()) {

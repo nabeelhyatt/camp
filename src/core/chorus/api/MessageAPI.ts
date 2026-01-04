@@ -2907,6 +2907,19 @@ export function useGenerateChatTitle() {
                 return { skipped: true };
             }
 
+            // Get project name if chat belongs to a project
+            let projectName: string | undefined;
+            if (
+                chat?.projectId &&
+                chat.projectId !== "default" &&
+                chat.projectId !== "quick-chat"
+            ) {
+                const project = await queryClient.ensureQueryData(
+                    projectQueries.detail(chat.projectId),
+                );
+                projectName = project?.name;
+            }
+
             const messageSets = await getMessageSets(chatId);
             const userMessageText = Array.from(messageSets) // copy so we can reverse
                 .reverse()
@@ -2918,9 +2931,35 @@ export function useGenerateChatTitle() {
                 return { skipped: true };
             }
 
+            // Build prompt with optional project context
+            const projectContext = projectName
+                ? `\nThis chat is inside a project called "${projectName}". Do NOT repeat the project name in the chat title - instead, describe what THIS SPECIFIC CHAT is about within that project context.\n`
+                : "";
+
             const fullResponse = await simpleLLM(
-                `Based on this first message, write a 1-5 word title for the conversation. Try to put the most important words first. Format your response as <title>YOUR TITLE HERE</title>.
-If there's no information in the message, just return "Untitled Chat".
+                `Write a 1-3 word title for this conversation. Put the most important word FIRST.
+${projectContext}
+Rules:
+- Be extremely concise: 1-3 words max
+- Lead with the main subject (company name, technology, specific topic)
+- Avoid filler words like "Setup", "Analysis", "Project", "Discussion", "Planning" unless essential
+- No articles (a, an, the)
+- Fix obvious typos in the user's message
+- If inside a project, don't repeat the project name
+
+Examples of good titles:
+- "Discord" (not "Discord Analysis of Board Decks")
+- "Compound Engineering" (not "Setup for Compound Engineering")
+- "React Performance" (not "Optimizing React App Performance")
+- "Series B Deck" (not "Building Our Series B Pitch Deck")
+- "User Auth Flow" (not "Implementing User Authentication")
+- "Stripe Integration" (not "How to Integrate Stripe Payments")
+- Inside "Tabletop Library" project: "Dewey System" (not "Tabletop Library Planning")
+
+If there's no clear topic, return "Untitled Chat".
+
+Format your response as <title>YOUR TITLE HERE</title>.
+
 <message>
 ${userMessageText}
 </message>`,

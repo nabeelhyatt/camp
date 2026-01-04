@@ -1,35 +1,49 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { SettingsManager } from "@core/utilities/Settings";
+import OpenAI from "openai";
+import { getApiKeys } from "@core/chorus/api/AppMetadataAPI";
 
 type SimpleLLMParams = {
     model: string;
     maxTokens: number;
 };
 
+// Map Anthropic model names to OpenRouter equivalents
+const ANTHROPIC_TO_OPENROUTER_MODEL: Record<string, string> = {
+    "claude-3-5-sonnet-latest": "anthropic/claude-3.5-sonnet",
+    "claude-3-5-sonnet-20241022": "anthropic/claude-3.5-sonnet",
+    "claude-3-opus-20240229": "anthropic/claude-3-opus",
+    "claude-3-sonnet-20240229": "anthropic/claude-3-sonnet",
+    "claude-3-haiku-20240307": "anthropic/claude-3-haiku",
+};
+
 /**
- * Makes a simple LLM call using the Anthropic SDK directly.
- * Used for generating chat titles.
+ * Makes a simple LLM call via OpenRouter.
+ * Used as fallback when no Anthropic API key is available.
  */
-export async function simpleLLM(
+async function simpleLLMViaOpenRouter(
     prompt: string,
     params: SimpleLLMParams,
+    apiKey: string,
 ): Promise<string> {
-    const settingsManager = SettingsManager.getInstance();
-    const settings = await settingsManager.get();
-    const apiKey = settings.apiKeys?.anthropic;
-
-    if (!apiKey) {
-        throw new Error("Please add your Anthropic API key in Settings.");
-    }
-
-    const client = new Anthropic({
+    const client = new OpenAI({
+        baseURL: "https://openrouter.ai/api/v1",
         apiKey,
+        defaultHeaders: {
+            "HTTP-Referer": "https://getcamp.ai",
+            "X-Title": "Camp",
+        },
         dangerouslyAllowBrowser: true,
     });
 
-    const stream = client.messages.stream({
-        model: params.model,
+    // Map the Anthropic model name to OpenRouter format
+    const openRouterModel =
+        ANTHROPIC_TO_OPENROUTER_MODEL[params.model] ||
+        `anthropic/${params.model}`;
+
+    const stream = await client.chat.completions.create({
+        model: openRouterModel,
         max_tokens: params.maxTokens,
+        stream: true,
         messages: [
             {
                 role: "user",
@@ -40,13 +54,65 @@ export async function simpleLLM(
 
     let fullResponse = "";
 
-    stream.on("text", (text: string) => {
-        fullResponse += text;
-    });
-
-    await stream.finalMessage();
+    for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) {
+            fullResponse += content;
+        }
+    }
 
     return fullResponse;
+}
+
+/**
+ * Makes a simple LLM call using the Anthropic SDK directly.
+ * Falls back to OpenRouter if no Anthropic API key is available.
+ * Used for generating chat titles.
+ */
+export async function simpleLLM(
+    prompt: string,
+    params: SimpleLLMParams,
+): Promise<string> {
+    // Use centralized API key management (includes default OpenRouter fallback)
+    const apiKeys = await getApiKeys();
+
+    // Try Anthropic first if available
+    if (apiKeys.anthropic) {
+        const client = new Anthropic({
+            apiKey: apiKeys.anthropic,
+            dangerouslyAllowBrowser: true,
+        });
+
+        const stream = client.messages.stream({
+            model: params.model,
+            max_tokens: params.maxTokens,
+            messages: [
+                {
+                    role: "user",
+                    content: prompt,
+                },
+            ],
+        });
+
+        let fullResponse = "";
+
+        stream.on("text", (text: string) => {
+            fullResponse += text;
+        });
+
+        await stream.finalMessage();
+
+        return fullResponse;
+    }
+
+    // Fall back to OpenRouter (getApiKeys already includes default from env)
+    if (apiKeys.openrouter) {
+        return simpleLLMViaOpenRouter(prompt, params, apiKeys.openrouter);
+    }
+
+    throw new Error(
+        "Please add your Anthropic or OpenRouter API key in Settings.",
+    );
 }
 
 /**
@@ -57,11 +123,10 @@ export async function simpleSummarizeLLM(
     prompt: string,
     params: SimpleLLMParams,
 ): Promise<string> {
-    const settingsManager = SettingsManager.getInstance();
-    const settings = await settingsManager.get();
-    const apiKey = settings.apiKeys?.google;
+    // Use centralized API key management
+    const apiKeys = await getApiKeys();
 
-    if (!apiKey) {
+    if (!apiKeys.google) {
         throw new Error("Please add your Google AI API key in Settings.");
     }
 
@@ -72,7 +137,7 @@ export async function simpleSummarizeLLM(
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`,
+                Authorization: `Bearer ${apiKeys.google}`,
             },
             body: JSON.stringify({
                 model: params.model,

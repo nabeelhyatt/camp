@@ -257,6 +257,7 @@ export function usePrivateForksQueryConvex() {
 export function useGetOrCreateNewChatConvex() {
     const { clerkId, workspaceId } = useWorkspaceContext();
     const createChat = useMutation(api.chats.create);
+    const convex = useConvex();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
 
@@ -301,6 +302,137 @@ export function useGetOrCreateNewChatConvex() {
                 void queryClient.invalidateQueries({
                     queryKey: chatKeys.all(),
                 });
+
+                // If creating chat in a project, try to generate project title from context
+                // (will be skipped if project already has a name or no context)
+                if (convexProjectId) {
+                    try {
+                        // Check if project needs a title
+                        const project = await convex.query(api.projects.get, {
+                            clerkId,
+                            projectId: convexProjectId,
+                        });
+
+                        if (
+                            project &&
+                            (!project.name || project.name.trim() === "")
+                        ) {
+                            // Gather content from all available sources
+                            let contentForTitle = project.contextText || "";
+
+                            // Also check SQLite project attachments (stored locally even in Convex mode)
+                            // Project ID in Convex is the full string ID
+                            const projectIdStr = String(convexProjectId);
+                            try {
+                                const { fetchProjectContextAttachments } =
+                                    await import("@core/chorus/api/ProjectAPI");
+                                const attachments =
+                                    await fetchProjectContextAttachments(
+                                        projectIdStr,
+                                    );
+
+                                if (attachments && attachments.length > 0) {
+                                    // Use attachment filenames as context for title generation
+                                    const attachmentNames = attachments
+                                        .map((a) => a.originalName)
+                                        .join(", ");
+                                    if (contentForTitle) {
+                                        contentForTitle += `\n\nAttached files: ${attachmentNames}`;
+                                    } else {
+                                        contentForTitle = `Attached files: ${attachmentNames}`;
+                                    }
+                                }
+                            } catch (attachError) {
+                                // SQLite may not be available or have this project
+                                console.debug(
+                                    "[useGetOrCreateNewChatConvex] Could not fetch project attachments:",
+                                    attachError,
+                                );
+                            }
+
+                            if (contentForTitle) {
+                                // Dynamic import simpleLLM
+                                const { simpleLLM } = await import(
+                                    "@core/chorus/simpleLLM"
+                                );
+
+                                const truncatedContent =
+                                    contentForTitle.length > 2000
+                                        ? contentForTitle.slice(0, 2000) + "..."
+                                        : contentForTitle;
+
+                                const fullResponse = await simpleLLM(
+                                    `Write a 1-3 word title for this project. Put the most important word FIRST.
+
+Rules:
+- Be extremely concise: 1-3 words max
+- Lead with the main subject (company name, technology, specific topic)
+- Avoid filler words like "Setup", "Analysis", "Project" unless essential
+- No articles (a, an, the)
+- Fix obvious typos
+
+Examples of good titles:
+- "Discord" (not "Discord Analysis")
+- "React Performance" (not "Optimizing React")
+- "Series B Deck" (not "Building Pitch Deck")
+
+If there's no clear topic, return "Untitled Project".
+
+Format your response as <title>YOUR TITLE HERE</title>.
+
+<content>
+${truncatedContent}
+</content>`,
+                                    {
+                                        model: "claude-3-5-sonnet-latest",
+                                        maxTokens: 100,
+                                    },
+                                );
+
+                                const match = fullResponse.match(
+                                    /<title>(.*?)<\/title>/s,
+                                );
+                                if (match?.[1]) {
+                                    const cleanTitle = match[1]
+                                        .trim()
+                                        .slice(0, 40)
+                                        .replace(/["']/g, "");
+
+                                    if (
+                                        cleanTitle &&
+                                        cleanTitle !== "Untitled Project"
+                                    ) {
+                                        console.log(
+                                            "[useGetOrCreateNewChatConvex] Auto-generating project title:",
+                                            cleanTitle,
+                                        );
+
+                                        // Use convex client directly for mutation
+                                        await convex.mutation(
+                                            api.projects.update,
+                                            {
+                                                clerkId,
+                                                projectId: convexProjectId,
+                                                name: cleanTitle,
+                                            },
+                                        );
+
+                                        void queryClient.invalidateQueries({
+                                            queryKey: ["projects"],
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        // Don't fail chat creation if title generation fails
+                        console.warn(
+                            "[useGetOrCreateNewChatConvex] Project title generation failed:",
+                            error,
+                        );
+                    }
+                }
+
                 navigate(`/chat/${chatId}`);
 
                 return String(chatId);
@@ -699,12 +831,52 @@ export function useGenerateChatTitleConvex() {
                     return { skipped: true };
                 }
 
+                // Get project name if chat belongs to a project
+                let projectName: string | undefined;
+                if (chat?.projectId) {
+                    try {
+                        const project = await convex.query(api.projects.get, {
+                            clerkId,
+                            projectId: chat.projectId,
+                        });
+                        projectName = project?.name;
+                    } catch {
+                        // Project may not exist, continue without it
+                    }
+                }
+
+                // Build prompt with optional project context
+                const projectContext = projectName
+                    ? `\nThis chat is inside a project called "${projectName}". Do NOT repeat the project name in the chat title - instead, describe what THIS SPECIFIC CHAT is about within that project context.\n`
+                    : "";
+
                 // Dynamic import simpleLLM to avoid loading when not needed
                 const { simpleLLM } = await import("@core/chorus/simpleLLM");
 
                 const fullResponse = await simpleLLM(
-                    `Based on this first message, write a 1-5 word title for the conversation. Try to put the most important words first. Format your response as <title>YOUR TITLE HERE</title>.
-If there's no information in the message, just return "Untitled Chat".
+                    `Write a 1-3 word title for this conversation. Put the most important word FIRST.
+${projectContext}
+Rules:
+- Be extremely concise: 1-3 words max
+- Lead with the main subject (company name, technology, specific topic)
+- Avoid filler words like "Setup", "Analysis", "Project", "Discussion", "Planning" unless essential
+- No articles (a, an, the)
+- Fix obvious typos in the user's message
+- If inside a project, don't repeat the project name
+
+Examples of good titles:
+- "Discord" (not "Discord Analysis of Board Decks")
+- "Compound Engineering" (not "Setup for Compound Engineering")
+- "React Performance" (not "Optimizing React App Performance")
+- "Series B Deck" (not "Building Our Series B Pitch Deck")
+- "User Auth Flow" (not "Implementing User Authentication")
+- "Stripe Integration" (not "How to Integrate Stripe Payments")
+- Inside "Tabletop Library" project: "Dewey System" (not "Tabletop Library Planning")
+
+If there's no clear topic, return "Untitled Chat".
+
+Format your response as <title>YOUR TITLE HERE</title>.
+
 <message>
 ${userMessageText}
 </message>`,
