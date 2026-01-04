@@ -33,18 +33,17 @@ jobs:
           - platform: macos-latest
             target: aarch64-apple-darwin
             args: --target aarch64-apple-darwin
-          # macOS Intel (macos-13 retired, using macos-13-large)
-          - platform: macos-13-large
+          # macOS Intel
+          - platform: macos-15
             target: x86_64-apple-darwin
             args: --target x86_64-apple-darwin
-          # Windows
-          - platform: windows-latest
-            target: x86_64-pc-windows-msvc
-            args: ""
-          # Linux
-          - platform: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            args: ""
+          # Windows and Linux disabled until binaries are available
+          # - platform: windows-latest
+          #   target: x86_64-pc-windows-msvc
+          #   args: ""
+          # - platform: ubuntu-22.04
+          #   target: x86_64-unknown-linux-gnu
+          #   args: ""
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -60,6 +59,12 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+
+      # Use Python 3.11 which has distutils (needed for sqlite3 native build)
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
