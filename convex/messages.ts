@@ -48,6 +48,11 @@ export const listSets = query({
 /**
  * List message sets with their messages and author info
  * This is the main query for rendering a chat
+ *
+ * Optimized to avoid N+1 queries:
+ * - Fetches all messages for the chat in one query
+ * - Fetches all parts for those messages in one query
+ * - Assembles hierarchical structure in memory
  */
 export const listSetsWithMessages = query({
     args: {
@@ -60,55 +65,93 @@ export const listSetsWithMessages = query({
         // Verify chat access
         const chat = await assertCanAccessChat(ctx, args.chatId, user._id);
 
+        // Fetch all message sets for this chat
         const messageSets = await ctx.db
             .query("messageSets")
             .withIndex("by_chat", (q) => q.eq("chatId", args.chatId))
             .filter((q) => q.eq(q.field("deletedAt"), undefined))
             .collect();
 
-        // For each message set, get messages and parts
-        const setsWithMessages = await Promise.all(
-            messageSets.map(async (set) => {
-                const messages = await ctx.db
-                    .query("messages")
-                    .withIndex("by_message_set", (q) =>
-                        q.eq("messageSetId", set._id),
+        if (messageSets.length === 0) {
+            return [];
+        }
+
+        // Fetch ALL messages for this chat in one query (using chat index)
+        const allMessages = await ctx.db
+            .query("messages")
+            .withIndex("by_chat", (q) => q.eq("chatId", args.chatId))
+            .filter((q) => q.eq(q.field("deletedAt"), undefined))
+            .collect();
+
+        if (allMessages.length === 0) {
+            // No messages, return empty sets
+            const showAttribution =
+                chat.visibility !== "private" || chat.createdBy !== user._id;
+            return messageSets
+                .map((set) => ({
+                    ...set,
+                    messages: [],
+                    showAttribution,
+                }))
+                .sort((a, b) => a.createdAt - b.createdAt);
+        }
+
+        // Fetch ALL parts for all messages in parallel (batch by message ID)
+        const messageIds = allMessages.map((m) => m._id);
+        const allPartsArrays = await Promise.all(
+            messageIds.map((messageId) =>
+                ctx.db
+                    .query("messageParts")
+                    .withIndex("by_message", (q) =>
+                        q.eq("messageId", messageId),
                     )
                     .filter((q) => q.eq(q.field("deletedAt"), undefined))
-                    .collect();
-
-                // Get parts for each message
-                const messagesWithParts = await Promise.all(
-                    messages.map(async (msg) => {
-                        const parts = await ctx.db
-                            .query("messageParts")
-                            .withIndex("by_message", (q) =>
-                                q.eq("messageId", msg._id),
-                            )
-                            .filter((q) =>
-                                q.eq(q.field("deletedAt"), undefined),
-                            )
-                            .collect();
-
-                        return {
-                            ...msg,
-                            parts: parts.sort((a, b) => a.order - b.order),
-                        };
-                    }),
-                );
-
-                return {
-                    ...set,
-                    messages: messagesWithParts.sort(
-                        (a, b) => a.createdAt - b.createdAt,
-                    ),
-                    // Include chat visibility for UI to decide on attribution
-                    showAttribution:
-                        chat.visibility !== "private" ||
-                        chat.createdBy !== user._id,
-                };
-            }),
+                    .collect(),
+            ),
         );
+
+        // Build parts lookup map: messageId -> parts[]
+        const partsMap = new Map<
+            (typeof messageIds)[number],
+            (typeof allPartsArrays)[number]
+        >();
+        messageIds.forEach((id, index) => {
+            partsMap.set(id, allPartsArrays[index] ?? []);
+        });
+
+        // Build messages lookup map: messageSetId -> messages[]
+        const messagesMap = new Map<
+            (typeof messageSets)[number]["_id"],
+            typeof allMessages
+        >();
+        for (const msg of allMessages) {
+            const existing = messagesMap.get(msg.messageSetId) ?? [];
+            existing.push(msg);
+            messagesMap.set(msg.messageSetId, existing);
+        }
+
+        // Assemble the hierarchical structure
+        const showAttribution =
+            chat.visibility !== "private" || chat.createdBy !== user._id;
+
+        const setsWithMessages = messageSets.map((set) => {
+            const messages = messagesMap.get(set._id) ?? [];
+
+            const messagesWithParts = messages
+                .map((msg) => ({
+                    ...msg,
+                    parts: (partsMap.get(msg._id) ?? []).sort(
+                        (a, b) => a.order - b.order,
+                    ),
+                }))
+                .sort((a, b) => a.createdAt - b.createdAt);
+
+            return {
+                ...set,
+                messages: messagesWithParts,
+                showAttribution,
+            };
+        });
 
         return setsWithMessages.sort((a, b) => a.createdAt - b.createdAt);
     },

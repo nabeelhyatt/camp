@@ -231,7 +231,7 @@ export default defineSchema({
         messageId: v.optional(v.id("messages")), // Can be attached during chat before message exists
         chatId: v.id("chats"),
         uploadedBy: v.id("users"),
-        storageId: v.string(), // Convex file storage ID
+        storageId: v.id("_storage"), // Convex file storage ID (type-safe)
         filename: v.string(),
         mimeType: v.string(),
         sizeBytes: v.number(),
