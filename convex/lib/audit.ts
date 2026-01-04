@@ -34,7 +34,10 @@ export type AuditAction =
     | "mcp.update"
     | "mcp.delete"
     | "mcp.enable"
-    | "mcp.disable";
+    | "mcp.disable"
+    // Attachment actions
+    | "attachment.upload"
+    | "attachment.delete";
 
 export type EntityType =
     | "workspace"
@@ -44,7 +47,8 @@ export type EntityType =
     | "messageSet"
     | "mcp"
     | "user"
-    | "invitation";
+    | "invitation"
+    | "attachment";
 
 interface AuditLogParams {
     workspaceId: Id<"workspaces">;

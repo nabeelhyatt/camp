@@ -205,23 +205,34 @@ export const listWithCreators = query({
             return chat.createdBy === user._id;
         });
 
-        // Get creator info for each chat
-        const chatsWithCreators = await Promise.all(
-            accessibleChats.map(async (chat) => {
-                const creator = await ctx.db.get(chat.createdBy);
-                return {
-                    ...chat,
-                    creator:
-                        creator && !creator.deletedAt
-                            ? {
-                                  id: creator._id,
-                                  displayName: creator.displayName,
-                                  avatarUrl: creator.avatarUrl,
-                              }
-                            : undefined,
-                };
-            }),
+        // Batch fetch all creators to avoid N+1 queries
+        const creatorIds = [
+            ...new Set(accessibleChats.map((c) => c.createdBy)),
+        ];
+        const creators = await Promise.all(
+            creatorIds.map((id) => ctx.db.get(id)),
         );
+
+        // Build lookup map for O(1) access
+        const creatorMap = new Map(
+            creatorIds.map((id, index) => [id, creators[index]]),
+        );
+
+        // Assemble chats with creators
+        const chatsWithCreators = accessibleChats.map((chat) => {
+            const creator = creatorMap.get(chat.createdBy);
+            return {
+                ...chat,
+                creator:
+                    creator && !creator.deletedAt
+                        ? {
+                              id: creator._id,
+                              displayName: creator.displayName,
+                              avatarUrl: creator.avatarUrl,
+                          }
+                        : undefined,
+            };
+        });
 
         // Sort by most recent first
         return chatsWithCreators.sort((a, b) => b.updatedAt - a.updatedAt);
@@ -306,27 +317,44 @@ export const listPrivateForks = query({
             )
             .collect();
 
-        // Get parent chat info for each fork (including deleted state)
-        const forksWithParent = await Promise.all(
-            privateForks.map(async (fork) => {
-                let parentChat = null;
-                if (fork.parentChatId) {
-                    const parent = await ctx.db.get(fork.parentChatId);
-                    if (parent) {
-                        parentChat = {
-                            id: parent._id,
-                            title: parent.title,
-                            isDeleted: !!parent.deletedAt,
-                        };
-                    }
-                }
-
-                return {
-                    ...fork,
-                    parentChat,
-                };
-            }),
+        // Batch fetch all parent chats to avoid N+1 queries
+        const parentChatIds = [
+            ...new Set(
+                privateForks
+                    .map((f) => f.parentChatId)
+                    .filter(
+                        (id): id is NonNullable<typeof id> => id !== undefined,
+                    ),
+            ),
+        ];
+        const parentChats = await Promise.all(
+            parentChatIds.map((id) => ctx.db.get(id)),
         );
+
+        // Build lookup map for O(1) access
+        const parentChatMap = new Map(
+            parentChatIds.map((id, index) => [id, parentChats[index]]),
+        );
+
+        // Assemble forks with parent info
+        const forksWithParent = privateForks.map((fork) => {
+            let parentChat = null;
+            if (fork.parentChatId) {
+                const parent = parentChatMap.get(fork.parentChatId);
+                if (parent) {
+                    parentChat = {
+                        id: parent._id,
+                        title: parent.title,
+                        isDeleted: !!parent.deletedAt,
+                    };
+                }
+            }
+
+            return {
+                ...fork,
+                parentChat,
+            };
+        });
 
         return forksWithParent.sort((a, b) => b.updatedAt - a.updatedAt);
     },
